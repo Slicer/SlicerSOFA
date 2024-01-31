@@ -1,6 +1,8 @@
 import logging
 import os
+import qt
 from typing import Annotated, Optional
+import pathlib
 
 import vtk
 
@@ -14,8 +16,8 @@ from slicer.parameterNodeWrapper import (
     WithinRange,
 )
 
-from slicer import vtkMRMLScalarVolumeNode
-
+from slicer import vtkMRMLModelNode
+from slicer import vtkMRMLIGTLConnectorNode
 
 #
 # SOFAOpenIGTLINKIF
@@ -49,11 +51,9 @@ and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR0132
         # Additional initialization step after application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
 
-
 #
 # Register sample data sets in Sample Data module
 #
-
 
 def registerSampleData():
     """Add data sets to Sample Data module."""
@@ -109,20 +109,11 @@ def registerSampleData():
 class SOFAOpenIGTLINKIFParameterNode:
     """
     The parameters needed by module.
-
-    inputVolume - The volume to threshold.
-    imageThreshold - The value at which to threshold the input volume.
-    invertThreshold - If true, will invert the threshold.
-    thresholdedVolume - The output volume that will contain the thresholded volume.
-    invertedVolume - The output volume that will contain the inverted thresholded volume.
     """
-
-    inputVolume: vtkMRMLScalarVolumeNode
-    imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
-    invertThreshold: bool = False
-    thresholdedVolume: vtkMRMLScalarVolumeNode
-    invertedVolume: vtkMRMLScalarVolumeNode
-
+    modelNode: vtkMRMLModelNode
+    igtlConnectorNode: vtkMRMLIGTLConnectorNode
+    savingDirectory: pathlib.Path
+    serverUp: bool
 
 #
 # SOFAOpenIGTLINKIFWidget
@@ -141,6 +132,14 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.logic = None
         self._parameterNode = None
         self._parameterNodeGuiTag = None
+
+        # These two variables are part of a workaround to solve a race condition
+        # between the parameter node update and the gui update (e.g., (1) when a dynamic
+        # property is defined in QT Designer and (2) a manual QT connect is defined and (3)
+        # the corresponding slot function needs an updated parameter node). This workaround
+        # uses a timer to make the slot function go last in the order of events.
+        self._timer = qt.QTimer()
+        self._timeout = False
 
     def setup(self) -> None:
         """Called when the user opens the module the first time and the widget is initialized."""
@@ -167,8 +166,17 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
+        ### SAVE SECTION
+
+        self.ui.SOFAMRMLModelNodeComboBox.connect('currentNodeChanged(vtkMRMLNode*)', self.onModelNodeComboBoxChanged)
+        self.ui.saveModelButton.connect('clicked(bool)', self.onSaveModelButtonPushed)
+
+        #### OpenIGTLink Connection SECTION
+        self.ui.serverActiveCheckBox.connect("clicked()", self.onActivateOpenIGTLinkConnectionClicked)
+
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
+        self.initializeGUI() # This is an addition to avoid initializing parameter node before connections
 
     def cleanup(self) -> None:
         """Called when the application closes and the module widget is destroyed."""
@@ -205,17 +213,16 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.setParameterNode(self.logic.getParameterNode())
 
         # Select default input nodes if nothing is selected yet to save a few clicks for the user
-        if not self._parameterNode.inputVolume:
-            firstVolumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
-            if firstVolumeNode:
-                self._parameterNode.inputVolume = firstVolumeNode
+        if not self._parameterNode.modelNode:
+            firstModelNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLModelNode")
+            if firstModelNode:
+                self._parameterNode.modelNode = firstModelNode
 
     def setParameterNode(self, inputParameterNode: Optional[SOFAOpenIGTLINKIFParameterNode]) -> None:
         """
         Set and observe parameter node.
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
         """
-
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
         self._parameterNode = inputParameterNode
@@ -224,7 +231,51 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
 
-#
+    def initializeGUI(self):
+        """
+            initailize the save directory using settings
+        """
+        self.ui.SOFADataDirectoryButton.directory = self.logic.getDefaultSOFASavingDirectory()
+
+    def onActivateOpenIGTLinkConnectionClicked(self):
+        """
+        Run processing when user clicks on the OpenIGTLink checkbox.
+        """
+        if self._timeout == False:
+            self._timeout = True
+            self._timer.singleShot(0, self.onActivateOpenIGTLinkConnectionClicked)
+            return
+
+        parameterNode = self.logic.getParameterNode()
+
+        if parameterNode.serverUp is True:
+            self.logic.StartOIGTLConnection() # Start connection
+        else:
+            self.logic.StopOIGTLConnection() # Stop connection
+
+        if self.logic.getConnectionStatus() == 1:
+            self.ui.OIGTLconnectionLabel.text = "OpenIGTLink server - ACTIVE" # Update displaying text
+        else:
+            self.ui.OIGTLconnectionLabel.text = "OpenIGTLink server - INACTIVE" # Update displaying text
+
+        self._timeout = False
+
+    def onModelNodeComboBoxChanged(self):
+        """
+        Runs when the SOFA model combo box is changed
+        """
+        self.ui.saveModelButton.setEnabled(self._parameterNode.modelNode is not None)
+
+    def onSaveModelButtonPushed(self):
+        """
+        Runs processing when user clicks "Save Data" button.
+        """
+        # with slicer.util.tryWithErrorDisplay("Failed to compute results.", waitCursor=True):
+        #     # Compute output
+        #     save_folder_path = self.logic.SaveData()
+        #     self.ui.filesSavedLabel.setText("All files have been saved in:\n" + save_folder_path)
+        slicer.util.saveNode(self._parameterNode.modelNode, self._parameterNode.savingDirectory.as_posix()+'/mesh.vtk')
+
 # SOFAOpenIGTLINKIFLogic
 #
 
@@ -238,50 +289,66 @@ class SOFAOpenIGTLINKIFLogic(ScriptedLoadableModuleLogic):
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
+    SOFAIGTL_PORT = 18944
+
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
         ScriptedLoadableModuleLogic.__init__(self)
+        self.connectionStatus = 0
+        self._parameterNode = self.getParameterNode()
 
     def getParameterNode(self):
         return SOFAOpenIGTLINKIFParameterNode(super().getParameterNode())
 
-    def process(self,
-                inputVolume: vtkMRMLScalarVolumeNode,
-                outputVolume: vtkMRMLScalarVolumeNode,
-                imageThreshold: float,
-                invert: bool = False,
-                showResult: bool = True) -> None:
+    def getDefaultSOFASavingDirectory(self) -> str:
+        """Returns the default SOFA Saving Directory. Current directory in this implementation."""
+        return os.getcwd()
+
+    def getPort(self) -> int:
+        return SOFAOpenIGTLINKIFLogic.SOFAIGTL_PORT
+
+    def getConnectionStatus(self) -> int:
+        return self.connectionStatus
+
+    def StartOIGTLConnection(self) -> None:
         """
-        Run the processing algorithm.
-        Can be used without GUI widget.
-        :param inputVolume: volume to be thresholded
-        :param outputVolume: thresholding result
-        :param imageThreshold: values above/below this threshold will be set to 0
-        :param invert: if True then values above the threshold will be set to 0, otherwise values below are set to 0
-        :param showResult: show output volume in slice viewers
+        Starts OIGTL connection.
         """
+        logging.debug("StartOIGTLConnection")
+        parameterNode = self.getParameterNode()
 
-        if not inputVolume or not outputVolume:
-            raise ValueError("Input or output volume is invalid")
+        if not parameterNode.igtlConnectorNode:
+             parameterNode.igtlConnectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLIGTLConnectorNode")
+             parameterNode.igtlConnectorNode.SetName('SOFAIGTLConnector')
+             SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+             SOFAReceiverModelNode.SetName('SOFAMesh')
+             parameterNode.igtlConnectorNode.RegisterIncomingMRMLNode(SOFAReceiverModelNode)
+             parameterNode.igtlConnectorNode.SetTypeServer(self.getPort())
+             SOFAReceiverModelNode.AddObserver(slicer.vtkMRMLModelNode.PolyDataModifiedEvent, self.onModelNodeModified)
 
-        import time
+        # Check connection status
+        if self.connectionStatus == 0:
+            parameterNode.igtlConnectorNode.Start()
+            logging.debug('Connection Successful')
+            self.connectionStatus = 1
+        else:
+            logging.debug('ERROR: Unable to activate server')
 
-        startTime = time.time()
-        logging.info("Processing started")
+    def StopOIGTLConnection(self) -> None:
+        """
+        Stops OIGTL connection.
+        """
+        logging.debug("StopOIGTLConnection")
+        parameterNode = self.getParameterNode()
+        if parameterNode.igtlConnectorNode is not None and self.connectionStatus == 1:
+            parameterNode.igtlConnectorNode.Stop()
+            self.connectionStatus = 0
 
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        cliParams = {
-            "InputVolume": inputVolume.GetID(),
-            "OutputVolume": outputVolume.GetID(),
-            "ThresholdValue": imageThreshold,
-            "ThresholdType": "Above" if invert else "Below",
-        }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
-
-        stopTime = time.time()
-        logging.info(f"Processing completed in {stopTime-startTime:.2f} seconds")
+    def onModelNodeModified(self, caller, event):
+        if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
+            self._parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
+        elif self._parameterNode.modelNode.GetPolyData() is not None:
+            self._parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
 
 #
