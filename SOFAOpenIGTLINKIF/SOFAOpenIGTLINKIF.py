@@ -23,7 +23,6 @@ from slicer import vtkMRMLIGTLConnectorNode
 # SOFAOpenIGTLINKIF
 #
 
-
 class SOFAOpenIGTLINKIF(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
@@ -31,16 +30,16 @@ class SOFAOpenIGTLINKIF(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("SOFAOpenIGTLINKIF")  # TODO: make this more human readable by adding spaces
+        self.parent.title = _("SOFAOpenIGTLINKIF")
         # TODO: set categories (folders where the module shows up in the module selector)
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Simulation")]
-        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["John Doe (AnyWare Corp.)"]  # TODO: replace with "Firstname Lastname (Organization)"
-        # TODO: update with short description of the module and a link to online module documentation
+        self.parent.dependencies = ["OpenIGTLinkIF"]
+        self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, inc.)"]
+        # TODO: update with short description of t
         # _() function marks text as translatable to other languages
         self.parent.helpText = _("""
-This is an example of scripted loadable module bundled in an extension.
-See more information in <a href="https://github.com/organization/projectname#SOFAOpenIGTLINKIF">module documentation</a>.
+This extension receives and render mesh data from a SOFA client using OpenIGTLink
+See more information in <a href="https://github.com/RafaelPalomar/Slicer-Sofa">module documentation</a>.
 """)
         # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = _("""
