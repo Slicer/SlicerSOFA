@@ -111,7 +111,6 @@ class SOFAOpenIGTLINKIFParameterNode:
     """
     modelNode: vtkMRMLModelNode
     igtlConnectorNode: vtkMRMLIGTLConnectorNode
-    savingDirectory: pathlib.Path
     serverUp: bool
 
 #
@@ -165,10 +164,8 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
-        ### SAVE SECTION
-
+        ### Model section
         self.ui.SOFAMRMLModelNodeComboBox.connect('currentNodeChanged(vtkMRMLNode*)', self.onModelNodeComboBoxChanged)
-        self.ui.saveModelButton.connect('clicked(bool)', self.onSaveModelButtonPushed)
 
         #### OpenIGTLink Connection SECTION
         self.ui.serverActiveCheckBox.connect("clicked()", self.onActivateOpenIGTLinkConnectionClicked)
@@ -231,10 +228,18 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
 
     def initializeGUI(self):
-        """
-            initailize the save directory using settings
-        """
-        self.ui.SOFADataDirectoryButton.directory = self.logic.getDefaultSOFASavingDirectory()
+        """Initialize the GUI with default states."""
+        # Initially disable the OpenIGTLink UI elements until a valid model is selected
+        self.ui.serverActiveCheckBox.setEnabled(False)
+        self.ui.OIGTLconnectionLabel.setEnabled(False)  # Assuming this is the textbox you referred to
+        # Call this method to update the UI state based on the current selection
+        self.updateOpenIGTLinkUI()
+
+    def updateOpenIGTLinkUI(self):
+        """Enable or disable OpenIGTLink UI elements based on model selection."""
+        hasValidModel = self._parameterNode is not None and self._parameterNode.modelNode is not None
+        self.ui.serverActiveCheckBox.setEnabled(hasValidModel)
+        self.ui.OIGTLconnectionLabel.setEnabled(hasValidModel)
 
     def onActivateOpenIGTLinkConnectionClicked(self):
         """
@@ -260,20 +265,11 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self._timeout = False
 
     def onModelNodeComboBoxChanged(self):
-        """
-        Runs when the SOFA model combo box is changed
-        """
-        self.ui.saveModelButton.setEnabled(self._parameterNode.modelNode is not None)
+        """Handle model node combobox selection changes."""
+        # You might already have logic here to handle the model node change
+        # After any existing logic, update the OpenIGTLink UI state
+        self.updateOpenIGTLinkUI()
 
-    def onSaveModelButtonPushed(self):
-        """
-        Runs processing when user clicks "Save Data" button.
-        """
-        # with slicer.util.tryWithErrorDisplay("Failed to compute results.", waitCursor=True):
-        #     # Compute output
-        #     save_folder_path = self.logic.SaveData()
-        #     self.ui.filesSavedLabel.setText("All files have been saved in:\n" + save_folder_path)
-        slicer.util.saveNode(self._parameterNode.modelNode, self._parameterNode.savingDirectory.as_posix()+'/mesh.vtk')
 
 # SOFAOpenIGTLINKIFLogic
 #
@@ -298,10 +294,6 @@ class SOFAOpenIGTLINKIFLogic(ScriptedLoadableModuleLogic):
 
     def getParameterNode(self):
         return SOFAOpenIGTLINKIFParameterNode(super().getParameterNode())
-
-    def getDefaultSOFASavingDirectory(self) -> str:
-        """Returns the default SOFA Saving Directory. Current directory in this implementation."""
-        return os.getcwd()
 
     def getPort(self) -> int:
         return SOFAOpenIGTLINKIFLogic.SOFAIGTL_PORT
