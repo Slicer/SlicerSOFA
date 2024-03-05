@@ -63,41 +63,22 @@ def registerSampleData():
 
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
 
+    slicerSOFADataURL= 'https://github.com/rafaelpalomar/SlicerSOFATestingData/releases/download/'
+
     # To ensure that the source code repository remains small (can be downloaded and installed quickly)
     # it is recommended to store data sets that are larger than a few MB in a Github release.
 
-    # SOFAOpenIGTLINKIF1
+    # Right lung low poly tetrahedral mesh dataset
     SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        # Category and sample name displayed in Sample Data module
-        category="SOFAOpenIGTLINKIF",
-        sampleName="SOFAOpenIGTLINKIF1",
-        # Thumbnail should have size of approximately 260x280 pixels and stored in Resources/Icons folder.
-        # It can be created by Screen Capture module, "Capture all views" option enabled, "Number of images" set to "Single".
-        thumbnailFileName=os.path.join(iconsPath, "SOFAOpenIGTLINKIF1.png"),
-        # Download URL and target file name
-        uris="https://github.com/Slicer/SlicerTestingData/releases/download/SHA256/998cb522173839c78657f4bc0ea907cea09fd04e44601f17c82ea27927937b95",
-        fileNames="SOFAOpenIGTLINKIF1.nrrd",
-        # Checksum to ensure file integrity. Can be computed by this command:
-        #  import hashlib; print(hashlib.sha256(open(filename, "rb").read()).hexdigest())
-        checksums="SHA256:998cb522173839c78657f4bc0ea907cea09fd04e44601f17c82ea27927937b95",
-        # This node name will be used when the data set is loaded
-        nodeNames="SOFAOpenIGTLINKIF1",
+        category='SOFA',
+        sampleName='RightLungLowTetra',
+        thumbnailFileName=os.path.join(iconsPath, 'RightLungLowTetra.png'),
+        uris=slicerSOFADataURL+ 'SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+        fileNames='RightLungLowTetra.vtk',
+        checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+        nodeNames='RightLung',
+        loadFileType='ModelFile'
     )
-
-    # SOFAOpenIGTLINKIF2
-    SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        # Category and sample name displayed in Sample Data module
-        category="SOFAOpenIGTLINKIF",
-        sampleName="SOFAOpenIGTLINKIF2",
-        thumbnailFileName=os.path.join(iconsPath, "SOFAOpenIGTLINKIF2.png"),
-        # Download URL and target file name
-        uris="https://github.com/Slicer/SlicerTestingData/releases/download/SHA256/1a64f3f422eb3d1c9b093d1a18da354b13bcf307907c66317e2463ee530b7a97",
-        fileNames="SOFAOpenIGTLINKIF2.nrrd",
-        checksums="SHA256:1a64f3f422eb3d1c9b093d1a18da354b13bcf307907c66317e2463ee530b7a97",
-        # This node name will be used when the data set is loaded
-        nodeNames="SOFAOpenIGTLINKIF2",
-    )
-
 
 #
 # SOFAOpenIGTLINKIFParameterNode
