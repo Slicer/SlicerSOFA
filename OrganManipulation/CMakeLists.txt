@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME SOFAOpenIGTLINKIF)
+set(MODULE_NAME OrganManipulation)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

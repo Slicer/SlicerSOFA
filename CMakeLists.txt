@@ -19,7 +19,7 @@ include(${Slicer_USE_FILE})
 
 #-----------------------------------------------------------------------------
 # Extension modules
-add_subdirectory(SOFAOpenIGTLINKIF)
+add_subdirectory(OrganManipulation)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
