@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>SOFAOpenIGTLINKIF</class>
- <widget class="qMRMLWidget" name="SOFAOpenIGTLINKIF">
+ <class>OrganManipulation</class>
+ <widget class="qMRMLWidget" name="OrganManipulation">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>370</width>
-    <height>536</height>
+    <width>366</width>
+    <height>311</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -92,7 +92,7 @@
       </layout>
      </item>
      <item row="0" column="0">
-      <widget class="QLabel" name="label">
+      <widget class="QLabel" name="simulationModelNodeLabel">
        <property name="text">
         <string>Simulation Model Node:</string>
        </property>
@@ -138,18 +138,18 @@
  <resources/>
  <connections>
   <connection>
-   <sender>SOFAOpenIGTLINKIF</sender>
+   <sender>OrganManipulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>SOFAMRMLModelNodeComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>213</x>
-     <y>267</y>
+     <x>182</x>
+     <y>155</y>
     </hint>
     <hint type="destinationlabel">
-     <x>170</x>
-     <y>58</y>
+     <x>257</x>
+     <y>21</y>
     </hint>
    </hints>
   </connection>

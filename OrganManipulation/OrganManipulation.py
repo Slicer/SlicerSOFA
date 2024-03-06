@@ -1,9 +1,7 @@
 import logging
 import os
-import qt
 from typing import Annotated, Optional
-import pathlib
-
+import qt
 import vtk
 
 import slicer
@@ -20,44 +18,38 @@ from slicer import vtkMRMLModelNode
 from slicer import vtkMRMLIGTLConnectorNode
 
 #
-# SOFAOpenIGTLINKIF
+# OrganManipulation
 #
 
-class SOFAOpenIGTLINKIF(ScriptedLoadableModule):
+
+class OrganManipulation(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("SOFAOpenIGTLINKIF")
-        # TODO: set categories (folders where the module shows up in the module selector)
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Simulation")]
-        self.parent.dependencies = ["OpenIGTLinkIF"]
+        self.parent.title = _("Ogan Manipulation")
+        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Simulation.SOFA")]
+        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
         self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, inc.)"]
-        # TODO: update with short description of t
+        # TODO: update with short description of the module and a link to online module documentation
         # _() function marks text as translatable to other languages
-        self.parent.helpText = _("""
-This extension receives and render mesh data from a SOFA client using OpenIGTLink
-See more information in <a href="https://github.com/RafaelPalomar/Slicer-Sofa">module documentation</a>.
-""")
+        self.parent.helpText = _("""""")
         # TODO: replace with organization, grant and thanks
-        self.parent.acknowledgementText = _("""
-This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc., Andras Lasso, PerkLab,
-and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
-""")
+        self.parent.acknowledgementText = _("""""")
 
         # Additional initialization step after application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
+
 
 #
 # Register sample data sets in Sample Data module
 #
 
+
 def registerSampleData():
     """Add data sets to Sample Data module."""
-    # It is always recommended to provide sample data for users to make it easy to try the module,
-    # but if no sample data is available then this method (and associated startupCompeted signal connection) can be removed.
 
     import SampleData
 
@@ -81,12 +73,12 @@ def registerSampleData():
     )
 
 #
-# SOFAOpenIGTLINKIFParameterNode
+# OrganManipulationParameterNode
 #
 
 
 @parameterNodeWrapper
-class SOFAOpenIGTLINKIFParameterNode:
+class OrganManipulationParameterNode:
     """
     The parameters needed by module.
     """
@@ -95,11 +87,11 @@ class SOFAOpenIGTLINKIFParameterNode:
     serverUp: bool
 
 #
-# SOFAOpenIGTLINKIFWidget
+# OrganManipulationWidget
 #
 
 
-class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """Uses ScriptedLoadableModuleWidget base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
@@ -126,7 +118,7 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
         # Load widget from .ui file (created by Qt Designer).
         # Additional widgets can be instantiated manually and added to self.layout.
-        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SOFAOpenIGTLINKIF.ui"))
+        uiWidget = slicer.util.loadUI(self.resourcePath("UI/OrganManipulation.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -137,7 +129,7 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
         # Create logic class. Logic implements all computations that should be possible to run
         # in batch mode, without a graphical user interface.
-        self.logic = SOFAOpenIGTLINKIFLogic()
+        self.logic = OrganManipulationLogic()
 
         # Connections
 
@@ -153,7 +145,6 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
-        self.initializeGUI() # This is an addition to avoid initializing parameter node before connections
 
     def cleanup(self) -> None:
         """Called when the application closes and the module widget is destroyed."""
@@ -195,7 +186,7 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
             if firstModelNode:
                 self._parameterNode.modelNode = firstModelNode
 
-    def setParameterNode(self, inputParameterNode: Optional[SOFAOpenIGTLINKIFParameterNode]) -> None:
+    def setParameterNode(self, inputParameterNode: Optional[OrganManipulationParameterNode]) -> None:
         """
         Set and observe parameter node.
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
@@ -207,14 +198,6 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
             # Note: in the .ui file, a Qt dynamic property called "SlicerParameterName" is set on each
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
-
-    def initializeGUI(self):
-        """Initialize the GUI with default states."""
-        # Initially disable the OpenIGTLink UI elements until a valid model is selected
-        self.ui.serverActiveCheckBox.setEnabled(False)
-        self.ui.OIGTLconnectionLabel.setEnabled(False)  # Assuming this is the textbox you referred to
-        # Call this method to update the UI state based on the current selection
-        self.updateOpenIGTLinkUI()
 
     def updateOpenIGTLinkUI(self):
         """Enable or disable OpenIGTLink UI elements based on model selection."""
@@ -245,6 +228,7 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
         self._timeout = False
 
+
     def onModelNodeComboBoxChanged(self):
         """Handle model node combobox selection changes."""
         # You might already have logic here to handle the model node change
@@ -252,10 +236,12 @@ class SOFAOpenIGTLINKIFWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.updateOpenIGTLinkUI()
 
 
-# SOFAOpenIGTLINKIFLogic
+#
+# OrganManipulationLogic
 #
 
-class SOFAOpenIGTLINKIFLogic(ScriptedLoadableModuleLogic):
+
+class OrganManipulationLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
     computation done by your module.  The interface
     should be such that other python code can import
@@ -274,10 +260,10 @@ class SOFAOpenIGTLINKIFLogic(ScriptedLoadableModuleLogic):
         self._parameterNode = self.getParameterNode()
 
     def getParameterNode(self):
-        return SOFAOpenIGTLINKIFParameterNode(super().getParameterNode())
+        return OrganManipulationParameterNode(super().getParameterNode())
 
     def getPort(self) -> int:
-        return SOFAOpenIGTLINKIFLogic.SOFAIGTL_PORT
+        return OrganManipulationLogic.SOFAIGTL_PORT
 
     def getConnectionStatus(self) -> int:
         return self.connectionStatus
@@ -322,12 +308,12 @@ class SOFAOpenIGTLINKIFLogic(ScriptedLoadableModuleLogic):
         elif self._parameterNode.modelNode.GetPolyData() is not None:
             self._parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
-
 #
-# SOFAOpenIGTLINKIFTest
+# OrganManipulationTest
 #
 
-class SOFAOpenIGTLINKIFTest(ScriptedLoadableModuleTest):
+
+class OrganManipulationTest(ScriptedLoadableModuleTest):
     """
     This is the test case for your scripted module.
     Uses ScriptedLoadableModuleTest base class, available at:
@@ -341,9 +327,9 @@ class SOFAOpenIGTLINKIFTest(ScriptedLoadableModuleTest):
     def runTest(self):
         """Run as few or as many tests as needed here."""
         self.setUp()
-        self.test_SOFAOpenIGTLINKIF1()
+        self.test_OrganManipulation1()
 
-    def test_SOFAOpenIGTLINKIF1(self):
+    def test_OrganManipulation1(self):
         """Ideally you should have several levels of tests.  At the lowest level
         tests should exercise the functionality of the logic with different inputs
         (both valid and invalid).  At higher levels your tests should emulate the
@@ -361,8 +347,31 @@ class SOFAOpenIGTLINKIFTest(ScriptedLoadableModuleTest):
 
         import SampleData
 
+        registerSampleData()
+        inputVolume = SampleData.downloadSample("OrganManipulation1")
+        self.delayDisplay("Loaded test data set")
+
+        inputScalarRange = inputVolume.GetImageData().GetScalarRange()
+        self.assertEqual(inputScalarRange[0], 0)
+        self.assertEqual(inputScalarRange[1], 695)
+
+        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+        threshold = 100
+
         # Test the module logic
 
-        logic = SOFAOpenIGTLINKIFLogic()
+        logic = OrganManipulationLogic()
+
+        # Test algorithm with non-inverted threshold
+        logic.process(inputVolume, outputVolume, threshold, True)
+        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
+        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
+        self.assertEqual(outputScalarRange[1], threshold)
+
+        # Test algorithm with inverted threshold
+        logic.process(inputVolume, outputVolume, threshold, False)
+        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
+        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
+        self.assertEqual(outputScalarRange[1], inputScalarRange[1])
 
         self.delayDisplay("Test passed")
