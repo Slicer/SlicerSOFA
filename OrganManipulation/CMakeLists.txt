@@ -10,13 +10,14 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
   Resources/Icons/RightLungLowTetra.png
+  Resources/Templates/OrganManipulation.pyscn.tpl
   )
 
 #-----------------------------------------------------------------------------
 slicerMacroBuildScriptedModule(
   NAME ${MODULE_NAME}
   SCRIPTS ${MODULE_PYTHON_SCRIPTS}
-  RESOURCES ${MODULE_PYTHON_RESOURCES}
+  RESOURCES ${MODULE_PmainYTHON_RESOURCES}
   WITH_GENERIC_TESTS
   )
 
