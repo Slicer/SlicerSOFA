@@ -40,8 +40,14 @@ class OrganManipulation(ScriptedLoadableModule):
         self.parent.acknowledgementText = _("""""")
 
         # Additional initialization step after application startup is complete
-        slicer.app.connect("startupCompleted()", registerSampleData)
 
+        #TODO: This should probably move from here
+        try:
+            import jinja2
+        except ImportError:
+            slicer.util.pip_install('jinja2')
+
+        slicer.app.connect("startupCompleted()", registerSampleData)
 
 #
 # Register sample data sets in Sample Data module
@@ -137,11 +143,9 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
-        ### Model section
         self.ui.SOFAMRMLModelNodeComboBox.connect('currentNodeChanged(vtkMRMLNode*)', self.onModelNodeComboBoxChanged)
-
-        #### OpenIGTLink Connection SECTION
         self.ui.serverActiveCheckBox.connect("clicked()", self.onActivateOpenIGTLinkConnectionClicked)
+        self.ui.startSimulationPushButton.connect("clicked()", self.onStartSimulation)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -228,13 +232,14 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
         self._timeout = False
 
-
     def onModelNodeComboBoxChanged(self):
         """Handle model node combobox selection changes."""
         # You might already have logic here to handle the model node change
         # After any existing logic, update the OpenIGTLink UI state
         self.updateOpenIGTLinkUI()
 
+    def onStartSimulation(self):
+        self.logic.StartSimulation()
 
 #
 # OrganManipulationLogic
@@ -252,6 +257,8 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
     """
 
     SOFAIGTL_PORT = 18944
+    SIMULATION_TPL_FILENAME = "OrganManipulation.pyscn.tpl"
+    SIMULATION_FILENAME = "OrganManipulation.pyscn"
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
@@ -264,6 +271,9 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
 
     def getPort(self) -> int:
         return OrganManipulationLogic.SOFAIGTL_PORT
+
+    def getSimulationTemplateFileName(self) -> str:
+        return OrganManipulationLogic.SIMULATION_TPL_FILENAME
 
     def getConnectionStatus(self) -> int:
         return self.connectionStatus
@@ -301,6 +311,47 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         if parameterNode.igtlConnectorNode is not None and self.connectionStatus == 1:
             parameterNode.igtlConnectorNode.Stop()
             self.connectionStatus = 0
+
+    def StartSimulation(self) -> None:
+        import jinja2
+        templatePath = os.path.join(os.path.dirname(__file__), "Resources/Templates")
+        templateFilePath = templatePath + '/' + OrganManipulationLogic.SIMULATION_TPL_FILENAME
+        destinationDir = slicer.app.temporaryPath
+        outputFilePath= destinationDir + '/' + OrganManipulationLogic.SIMULATION_FILENAME
+        templateVariables= {}
+
+        # Create a Jinja2 environment and render the template
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=os.path.dirname(templateFilePath)))
+        template = env.get_template(os.path.basename(templateFilePath))
+
+        # Rendering the template with variables
+        renderedContent= template.render(templateVariables)
+
+        # Writing the rendered content to the destination file
+        with open(outputFilePath, 'w') as outputFile:
+            outputFile.write(renderedContent)
+
+        print(f"Rendered file saved to: {outputFilePath}")
+
+
+        import subprocess
+
+        # Create a new environment dictionary based on the current system environment
+        new_env = os.environ.copy()
+
+        # Modify the new environment dictionary if needed
+        # For example, to set a new environment variable
+        new_env['PATH'] = '/usr/bin'
+        new_env['PYTHONPATH'] = '/usr'
+
+        # Define the external application path and parameters
+        app_path = '/home/rafael/src/sofa/Release/bin/runSofa'
+        app_params = [outputFilePath]
+
+        # Launch the external application in a separate process
+        subprocess.Popen([app_path] + app_params, env=new_env)
+
+
 
     def onModelNodeModified(self, caller, event):
         if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
