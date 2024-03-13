@@ -37,6 +37,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(OrganManipulation)
+add_subdirectory(SOFA)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
