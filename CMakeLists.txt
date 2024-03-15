@@ -21,7 +21,6 @@ find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 mark_as_superbuild(Slicer_DIR)
 
-
 find_package(Git REQUIRED)
 mark_as_superbuild(GIT_EXECUTABLE)
 
@@ -37,12 +36,10 @@ endif()
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(OrganManipulation)
-add_subdirectory(SOFA)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
 set(EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS)
-#list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${Foo_DIR};Foo;RuntimeLibraries;/")
 set(${EXTENSION_NAME}_CPACK_INSTALL_CMAKE_PROJECTS "${EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS}" CACHE STRING "List of external projects to install" FORCE)
 
 #-----------------------------------------------------------------------------

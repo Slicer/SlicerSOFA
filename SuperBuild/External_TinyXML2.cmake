@@ -49,3 +49,25 @@ else()
 endif()
 
 mark_as_superbuild(${proj}_DIR:PATH)
+
+
+# Add a custom target that depends on the external project
+add_custom_target(${proj}_install_so_files ALL
+    COMMENT "Installing .so files to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}"
+)
+
+# Add dependencies to ensure this target is built after the external project
+add_dependencies(${proj}_install_so_files ${proj})
+
+# Command to create the installation directory (if it does not exist)
+add_custom_command(TARGET ${proj}_install_so_files PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}
+)
+
+file(GLOB_RECURSE SO_FILES "${TinyXML2_DIR}/lib/*.so*")
+foreach(SO_FILE IN LISTS SO_FILES)
+    add_custom_command(TARGET ${proj}_install_so_files POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SO_FILE} ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}
+        COMMENT "Copying ${SO_FILE} to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}"
+    )
+endforeach()
