@@ -6,13 +6,23 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>366</width>
-    <height>311</height>
+    <width>530</width>
+    <height>556</height>
    </rect>
+  </property>
+  <property name="SlicerParameterName" stdset="0">
+   <string>modelNode</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QGridLayout" name="gridLayout">
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="simulationModelNodeLabel">
+       <property name="text">
+        <string>Simulation Model Node:</string>
+       </property>
+      </widget>
+     </item>
      <item row="0" column="1">
       <widget class="qMRMLNodeComboBox" name="SOFAMRMLModelNodeComboBox">
        <property name="enabled">
@@ -46,69 +56,13 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>118</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="serverActiveCheckBox">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>30</width>
-           <height>30</height>
-          </size>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-         <property name="checked">
-          <bool>false</bool>
-         </property>
-         <property name="tristate">
-          <bool>false</bool>
-         </property>
-         <property name="SlicerParameterName" stdset="0">
-          <string>serverUp</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="simulationModelNodeLabel">
-       <property name="text">
-        <string>Simulation Model Node:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLabel" name="OIGTLconnectionLabel">
-       <property name="text">
-        <string>   OpenIGTLink server - INACTIVE</string>
-       </property>
-      </widget>
-     </item>
     </layout>
    </item>
    <item>
     <widget class="QPushButton" name="startSimulationPushButton">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="text">
       <string>Start Simulation</string>
      </property>
@@ -157,6 +111,22 @@
     <hint type="destinationlabel">
      <x>257</x>
      <y>21</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SOFAMRMLModelNodeComboBox</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>startSimulationPushButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>339</x>
+     <y>21</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>264</x>
+     <y>51</y>
     </hint>
    </hints>
   </connection>

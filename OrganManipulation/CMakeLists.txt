@@ -13,11 +13,15 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Templates/OrganManipulation.pyscn.tpl
   )
 
+set(MODULE_PYTHON_SIMULATIONS
+  Simulations/SOFASimulationSingle.py
+)
+
 #-----------------------------------------------------------------------------
 slicerMacroBuildScriptedModule(
   NAME ${MODULE_NAME}
   SCRIPTS ${MODULE_PYTHON_SCRIPTS}
-  RESOURCES ${MODULE_PmainYTHON_RESOURCES}
+  RESOURCES ${MODULE_PYTHON_RESOURCES} ${MODULE_PYTHON_SIMULATIONS}
   WITH_GENERIC_TESTS
   )
 
