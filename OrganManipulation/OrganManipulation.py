@@ -3,6 +3,11 @@ import os
 from typing import Annotated, Optional
 import qt
 import vtk
+import random
+import time
+import uuid
+
+# import Simulations.SOFASimulationMulti as multi
 
 import slicer
 from slicer.i18n import tr as _
@@ -40,13 +45,6 @@ class OrganManipulation(ScriptedLoadableModule):
         self.parent.acknowledgementText = _("""""")
 
         # Additional initialization step after application startup is complete
-
-        #TODO: This should probably move from here
-        try:
-            import jinja2
-        except ImportError:
-            slicer.util.pip_install('jinja2')
-
         slicer.app.connect("startupCompleted()", registerSampleData)
 
 #
@@ -82,20 +80,18 @@ def registerSampleData():
 # OrganManipulationParameterNode
 #
 
-
 @parameterNodeWrapper
 class OrganManipulationParameterNode:
     """
     The parameters needed by module.
     """
     modelNode: vtkMRMLModelNode
-    igtlConnectorNode: vtkMRMLIGTLConnectorNode
-    serverUp: bool
+    modelNodeFileName: str
+    serverPort: int
 
 #
 # OrganManipulationWidget
 #
-
 
 class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """Uses ScriptedLoadableModuleWidget base class, available at:
@@ -143,8 +139,6 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
-        self.ui.SOFAMRMLModelNodeComboBox.connect('currentNodeChanged(vtkMRMLNode*)', self.onModelNodeComboBoxChanged)
-        self.ui.serverActiveCheckBox.connect("clicked()", self.onActivateOpenIGTLinkConnectionClicked)
         self.ui.startSimulationPushButton.connect("clicked()", self.onStartSimulation)
 
         # Make sure parameter node is initialized (needed for module reload)
@@ -183,8 +177,11 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         # so that when the scene is saved and reloaded, these settings are restored.
 
         self.setParameterNode(self.logic.getParameterNode())
+        self._parameterNode.modelNode = None
+        self._parameterNode.serverPort = 0
+        self._parameterNode.modelNodeFileName = slicer.app.temporaryPath + '/' + str(uuid.uuid4()) + ".vtk"
 
-        # Select default input nodes if nothing is selected yet to save a few clicks for the user
+        # # Select default input nodes if nothing is selected yet to save a few clicks for the user
         if not self._parameterNode.modelNode:
             firstModelNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLModelNode")
             if firstModelNode:
@@ -203,43 +200,9 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
 
-    def updateOpenIGTLinkUI(self):
-        """Enable or disable OpenIGTLink UI elements based on model selection."""
-        hasValidModel = self._parameterNode is not None and self._parameterNode.modelNode is not None
-        self.ui.serverActiveCheckBox.setEnabled(hasValidModel)
-        self.ui.OIGTLconnectionLabel.setEnabled(hasValidModel)
-
-    def onActivateOpenIGTLinkConnectionClicked(self):
-        """
-        Run processing when user clicks on the OpenIGTLink checkbox.
-        """
-        if self._timeout == False:
-            self._timeout = True
-            self._timer.singleShot(0, self.onActivateOpenIGTLinkConnectionClicked)
-            return
-
-        parameterNode = self.logic.getParameterNode()
-
-        if parameterNode.serverUp is True:
-            self.logic.StartOIGTLConnection() # Start connection
-        else:
-            self.logic.StopOIGTLConnection() # Stop connection
-
-        if self.logic.getConnectionStatus() == 1:
-            self.ui.OIGTLconnectionLabel.text = "OpenIGTLink server - ACTIVE" # Update displaying text
-        else:
-            self.ui.OIGTLconnectionLabel.text = "OpenIGTLink server - INACTIVE" # Update displaying text
-
-        self._timeout = False
-
-    def onModelNodeComboBoxChanged(self):
-        """Handle model node combobox selection changes."""
-        # You might already have logic here to handle the model node change
-        # After any existing logic, update the OpenIGTLink UI state
-        self.updateOpenIGTLinkUI()
-
     def onStartSimulation(self):
-        self.logic.StartSimulation()
+       self.logic.startSimulation()
+
 
 #
 # OrganManipulationLogic
@@ -256,102 +219,71 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
-    SOFAIGTL_PORT = 18944
-    SIMULATION_TPL_FILENAME = "OrganManipulation.pyscn.tpl"
-    SIMULATION_FILENAME = "OrganManipulation.pyscn"
+    # SOFAIGTL_PORT = 18944
+    # SIMULATION_TPL_FILENAME = "OrganManipulation.pyscn.tpl"
+    # SIMULATION_FILENAME = "OrganManipulation.pyscn"
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
         ScriptedLoadableModuleLogic.__init__(self)
         self.connectionStatus = 0
         self._parameterNode = self.getParameterNode()
+        self._controller = None
+        self.igtlConnectorNode = None
+        self.SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        self.SOFAReceiverModelNode.SetName('SOFAMesh')
+        self.SOFAReceiverModelNode.AddObserver(slicer.vtkMRMLModelNode.PolyDataModifiedEvent, self.onModelNodeModified)
 
     def getParameterNode(self):
         return OrganManipulationParameterNode(super().getParameterNode())
 
-    def getPort(self) -> int:
-        return OrganManipulationLogic.SOFAIGTL_PORT
-
-    def getSimulationTemplateFileName(self) -> str:
-        return OrganManipulationLogic.SIMULATION_TPL_FILENAME
-
-    def getConnectionStatus(self) -> int:
-        return self.connectionStatus
-
-    def StartOIGTLConnection(self) -> None:
+    def startServer(self, port=0, retries=3) -> int:
         """
-        Starts OIGTL connection.
+        Attempts to start an OpenIGTLink server on a specified port or, if the port is 0, on a random available port.
+
+    This function tries to start an OpenIGTLink server using a vtkMRMLIGTLConnectorNode. If the specified port is 0,
+        the function will choose a random port between 1025 and 65535 for each attempt. It will make up to 'retries' attempts
+        to start the server. After each unsuccessful attempt (if the server did not start), it waits for 1 second before
+        trying again. The process of starting the server includes creating a new vtkMRMLIGTLConnectorNode in the scene,
+        setting its type to server with the chosen port, and attempting to start it. If the port is not provided retry attempts will be
+        made on another random port
+
+    Parameters:
+        - port (int, optional): The port number on which to start the OpenIGTLink server. If 0, a random port is used. Defaults to 0.
+        - retries (int, optional): The number of attempts to make if the server fails to start on the first try. Defaults to 3.
+
+    Returns:
+        int: The port number on which the OpenIGTLink server was successfully started, or 0 if the server could not be
+         started after the specified number of retries.
         """
-        logging.debug("StartOIGTLConnection")
-        parameterNode = self.getParameterNode()
+        self.igtlConnectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLIGTLConnectorNode")
+        status = 0
+        attempt = 0
 
-        if not parameterNode.igtlConnectorNode:
-             parameterNode.igtlConnectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLIGTLConnectorNode")
-             parameterNode.igtlConnectorNode.SetName('SOFAIGTLConnector')
-             SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-             SOFAReceiverModelNode.SetName('SOFAMesh')
-             parameterNode.igtlConnectorNode.RegisterIncomingMRMLNode(SOFAReceiverModelNode)
-             parameterNode.igtlConnectorNode.SetTypeServer(self.getPort())
-             SOFAReceiverModelNode.AddObserver(slicer.vtkMRMLModelNode.PolyDataModifiedEvent, self.onModelNodeModified)
+        while status == 0 and attempt < retries:
+            _port = random.randint(1025, 65535) if port == 0 else port
+            logging.debug("Starting OIGTLink server on port " + str(_port) + " (attempt " + str(attempt) + ")")
+            self.igtlConnectorNode.SetTypeServer(_port)
+            status = self.igtlConnectorNode.Start()
+            attempt=+1
+            time.sleep(1)
 
-        # Check connection status
-        if self.connectionStatus == 0:
-            parameterNode.igtlConnectorNode.Start()
-            logging.debug('Connection Successful')
-            self.connectionStatus = 1
+        if status != 0:
+            logging.debug("OIGTLink server started on port " + str(_port) + " (attempt " + str(attempt) + ")")
+            return _port
         else:
-            logging.debug('ERROR: Unable to activate server')
+            logging.debug("OIGTLink failed to start on port " + str(_port) + " (attempt )" + str(attempt) + ")")
+            return 0
 
-    def StopOIGTLConnection(self) -> None:
-        """
-        Stops OIGTL connection.
-        """
-        logging.debug("StopOIGTLConnection")
-        parameterNode = self.getParameterNode()
-        if parameterNode.igtlConnectorNode is not None and self.connectionStatus == 1:
-            parameterNode.igtlConnectorNode.Stop()
-            self.connectionStatus = 0
-
-    def StartSimulation(self) -> None:
-        import jinja2
-        templatePath = os.path.join(os.path.dirname(__file__), "Resources/Templates")
-        templateFilePath = templatePath + '/' + OrganManipulationLogic.SIMULATION_TPL_FILENAME
-        destinationDir = slicer.app.temporaryPath
-        outputFilePath= destinationDir + '/' + OrganManipulationLogic.SIMULATION_FILENAME
-        templateVariables= {}
-
-        # Create a Jinja2 environment and render the template
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=os.path.dirname(templateFilePath)))
-        template = env.get_template(os.path.basename(templateFilePath))
-
-        # Rendering the template with variables
-        renderedContent= template.render(templateVariables)
-
-        # Writing the rendered content to the destination file
-        with open(outputFilePath, 'w') as outputFile:
-            outputFile.write(renderedContent)
-
-        print(f"Rendered file saved to: {outputFilePath}")
-
-
-        import subprocess
-
-        # Create a new environment dictionary based on the current system environment
-        new_env = os.environ.copy()
-
-        # Modify the new environment dictionary if needed
-        # For example, to set a new environment variable
-        new_env['PATH'] = '/usr/bin'
-        new_env['PYTHONPATH'] = '/usr'
-
-        # Define the external application path and parameters
-        app_path = '/home/rafael/src/sofa/Release/bin/runSofa'
-        app_params = [outputFilePath]
-
-        # Launch the external application in a separate process
-        subprocess.Popen([app_path] + app_params, env=new_env)
-
-
+    def startSimulation(self) -> None:
+        import Simulations.SOFASimulationSingle as single
+        self._parameterNode.serverPort = self.startServer()
+        self.igtlConnectorNode.RegisterIncomingMRMLNode(self.SOFAReceiverModelNode)
+        if self._parameterNode.modelNode is not None and self._parameterNode.serverPort != 0:
+            slicer.util.saveNode(self._parameterNode.modelNode, self._parameterNode.modelNodeFileName)
+            if self._controller is None:
+                self._controller = single.SimulationController(self._parameterNode)
+            self._controller.start()
 
     def onModelNodeModified(self, caller, event):
         if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
@@ -377,52 +309,4 @@ class OrganManipulationTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         """Run as few or as many tests as needed here."""
-        self.setUp()
-        self.test_OrganManipulation1()
-
-    def test_OrganManipulation1(self):
-        """Ideally you should have several levels of tests.  At the lowest level
-        tests should exercise the functionality of the logic with different inputs
-        (both valid and invalid).  At higher levels your tests should emulate the
-        way the user would interact with your code and confirm that it still works
-        the way you intended.
-        One of the most important features of the tests is that it should alert other
-        developers when their changes will have an impact on the behavior of your
-        module.  For example, if a developer removes a feature that you depend on,
-        your test should break so they know that the feature is needed.
-        """
-
-        self.delayDisplay("Starting the test")
-
-        # Get/create input data
-
-        import SampleData
-
-        registerSampleData()
-        inputVolume = SampleData.downloadSample("OrganManipulation1")
-        self.delayDisplay("Loaded test data set")
-
-        inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(inputScalarRange[0], 0)
-        self.assertEqual(inputScalarRange[1], 695)
-
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-        threshold = 100
-
-        # Test the module logic
-
-        logic = OrganManipulationLogic()
-
-        # Test algorithm with non-inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, True)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], threshold)
-
-        # Test algorithm with inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, False)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], inputScalarRange[1])
-
-        self.delayDisplay("Test passed")
+        pass
