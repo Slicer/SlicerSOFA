@@ -94,48 +94,21 @@ endif()
 
 mark_as_superbuild(${proj}_DIR:PATH)
 
-
 # Add a custom target that depends on the external project
-add_custom_target(${proj}_install_so_files ALL
-    COMMENT "Installing .so files to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib"
+add_custom_target(slicer_${proj}_install ALL
+    COMMENT "Installing .so  and python files to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib"
 )
 
-# Add dependencies to ensure this target is built after the external project
-add_dependencies(${proj}_install_so_files ${proj})
+add_dependencies(slicer_${proj}_install ${proj})
 
-# Command to create the installation directory (if it does not exist)
-add_custom_command(TARGET ${proj}_install_so_files PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib
+add_custom_command(
+    TARGET slicer_${proj}_install POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -D LIB_DIR="${SOFA_DIR}/lib" -D CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" -D EXTENSION_BUILD_SUBDIRECTORY="${EXTENSION_BUILD_SUBDIRECTORY}" -D Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR="${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}" -P ${CMAKE_SOURCE_DIR}/cmake/InstallSOFiles.cmake
+    COMMENT "Copying SO files..."
 )
 
-# Installation of SOFA files
-file(GLOB_RECURSE SO_FILES "${SOFA_DIR}/lib/*.so*")
-foreach(SO_FILE IN LISTS SO_FILES)
-    add_custom_command(TARGET ${proj}_install_so_files POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SO_FILE} ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib
-        COMMENT "Copying ${SO_FILE} to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib"
-    )
-endforeach()
-
-# Create the destination directory if it doesn't exist
-add_custom_command(TARGET ${proj}_install_so_files PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory  "${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/Python"
+add_custom_command(
+    TARGET slicer_${proj}_install POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -D LIB_PYTHON_DIR="${SOFA_DIR}/lib/python3/site-packages" -D CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" -D EXTENSION_BUILD_SUBDIRECTORY="${EXTENSION_BUILD_SUBDIRECTORY}" -D Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR="${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}" -P ${CMAKE_SOURCE_DIR}/cmake/InstallPythonFiles.cmake
+    COMMENT "Copying Python directories..."
 )
-
-set(SOFA_PYTHON_DIR ${SOFA_DIR}/lib/python3/site-packages)
-# Get all subdirectories within the sofa python3 directory
-file(GLOB CHILDREN RELATIVE ${SOFA_PYTHON_DIR} ${SOFA_PYTHON_DIR}/*)
-foreach(child ${CHILDREN})
-    if(IS_DIRECTORY ${SOFA_PYTHON_DIR}/${child})
-        # Define the source subdirectory and the corresponding destination
-        set(SOURCE_SUBDIR ${SOFA_PYTHON_DIR}/${child})
-        set(DEST_SUBDIR  ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/Python/${child})
-
-        # Copy the subdirectory
-        add_custom_command(TARGET ${proj}_install_so_files POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "Copying ${SOURCE_SUBDIR} to ${DEST_SUBDIR}"
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${SOURCE_SUBDIR} ${DEST_SUBDIR}
-            COMMENT "Copying subdirectory ${child} to ${DEST_SUBDIR}"
-        )
-    endif()
-endforeach()
