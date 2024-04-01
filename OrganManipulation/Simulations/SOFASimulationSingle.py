@@ -9,6 +9,7 @@ import Sofa
 import SofaRuntime
 
 def createScene(rootNode, parameterNode):
+
     from stlib3.scene import MainHeader, ContactHeader
     from stlib3.solver import DefaultSolver
     from stlib3.physics.deformable import ElasticMaterialObject
@@ -46,7 +47,7 @@ def createScene(rootNode, parameterNode):
         "Sofa.Component.Engine.Select",
         "Sofa.Component.Constraint.Projective",
         "SofaIGTLink"
-    ], dt=0.001, gravity=[-9810, 0, 0])
+    ], dt=parameterNode.dt, gravity=parameterNode.getGravityVector())
 
     rootNode.addObject('VisualStyle', displayFlags='showVisualModels showForceFields')
     rootNode.addObject('BackgroundSetting', color=[0.8, 0.8, 0.8, 1])
@@ -71,7 +72,7 @@ def createScene(rootNode, parameterNode):
                        enableHexa=False)
 
     fixedROI = meshNode.addChild('FixedROI')
-    fixedROI.addObject('BoxROI', template="Vec3", box=[0, -170, 0, 48, -80, -300, 0, -220, 0, 30, -170, -300],
+    fixedROI.addObject('BoxROI', template="Vec3", box=parameterNode.getBoundaryROI(), #box=[0, -170, 0, 48, -80, -300],#, 0, -220, 0, 30, -170, -300],
                        drawBoxes=True, position="@../mstate.rest_position", name="FixedROI", computeTriangles=False,
                        computeTetrahedra=False, computeEdges=False)
     fixedROI.addObject('FixedConstraint', indices="@FixedROI.indices")
@@ -86,8 +87,6 @@ class SimulationWorker(QObject):
         super(SimulationWorker, self).__init__(parent)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.simulateStep)
-        self.simulationSteps = 100000
-        self.currentStep = 0
         self.parameterNode = parameterNode
         self._sceneUp = False
 
@@ -104,10 +103,10 @@ class SimulationWorker(QObject):
             Sofa.Simulation.reset(self.root)
         self.currentStep = 0
         # Adjust the timer interval as needed
-        self.timer.start(1)  # 1000 ms (1 second) interval
+        self.timer.start(0)  # 1000 ms (1 second) interval
 
     def simulateStep(self):
-        if self.currentStep < self.simulationSteps:
+        if self.currentStep < self.parameterNode.totalSteps:
             Sofa.Simulation.animate(self.root, self.root.dt.value)
             self.currentStep += 1
         else:
