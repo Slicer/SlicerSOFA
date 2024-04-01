@@ -46,7 +46,7 @@ def createScene(rootNode, parameterNode):
         "Sofa.Component.Engine.Select",
         "Sofa.Component.Constraint.Projective",
         "SofaIGTLink"
-    ], dt=0.001, gravity=[9810, 0, 0])
+    ], dt=0.001, gravity=[-9810, 0, 0])
 
     rootNode.addObject('VisualStyle', displayFlags='showVisualModels showForceFields')
     rootNode.addObject('BackgroundSetting', color=[0.8, 0.8, 0.8, 1])
@@ -71,7 +71,7 @@ def createScene(rootNode, parameterNode):
                        enableHexa=False)
 
     fixedROI = meshNode.addChild('FixedROI')
-    fixedROI.addObject('BoxROI', template="Vec3", box=[0, 170, 0, -48, 80, -300, 0, 220, 0, -30, 170, -300],
+    fixedROI.addObject('BoxROI', template="Vec3", box=[0, -170, 0, 48, -80, -300, 0, -220, 0, 30, -170, -300],
                        drawBoxes=True, position="@../mstate.rest_position", name="FixedROI", computeTriangles=False,
                        computeTetrahedra=False, computeEdges=False)
     fixedROI.addObject('FixedConstraint', indices="@FixedROI.indices")

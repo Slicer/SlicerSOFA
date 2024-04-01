@@ -181,11 +181,11 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self._parameterNode.serverPort = 0
         self._parameterNode.modelNodeFileName = slicer.app.temporaryPath + '/' + str(uuid.uuid4()) + ".vtk"
 
-        # # Select default input nodes if nothing is selected yet to save a few clicks for the user
-        if not self._parameterNode.modelNode:
-            firstModelNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLModelNode")
-            if firstModelNode:
-                self._parameterNode.modelNode = firstModelNode
+        # # # Select default input nodes if nothing is selected yet to save a few clicks for the user
+        # if not self._parameterNode.modelNode:
+        #     firstModelNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLModelNode")
+        #     if firstModelNode:
+        #         self._parameterNode.modelNode = firstModelNode
 
     def setParameterNode(self, inputParameterNode: Optional[OrganManipulationParameterNode]) -> None:
         """
@@ -232,7 +232,10 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self.igtlConnectorNode = None
         self.SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
         self.SOFAReceiverModelNode.SetName('SOFAMesh')
+        self.SOFAReceiverModelNode.HideFromEditorsOn()
         self.SOFAReceiverModelNode.AddObserver(slicer.vtkMRMLModelNode.PolyDataModifiedEvent, self.onModelNodeModified)
+        self._transformedModel = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode') #This is needed to convert RAS to LPS for SOFA
+        self._transformedModel.SetName('SOFATransformedModel')
 
     def getParameterNode(self):
         return OrganManipulationParameterNode(super().getParameterNode())
@@ -276,11 +279,14 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             return 0
 
     def startSimulation(self) -> None:
+
+        self._transformedModel.SetAndObserveMesh(self._lpsToRas(self._parameterNode.modelNode))
+
         import Simulations.SOFASimulationSingle as single
         self._parameterNode.serverPort = self.startServer()
         self.igtlConnectorNode.RegisterIncomingMRMLNode(self.SOFAReceiverModelNode)
         if self._parameterNode.modelNode is not None and self._parameterNode.serverPort != 0:
-            slicer.util.saveNode(self._parameterNode.modelNode, self._parameterNode.modelNodeFileName)
+            slicer.util.saveNode(self._transformedModel, self._parameterNode.modelNodeFileName)
             if self._controller is None:
                 self._controller = single.SimulationController(self._parameterNode)
             self._controller.start()
@@ -290,6 +296,25 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             self._parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
         elif self._parameterNode.modelNode.GetPolyData() is not None:
             self._parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+
+    def _lpsToRas(self, modelNode):
+
+        if modelNode is not None:
+            transform = vtk.vtkTransform()
+            transform.Identity()  # Start with an identity matrix
+            transform.Scale(-1, -1, 1)  # Flip X and Y axes for RAS to LPS
+
+            # Apply the transformation to the input vtkPolyData
+            transform_filter = vtk.vtkTransformFilter()
+            transform_filter.SetInputData(modelNode.GetUnstructuredGrid())
+            transform_filter.SetTransform(transform)
+            transform_filter.Update()  # Perform the transformation
+
+            return transform_filter.GetOutput()
+
+        return None
+
+
 
 #
 # OrganManipulationTest
