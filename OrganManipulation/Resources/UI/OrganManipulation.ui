@@ -101,6 +101,9 @@
          <property name="hideChildNodeTypes">
           <stringlist notr="true"/>
          </property>
+         <property name="noneEnabled">
+          <bool>true</bool>
+         </property>
          <property name="addEnabled">
           <bool>false</bool>
          </property>
@@ -157,6 +160,9 @@
          </property>
          <property name="hideChildNodeTypes">
           <stringlist notr="true"/>
+         </property>
+         <property name="noneEnabled">
+          <bool>true</bool>
          </property>
          <property name="addEnabled">
           <bool>false</bool>
@@ -307,7 +313,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="currentStepsSpinBox">
+        <widget class="QSpinBox" name="currentStepSpinBox">
          <property name="maximum">
           <number>999999999</number>
          </property>
@@ -348,14 +354,64 @@
     </layout>
    </item>
    <item>
-    <widget class="QPushButton" name="startSimulationPushButton">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>Start Simulation</string>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_7">
+     <item>
+      <widget class="QPushButton" name="resetSimulationPushButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Reset Simulation</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="startSimulationPushButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Start Simulation</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="stopSimulationPushButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Stop Simulation</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <spacer name="verticalSpacer">
@@ -400,22 +456,6 @@
     <hint type="destinationlabel">
      <x>257</x>
      <y>21</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>SOFAMRMLModelNodeComboBox</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>startSimulationPushButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>339</x>
-     <y>21</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>264</x>
-     <y>51</y>
     </hint>
    </hints>
   </connection>

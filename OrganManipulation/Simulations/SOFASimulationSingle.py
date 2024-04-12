@@ -85,39 +85,50 @@ def createScene(rootNode, parameterNode):
 class SimulationWorker(QObject):
     def __init__(self, parameterNode, parent=None):
         super(SimulationWorker, self).__init__(parent)
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.simulateStep)
-        self.parameterNode = parameterNode
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self.simulateStep)
+        self._parameterNode = parameterNode
         self._sceneUp = False
+        self._stopSignal = False
+        self._root = None
+        self._currentStep = 0
 
     def setupScene(self):
-        self.root = Sofa.Core.Node()
-        createScene(self.root, self.parameterNode)
-        Sofa.Simulation.init(self.root)
+        self._root = Sofa.Core.Node()
+        createScene(self._root, self._parameterNode)
+        Sofa.Simulation.init(self._root)
         self._sceneUp = True
 
     def startSimulation(self):
         if self._sceneUp is not True:
             self.setupScene()
         else:
-            Sofa.Simulation.reset(self.root)
-        self.currentStep = 0
+            Sofa.Simulation.reset(_self.root)
+        self._stopSignal = False
+        self._currentStep = 0
         # Adjust the timer interval as needed
-        self.timer.start(0)  # 1000 ms (1 second) interval
+        self._timer.start(0)  # 1000 ms (1 second) interval
+
+    def stopSimulation(self):
+        if self._sceneUp is True:
+            self._timer.stop()
 
     def simulateStep(self):
-        if self.currentStep < self.parameterNode.totalSteps:
-            Sofa.Simulation.animate(self.root, self.root.dt.value)
-            self.currentStep += 1
+        if self._currentStep < self._parameterNode.totalSteps and not self._stopSignal:
+            Sofa.Simulation.animate(self._root, self._root.dt.value)
+            self._currentStep += 1
         else:
-            self.timer.stop()  # Stop the timer after completing the simulation steps
+            self._timer.stop()  # Stop the timer after completing the simulation steps
+
 
 class SimulationController:
     def __init__(self, parameterNode):
-        self.worker = SimulationWorker(parameterNode)
+        self._worker = SimulationWorker(parameterNode)
         # In Slicer, QTimer can be used without moving to a new QThread
         # but you can use slicer.app.processEvents() if needed for GUI updates
 
     def start(self):
-        self.worker.startSimulation()
+        self._worker.startSimulation()
 
+    def stop(self):
+        self._worker.stopSimulation()
