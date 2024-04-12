@@ -229,8 +229,12 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
 
+        parameterNode = self.logic.getParameterNode()
+        parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationPushButtons)
+
     def cleanup(self) -> None:
         """Called when the application closes and the module widget is destroyed."""
+        self.logic.cleanup()
         self.removeObservers()
 
     def enter(self) -> None:
@@ -267,9 +271,9 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self._parameterNode.gravityVector = None
         self._parameterNode.sequenceNode = None
         self._parameterNode.sequenceBrowserNode = None
-        self._parameterNode.dt = 0.001
-        self._parameterNode.currentStep = 0
-        self._parameterNode.totalSteps= 100
+        self._parameterNode.dt = self.ui.dtSpinBox.value
+        self._parameterNode.currentStep = self.ui.currentStepSpinBox.value
+        self._parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
         self._parameterNode.serverPort = 0
         self._parameterNode.modelNodeFileName = slicer.app.temporaryPath + '/' + str(uuid.uuid4()) + ".vtk"
 
@@ -286,10 +290,19 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
             # ui element that needs connection.
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
 
+    def updateSimulationPushButtons(self, caller, event):
+        """This enables/disables the simulation buttons according to the state of the parameter node"""
+
+        modelNode = self._parameterNode.modelNode
+        boundaryROI = self._parameterNode.boundaryROI
+        gravityVector = self._parameterNode.gravityVector
+
+        enableSimulationButton = True if None not in [boundaryROI, modelNode, gravityVector] else False
+        self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
+
 #
 # OrganManipulationLogic
 #
-
 
 class OrganManipulationLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
@@ -306,8 +319,8 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         ScriptedLoadableModuleLogic.__init__(self)
         self.connectionStatus = 0
         self._parameterNode = self.getParameterNode()
-        self._controller = None
-        self.igtlConnectorNode = None
+        self._simulationController = None
+        self._igtlConnectorNode = None
         self.SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
         self.SOFAReceiverModelNode.SetName('SOFAMesh')
         self.SOFAReceiverModelNode.HideFromEditorsOn()
@@ -316,6 +329,12 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self._transformedModel = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode') #This is needed to convert RAS to LPS for SOFA
         self._transformedModel.SetName('SOFATransformedModel')
         self._transformedModel.HideFromEditorsOn()
+
+    def cleanup(self) -> None:
+        if self._igtlConnectorNode is not None:
+            self._igtlConnectorNode.Stop()
+        if self._simulationController is not None:
+            self._simulationController.stop()
 
     def getParameterNode(self):
         return OrganManipulationParameterNode(super().getParameterNode())
@@ -339,15 +358,15 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         int: The port number on which the OpenIGTLink server was successfully started, or 0 if the server could not be
          started after the specified number of retries.
         """
-        self.igtlConnectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLIGTLConnectorNode")
+        self._igtlConnectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLIGTLConnectorNode")
         status = 0
         attempt = 0
 
         while status == 0 and attempt < retries:
             _port = random.randint(1025, 65535) if port == 0 else port
             logging.debug("Starting OIGTLink server on port " + str(_port) + " (attempt " + str(attempt) + ")")
-            self.igtlConnectorNode.SetTypeServer(_port)
-            status = self.igtlConnectorNode.Start()
+            self._igtlConnectorNode.SetTypeServer(_port)
+            status = self._igtlConnectorNode.Start()
             attempt=+1
             time.sleep(1)
 
@@ -375,12 +394,11 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
 
         self._transformedModel.SetAndObserveMesh(self._parameterNode.getLPSModel())
         self._parameterNode.serverPort = self.startServer()
-        self.igtlConnectorNode.RegisterIncomingMRMLNode(self.SOFAReceiverModelNode)
+        self._igtlConnectorNode.RegisterIncomingMRMLNode(self.SOFAReceiverModelNode)
         if self._parameterNode.modelNode is not None and self._parameterNode.serverPort != 0:
             slicer.util.saveNode(self._transformedModel, self._parameterNode.modelNodeFileName)
-            if self._controller is None:
-                self._controller = single.SimulationController(self._parameterNode)
-            self._controller.start()
+            self._simulationController = single.SimulationController(self._parameterNode)
+            self._simulationController.start()
 
     def onModelNodeModified(self, caller, event) -> None:
         if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
@@ -436,9 +454,9 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
 
             # Adjust the start and end points to center the vector in the bounding box
             vectorLength = endPoint[1] - startPoint[1]
-            midPoint = startPoint[1] + vectorLength / 2
-            startPoint[1] = midPoint - vectorLength / 2
-            endPoint[1] = midPoint + vectorLength / 2
+            midPoint = startPoint[1] + vectorLength / 2.0
+            startPoint[1] = midPoint - vectorLength / 2.0
+            endPoint[1] = midPoint + vectorLength / 2.0
 
             # Add control points to define the line
             gravityVector.AddControlPoint(vtk.vtkVector3d(startPoint))
