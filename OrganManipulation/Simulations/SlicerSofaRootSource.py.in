@@ -1,0 +1,4 @@
+import os
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.environ['SOFA_ROOT'] = script_dir + '@CMAKE_BINARY_DIR@/@EXTENSION_BUILD_SUBDIRECTORY@/@Slicer_LIB_DIR@'

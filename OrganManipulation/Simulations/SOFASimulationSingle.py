@@ -1,7 +1,4 @@
-import os
-script_dir = os.path.dirname(os.path.abspath(__file__))
-os.environ['SOFA_ROOT'] = script_dir + '/../../qt-loadable-modules'
-
+import Simulations.SlicerSofaRoot
 import slicer
 from qt import QObject, QTimer
 
@@ -81,6 +78,7 @@ def createScene(rootNode, parameterNode):
     collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
     collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
     collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
+    slicer.modules.meshNode = meshNode
 
 class SimulationWorker(QObject):
     def __init__(self, parameterNode, parent=None):
