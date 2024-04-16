@@ -1,0 +1,10 @@
+.DS_Store
+.idea
+*.log
+tmp/
+
+# Ignore Python cache files in any subdirectory
+**/__pycache__/*.pyc
+
+# Ignore a specific file
+OrganManipulation/Simulations/SlicerSofaRoot.py
