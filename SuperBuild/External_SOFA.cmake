@@ -37,7 +37,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/sofa-framework/sofa.git"
-    GIT_TAG "e4420f49a2fdf36390ac97b3841db430ccbc8143" #master-20240313
+    GIT_TAG "1a4bb3e76a10f230d5210c295e85f6bfcebda048" #master-20240423
     SOURCE_DIR ${EP_SOURCE_DIR}
     BINARY_DIR ${EP_BINARY_DIR}
     CMAKE_CACHE_ARGS
