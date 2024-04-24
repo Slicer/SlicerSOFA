@@ -24,7 +24,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "https://github.com/sofa-framework/SofaIGTLink.git"
-    GIT_TAG "b6d94690fcdea3b2eb2b6549a54d2fec2d3c3aac" #master-20240313
+    GIT_TAG "055351b5532a2d273b43121c23d1e715855f7d0d" #master-20240423
     SOURCE_DIR ${EP_SOURCE_DIR}
     DEPENDS
       ${${proj}_DEPENDS}
