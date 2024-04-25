@@ -22,6 +22,7 @@ from slicer.parameterNodeWrapper import (
 from slicer import vtkMRMLIGTLConnectorNode
 from slicer import vtkMRMLMarkupsLineNode
 from slicer import vtkMRMLMarkupsROINode
+from slicer import vtkMRMLMarkupsFiducialNode
 from slicer import vtkMRMLModelNode
 from slicer import vtkMRMLSequenceNode
 from slicer import vtkMRMLSequenceBrowserNode
@@ -93,6 +94,7 @@ class OrganManipulationParameterNode:
     boundaryROI: vtkMRMLMarkupsROINode
     gravityVector: vtkMRMLMarkupsLineNode
     gravityMagnitude: int
+    movingPoint: vtkMRMLMarkupsFiducialNode
     sequenceNode: vtkMRMLSequenceNode
     sequenceBrowserNode: vtkMRMLSequenceBrowserNode
     modelNodeFileName: str
@@ -224,6 +226,7 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.ui.startSimulationPushButton.connect("clicked()", self.logic.startSimulation)
         self.ui.addBoundaryROIPushButton.connect("clicked()", self.logic.addBoundaryROI)
         self.ui.addGravityVectorPushButton.connect("clicked()", self.logic.addGravityVector)
+        self.ui.addMovingPointPushButton.connect("clicked()", self.logic.addMovingPoint)
         self.ui.addRecordingSequencePushButton.connect("clicked()", self.logic.addRecordingSequence)
 
         # Make sure parameter node is initialized (needed for module reload)
@@ -296,8 +299,9 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         modelNode = self._parameterNode.modelNode
         boundaryROI = self._parameterNode.boundaryROI
         gravityVector = self._parameterNode.gravityVector
+        movingPoint = self._parameterNode.movingPoint
 
-        enableSimulationButton = True if None not in [boundaryROI, modelNode, gravityVector] else False
+        enableSimulationButton = True if None not in [boundaryROI, modelNode, gravityVector, movingPoint] else False
         self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
 
 #
@@ -467,6 +471,46 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         if gravityVector is not None:
             gravityVector.CreateDefaultDisplayNodes()
 
+    def addMovingPoint(self) -> None:
+
+        # movingPoint = slicer.vtkMRMLMarkupsFiducialNode()
+        # movingPoint.SetName("MovingPoint")
+
+        cameraNode = slicer.util.getNode('Camera')
+        if None not in [self._parameterNode.modelNode, cameraNode]:
+            self.addFiducialToClosestPoint(self._parameterNode.modelNode, cameraNode)
+
+    def addFiducialToClosestPoint(self, modelNode, cameraNode) -> None:
+        # Obtain the camera's position
+        camera = cameraNode.GetCamera()
+        camPosition = camera.GetPosition()
+
+        # Get the polydata from the model node
+        modelData = None
+
+        if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
+            modelData = self._parameterNode.modelNode.GetUnstructuredGrid()
+        elif self._parameterNode.modelNode.GetPolyData() is not None:
+            modelData = self._parameterNode.modelNode.GetPolyData()
+
+        # Set up the point locator
+        pointLocator = vtk.vtkPointLocator()
+        pointLocator.SetDataSet(modelData)
+        pointLocator.BuildLocator()
+
+        # Find the closest point on the model to the camera
+        closestPointId = pointLocator.FindClosestPoint(camPosition)
+        closestPoint = modelData.GetPoint(closestPointId)
+
+        # Create a new fiducial node
+        fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+        fiducialNode.AddControlPointWorld(vtk.vtkVector3d(closestPoint))
+
+        # Optionally, set the name and display properties
+        fiducialNode.SetName("Closest Fiducial")
+        displayNode = fiducialNode.GetDisplayNode()
+        if displayNode:
+            displayNode.SetSelectedColor(1, 0, 0)  # Red color for the selected fiducial
 
     def addRecordingSequence(self) -> None:
 
