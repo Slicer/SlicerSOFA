@@ -6,6 +6,7 @@ import vtk
 import random
 import time
 import uuid
+import numpy as np
 
 # import Simulations.SOFASimulationMulti as multi
 
@@ -20,12 +21,13 @@ from slicer.parameterNodeWrapper import (
 )
 
 from slicer import vtkMRMLIGTLConnectorNode
-from slicer import vtkMRMLMarkupsLineNode
-from slicer import vtkMRMLMarkupsROINode
 from slicer import vtkMRMLMarkupsFiducialNode
+from slicer import vtkMRMLMarkupsLineNode
+from slicer import vtkMRMLMarkupsNode
+from slicer import vtkMRMLMarkupsROINode
 from slicer import vtkMRMLModelNode
-from slicer import vtkMRMLSequenceNode
 from slicer import vtkMRMLSequenceBrowserNode
+from slicer import vtkMRMLSequenceNode
 
 #
 # OrganManipulation
@@ -94,7 +96,7 @@ class OrganManipulationParameterNode:
     boundaryROI: vtkMRMLMarkupsROINode
     gravityVector: vtkMRMLMarkupsLineNode
     gravityMagnitude: int
-    movingPoint: vtkMRMLMarkupsFiducialNode
+    movingPointNode: vtkMRMLMarkupsFiducialNode
     sequenceNode: vtkMRMLSequenceNode
     sequenceBrowserNode: vtkMRMLSequenceBrowserNode
     modelNodeFileName: str
@@ -146,8 +148,6 @@ class OrganManipulationParameterNode:
         if self.gravityVector is None:
             return [0.0]*3
 
-        import numpy as np
-
         p1 = self.gravityVector.GetNthControlPointPosition(0)
         p2 = self.gravityVector.GetNthControlPointPosition(1)
         gravity_vector = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]])
@@ -155,6 +155,12 @@ class OrganManipulationParameterNode:
         normalized_gravity_vector = gravity_vector / magnitude if magnitude != 0 else gravity_vector
 
         return normalized_gravity_vector*self.gravityMagnitude
+
+    def getModelPointsArray(self):
+        return slicer.util.arrayFromModelPoints(self.modelNode)
+
+    def getModelCellsArray(self):
+        return vtk.util.numpy_support.vtk_to_numpy(self.modelNode.GetUnstructuredGrid().GetCells().GetData()).reshape(-1, 4)#.astype(np.int32)
 
 #
 # OrganManipulationWidget
@@ -299,9 +305,9 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         modelNode = self._parameterNode.modelNode
         boundaryROI = self._parameterNode.boundaryROI
         gravityVector = self._parameterNode.gravityVector
-        movingPoint = self._parameterNode.movingPoint
+        movingPointNode = self._parameterNode.movingPointNode
 
-        enableSimulationButton = True if None not in [boundaryROI, modelNode, gravityVector, movingPoint] else False
+        enableSimulationButton = True if None not in [boundaryROI, modelNode, gravityVector, movingPointNode] else False
         self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
 
 #
@@ -386,6 +392,7 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         sequenceNode = self._parameterNode.sequenceNode
         browserNode = self._parameterNode.sequenceBrowserNode
         modelNode = self._parameterNode.modelNode
+        movingPointNode = self._parameterNode.movingPointNode
 
         # Synchronize and set up the sequence browser node
         if None not in [sequenceNode, browserNode, modelNode]:
@@ -393,6 +400,10 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             browserNode.AddProxyNode(modelNode, sequenceNode, False)
             browserNode.SetRecording(sequenceNode, True)
             browserNode.SetRecordingActive(True)
+
+        # if movingPointNode is not None:
+        #     movingPointNode.RemoveAllObservers()
+        #     movingPointNode.AddObserver(vtkMRMLMarkupsNode.PointModifiedEvent, self.onMovingPoint)
 
         import Simulations.SOFASimulationSingle as single
 
@@ -409,6 +420,11 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             self._parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
         elif self._parameterNode.modelNode.GetPolyData() is not None:
             self._parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+
+    def onMovingPoint(self, caller, event) -> None:
+        print("Moving point")
+        #self._simulationController.setPosition()
+
 
     def addBoundaryROI(self) -> None:
         roiNode = slicer.vtkMRMLMarkupsROINode()

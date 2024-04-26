@@ -239,7 +239,7 @@
           <string notr="true"/>
          </property>
          <property name="SlicerParameterName" stdset="0">
-          <string>movingPoint</string>
+          <string>movingPointNode</string>
          </property>
         </widget>
        </item>
@@ -450,11 +450,14 @@
        </item>
        <item row="0" column="1">
         <widget class="QSpinBox" name="totalStepsSpinBox">
+         <property name="minimum">
+          <number>-1</number>
+         </property>
          <property name="maximum">
           <number>999999999</number>
          </property>
          <property name="value">
-          <number>100</number>
+          <number>-1</number>
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>totalSteps</string>
