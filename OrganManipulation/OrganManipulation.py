@@ -100,7 +100,6 @@ class OrganManipulationParameterNode:
     sequenceNode: vtkMRMLSequenceNode
     sequenceBrowserNode: vtkMRMLSequenceBrowserNode
     modelNodeFileName: str
-    serverPort: int
     dt: float
     totalSteps: int
     currentStep: int
@@ -283,7 +282,6 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self._parameterNode.dt = self.ui.dtSpinBox.value
         self._parameterNode.currentStep = self.ui.currentStepSpinBox.value
         self._parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
-        self._parameterNode.serverPort = 0
         self._parameterNode.modelNodeFileName = slicer.app.temporaryPath + '/' + str(uuid.uuid4()) + ".vtk"
 
     def setParameterNode(self, inputParameterNode: Optional[OrganManipulationParameterNode]) -> None:
@@ -330,7 +328,6 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self.connectionStatus = 0
         self._parameterNode = self.getParameterNode()
         self._simulationController = None
-        self._igtlConnectorNode = None
         self.SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
         self.SOFAReceiverModelNode.SetName('SOFAMesh')
         self.SOFAReceiverModelNode.HideFromEditorsOn()
@@ -341,51 +338,10 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self._transformedModel.HideFromEditorsOn()
 
     def cleanup(self) -> None:
-        if self._igtlConnectorNode is not None:
-            self._igtlConnectorNode.Stop()
-        if self._simulationController is not None:
-            self._simulationController.stop()
+        pass
 
     def getParameterNode(self):
         return OrganManipulationParameterNode(super().getParameterNode())
-
-    def startServer(self, port=0, retries=3) -> int:
-        """
-        Attempts to start an OpenIGTLink server on a specified port or, if the port is 0, on a random available port.
-
-    This function tries to start an OpenIGTLink server using a vtkMRMLIGTLConnectorNode. If the specified port is 0,
-        the function will choose a random port between 1025 and 65535 for each attempt. It will make up to 'retries' attempts
-        to start the server. After each unsuccessful attempt (if the server did not start), it waits for 1 second before
-        trying again. The process of starting the server includes creating a new vtkMRMLIGTLConnectorNode in the scene,
-        setting its type to server with the chosen port, and attempting to start it. If the port is not provided retry attempts will be
-        made on another random port
-
-    Parameters:
-        - port (int, optional): The port number on which to start the OpenIGTLink server. If 0, a random port is used. Defaults to 0.
-        - retries (int, optional): The number of attempts to make if the server fails to start on the first try. Defaults to 3.
-
-    Returns:
-        int: The port number on which the OpenIGTLink server was successfully started, or 0 if the server could not be
-         started after the specified number of retries.
-        """
-        self._igtlConnectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLIGTLConnectorNode")
-        status = 0
-        attempt = 0
-
-        while status == 0 and attempt < retries:
-            _port = random.randint(1025, 65535) if port == 0 else port
-            logging.debug("Starting OIGTLink server on port " + str(_port) + " (attempt " + str(attempt) + ")")
-            self._igtlConnectorNode.SetTypeServer(_port)
-            status = self._igtlConnectorNode.Start()
-            attempt=+1
-            time.sleep(1)
-
-        if status != 0:
-            logging.debug("OIGTLink server started on port " + str(_port) + " (attempt " + str(attempt) + ")")
-            return _port
-        else:
-            logging.debug("OIGTLink failed to start on port " + str(_port) + " (attempt " + str(attempt) + ")")
-            return 0
 
     def startSimulation(self) -> None:
 
@@ -408,9 +364,7 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         import Simulations.SOFASimulationSingle as single
 
         self._transformedModel.SetAndObserveMesh(self._parameterNode.getLPSModel())
-        self._parameterNode.serverPort = self.startServer()
-        self._igtlConnectorNode.RegisterIncomingMRMLNode(self.SOFAReceiverModelNode)
-        if self._parameterNode.modelNode is not None and self._parameterNode.serverPort != 0:
+        if self._parameterNode.modelNode is not None:
             slicer.util.saveNode(self._transformedModel, self._parameterNode.modelNodeFileName)
             self._simulationController = single.SimulationController(self._parameterNode)
             self._simulationController.start()
@@ -420,11 +374,6 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             self._parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
         elif self._parameterNode.modelNode.GetPolyData() is not None:
             self._parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
-
-    def onMovingPoint(self, caller, event) -> None:
-        print("Moving point")
-        #self._simulationController.setPosition()
-
 
     def addBoundaryROI(self) -> None:
         roiNode = slicer.vtkMRMLMarkupsROINode()
@@ -488,9 +437,6 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             gravityVector.CreateDefaultDisplayNodes()
 
     def addMovingPoint(self) -> None:
-
-        # movingPoint = slicer.vtkMRMLMarkupsFiducialNode()
-        # movingPoint.SetName("MovingPoint")
 
         cameraNode = slicer.util.getNode('Camera')
         if None not in [self._parameterNode.modelNode, cameraNode]:
