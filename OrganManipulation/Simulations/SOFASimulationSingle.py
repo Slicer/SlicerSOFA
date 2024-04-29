@@ -1,6 +1,8 @@
 import Simulations.SlicerSofaRoot
 import slicer
 from qt import QObject, QTimer
+import vtk
+from vtk.util.numpy_support import numpy_to_vtk
 
 import Sofa
 import SofaRuntime
@@ -51,6 +53,8 @@ class SimulationController(QObject):
         else:
             self._timer.stop()  # Stop the timer after completing the simulation steps
 
+        self.updateScene()
+
     def updateParameters(self) -> None:
         self.rootNode.dt.value = self.parameterNode.dt
         self.rootNode.gravity = self.parameterNode.getGravityVector()
@@ -60,8 +64,10 @@ class SimulationController(QObject):
         # self._container.tetrahedra = self.parameterNode.getModelCellsArray()
 
     def updateScene(self) -> None:
-        pass
-
+        points_vtk = numpy_to_vtk(num_array=self._mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+        vtk_points = vtk.vtkPoints()
+        vtk_points.SetData(points_vtk)
+        self.parameterNode.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
 
     def createScene(self, parameterNode) -> Sofa.Core.Node:
         from stlib3.scene import MainHeader, ContactHeader
@@ -106,7 +112,6 @@ class SimulationController(QObject):
             "SofaIGTLink"
         ], dt=0.0, gravity=[0.0, 0.0, 0.0])
 
-        rootNode.addObject('iGTLinkClient', name="iGTLClient", sender=True, hostname="127.0.0.1", port=parameterNode.serverPort)
         rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
         rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
 
@@ -121,15 +126,6 @@ class SimulationController(QObject):
         femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
         femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large")
         femNode.addObject('MeshMatrixMass', totalMass=1)
-        femNode.addObject('iGTLinkPolyDataMessage', name="SOFAMesh", iGTLink="@../iGTLClient",
-                          points="@mstate.position",
-                          enableIndices=False,
-                          enableEdges=False,
-                          enableTriangles=False,
-                          enableTetra=False,
-                          enableHexa=False)
-
-        slicer.modules.container = self._container
 
         fixedROI = femNode.addChild('FixedROI')
         self._BoxROI = fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
@@ -143,7 +139,7 @@ class SimulationController(QObject):
         collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
         collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
         collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
-        collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
+        self._mechanicalObject = collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
         collisionNode.addObject('IdentityMapping', name='visualMapping')
 
         femNode.addObject('LinearSolverConstraintCorrection', linearSolver="@precond")
@@ -153,7 +149,5 @@ class SimulationController(QObject):
         attachPointNode.addObject('PointSetTopologyModifier', name="Modifier")
         attachPointNode.addObject('MechanicalObject', name="mstate", template="Vec3d", drawMode=2, showObjectScale=0.01, showObject=False)
         self._mouseInteractor = attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
-
-        slicer.modules.rootNode = rootNode
 
         return rootNode
