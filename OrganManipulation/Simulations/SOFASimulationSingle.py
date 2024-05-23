@@ -60,8 +60,6 @@ class SimulationController(QObject):
         self.rootNode.gravity = self.parameterNode.getGravityVector()
         self._BoxROI.box = [self.parameterNode.getBoundaryROI()]
         self._mouseInteractor.position = [list(self.parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
-        # self._container.position = self.parameterNode.getModelPointsArray()
-        # self._container.tetrahedra = self.parameterNode.getModelCellsArray()
 
     def updateScene(self) -> None:
         points_vtk = numpy_to_vtk(num_array=self._mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
@@ -119,9 +117,10 @@ class SimulationController(QObject):
         femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
         femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
 
-        # Reintroducing VTKLoader and related topology components
-        femNode.addObject('MeshVTKLoader', name="loader", filename=parameterNode.modelNodeFileName)
-        self._container = femNode.addObject('TetrahedronSetTopologyContainer', name="Container", src="@loader")
+        self._container = femNode.addObject('TetrahedronSetTopologyContainer', name="Container")
+        self._container.position = parameterNode.getModelPointsArray()
+        self._container.tetrahedra = parameterNode.getModelCellsArray()
+
         femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
         femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
         femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large")
