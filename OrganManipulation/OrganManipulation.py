@@ -99,27 +99,9 @@ class OrganManipulationParameterNode:
     movingPointNode: vtkMRMLMarkupsFiducialNode
     sequenceNode: vtkMRMLSequenceNode
     sequenceBrowserNode: vtkMRMLSequenceBrowserNode
-    modelNodeFileName: str
     dt: float
     totalSteps: int
     currentStep: int
-
-    def getLPSModel(self):
-
-        if self.modelNode is not None:
-            transform = vtk.vtkTransform()
-            transform.Identity()  # Start with an identity matrix
-            transform.Scale(-1, -1, 1)  # Flip X and Y axes for RAS to LPS
-
-            # Apply the transformation to the input vtkPolyData
-            transform_filter = vtk.vtkTransformFilter()
-            transform_filter.SetInputData(self.modelNode.GetUnstructuredGrid())
-            transform_filter.SetTransform(transform)
-            transform_filter.Update()  # Perform the transformation
-
-            return transform_filter.GetOutput()
-
-        return None
 
     def getBoundaryROI(self):
 
@@ -155,11 +137,49 @@ class OrganManipulationParameterNode:
 
         return normalized_gravity_vector*self.gravityMagnitude
 
+
     def getModelPointsArray(self):
-        return slicer.util.arrayFromModelPoints(self.modelNode)
+        """
+        Convert the point positions from the VTK model to a Python list.
+        """
+        # Get the unstructured grid from the model node
+        unstructured_grid = self.modelNode.GetUnstructuredGrid()
+
+        # Extract point data from the unstructured grid
+        points = unstructured_grid.GetPoints()
+        num_points = points.GetNumberOfPoints()
+
+        # Convert the VTK points to a list
+        point_coords = []
+        for i in range(num_points):
+            point_coords.append(points.GetPoint(i))
+
+        return point_coords
 
     def getModelCellsArray(self):
-        return vtk.util.numpy_support.vtk_to_numpy(self.modelNode.GetUnstructuredGrid().GetCells().GetData()).reshape(-1, 4)#.astype(np.int32)
+        """
+        Convert the cell connectivity from the VTK model to a Python list.
+        """
+        # Get the unstructured grid from the model node
+        unstructured_grid = self.modelNode.GetUnstructuredGrid()
+
+        # Extract cell data from the unstructured grid
+        cells = unstructured_grid.GetCells()
+        cell_array = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
+
+        # The first integer in each cell entry is the number of points per cell (always 4 for tetrahedra)
+        # Followed by the point indices
+        num_cells = unstructured_grid.GetNumberOfCells()
+        cell_connectivity = []
+
+        # Fill the cell connectivity list
+        idx = 0
+        for i in range(num_cells):
+            num_points = cell_array[idx]  # Should always be 4 for tetrahedra
+            cell_connectivity.append(cell_array[idx+1:idx+1+num_points].tolist())
+            idx += num_points + 1
+
+        return cell_connectivity
 
 #
 # OrganManipulationWidget
@@ -282,7 +302,6 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self._parameterNode.dt = self.ui.dtSpinBox.value
         self._parameterNode.currentStep = self.ui.currentStepSpinBox.value
         self._parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
-        self._parameterNode.modelNodeFileName = slicer.app.temporaryPath + '/' + str(uuid.uuid4()) + ".vtk"
 
     def setParameterNode(self, inputParameterNode: Optional[OrganManipulationParameterNode]) -> None:
         """
@@ -357,15 +376,9 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             browserNode.SetRecording(sequenceNode, True)
             browserNode.SetRecordingActive(True)
 
-        # if movingPointNode is not None:
-        #     movingPointNode.RemoveAllObservers()
-        #     movingPointNode.AddObserver(vtkMRMLMarkupsNode.PointModifiedEvent, self.onMovingPoint)
-
         import Simulations.SOFASimulationSingle as single
 
-        self._transformedModel.SetAndObserveMesh(self._parameterNode.getLPSModel())
         if self._parameterNode.modelNode is not None:
-            slicer.util.saveNode(self._transformedModel, self._parameterNode.modelNodeFileName)
             self._simulationController = single.SimulationController(self._parameterNode)
             self._simulationController.start()
 
