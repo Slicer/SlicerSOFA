@@ -92,6 +92,7 @@ class OrganManipulationParameterNode:
     """
     The parameters needed by module.
     """
+    #Simulation data
     modelNode: vtkMRMLModelNode
     boundaryROI: vtkMRMLMarkupsROINode
     gravityVector: vtkMRMLMarkupsLineNode
@@ -99,6 +100,7 @@ class OrganManipulationParameterNode:
     movingPointNode: vtkMRMLMarkupsFiducialNode
     sequenceNode: vtkMRMLSequenceNode
     sequenceBrowserNode: vtkMRMLSequenceBrowserNode
+    #Simulation control
     dt: float
     totalSteps: int
     currentStep: int
@@ -197,23 +199,6 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.logic = None
         self._parameterNode = None
         self._parameterNodeGuiTag = None
-
-        # Given corners of the bounding box in LPS coordinates
-        corner2_LPS = [0, -170, 0]  # Example values, adjust as necessary
-        corner1_LPS = [48, -80, -300]  # Example values, adjust as necessary
-
-        # Calculate the center and size in LPS
-        center_LPS = [(corner1_LPS[0] + corner2_LPS[0]) / 2,
-                    (corner1_LPS[1] + corner2_LPS[1]) / 2,
-                    (corner1_LPS[2] + corner2_LPS[2]) / 2]
-
-        size_LPS = [abs(corner2_LPS[0] - corner1_LPS[0]),
-                    abs(corner2_LPS[1] - corner1_LPS[1]),
-                    abs(corner2_LPS[2] - corner1_LPS[2])]
-
-        # Convert center and size from LPS to RAS
-        center_RAS = [center_LPS[0], center_LPS[1], center_LPS[2]]
-        size_RAS = [size_LPS[0], size_LPS[1], size_LPS[2]]  # Size remains the same, as it's a magnitude
 
         # These two variables are part of a workaround to solve a race condition
         # between the parameter node update and the gui update (e.g., (1) when a dynamic
@@ -320,11 +305,7 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         """This enables/disables the simulation buttons according to the state of the parameter node"""
 
         modelNode = self._parameterNode.modelNode
-        boundaryROI = self._parameterNode.boundaryROI
-        gravityVector = self._parameterNode.gravityVector
-        movingPointNode = self._parameterNode.movingPointNode
-
-        enableSimulationButton = True if None not in [boundaryROI, modelNode, gravityVector, movingPointNode] else False
+        enableSimulationButton = True if None not in [modelNode] else False
         self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
 
 #
@@ -347,14 +328,6 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self.connectionStatus = 0
         self._parameterNode = self.getParameterNode()
         self._simulationController = None
-        self.SOFAReceiverModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        self.SOFAReceiverModelNode.SetName('SOFAMesh')
-        self.SOFAReceiverModelNode.HideFromEditorsOn()
-        self.SOFAReceiverModelNode.Modified()
-        self.SOFAReceiverModelNode.AddObserver(slicer.vtkMRMLModelNode.PolyDataModifiedEvent, self.onModelNodeModified)
-        self._transformedModel = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode') #This is needed to convert RAS to LPS for SOFA
-        self._transformedModel.SetName('SOFATransformedModel')
-        self._transformedModel.HideFromEditorsOn()
 
     def cleanup(self) -> None:
         pass
