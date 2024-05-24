@@ -1,4 +1,5 @@
 from qt import QObject, QTimer
+from abc import abstractmethod
 
 from SofaSimulation import *
 
