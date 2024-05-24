@@ -1,11 +1,6 @@
 #-----------------------------------------------------------------------------
 set(MODULE_NAME OrganManipulation)
 
-
-configure_file(Simulations/SlicerSofaRootSource.py.in ${CMAKE_CURRENT_SOURCE_DIR}/Simulations/SlicerSofaRoot.py @ONLY)
-configure_file(Simulations/SlicerSofaRootBuild.py.in
-  ${CMAKE_BINARY_DIR}/${Slicer_QTSCRIPTEDMODULES_LIB_DIR}/Simulations/SlicerSofaRoot.py)
-
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py

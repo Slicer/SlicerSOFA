@@ -352,7 +352,7 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         import Simulations.SOFASimulationSingle as single
 
         if self._parameterNode.modelNode is not None:
-            self._simulationController = single.SimulationController(self._parameterNode)
+            self._simulationController = single.OrganManipulationController(self._parameterNode)
             self._simulationController.start()
 
     def onModelNodeModified(self, caller, event) -> None:
