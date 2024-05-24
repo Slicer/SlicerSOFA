@@ -1,7 +1,7 @@
 import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-os.environ['SOFA_ROOT'] = '/home/rafael/src/Slicer-SOFA/Release/inner-build/inner-build/lib/Slicer-5.7'
+os.environ['SOFA_ROOT'] = '@CMAKE_BINARY_DIR@/@EXTENSION_BUILD_SUBDIRECTORY@/@Slicer_LIB_DIR@'
 
 import Sofa
 import SofaRuntime

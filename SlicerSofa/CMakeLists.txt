@@ -3,9 +3,8 @@ set(MODULE_NAME SlicerSofa)
 
 
 #-----------------------------------------------------------------------------
-configure_file(SofaSimulation/SlicerSofaRootSource.py.in ${CMAKE_CURRENT_SOURCE_DIR}/SofaSimulation/SlicerSofaRoot.py @ONLY)
-configure_file(SofaSimulation/SlicerSofaRootBuild.py.in
-  ${CMAKE_BINARY_DIR}/${Slicer_QTSCRIPTEDMODULES_LIB_DIR}/SofaSimulation/SlicerSofaRoot.py)
+configure_file(SofaSimulation/__init__source.py.in ${CMAKE_CURRENT_SOURCE_DIR}/SofaSimulation/__init__.py @ONLY)
+configure_file(SofaSimulation/__init__build.py.in ${CMAKE_BINARY_DIR}/${Slicer_QTSCRIPTEDMODULES_LIB_DIR}/SofaSimulation/__init__.py)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
