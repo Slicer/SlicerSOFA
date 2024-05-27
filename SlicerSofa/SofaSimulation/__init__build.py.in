@@ -1,15 +1,20 @@
 import os
+import sys
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['SOFA_ROOT'] = script_dir + '/../../qt-loadable-modules'
 
+defaultExecHook = sys.excepthook
+
 import Sofa
-import SofaRuntime
+#import SofaRuntime
 
 from .SimulationController import SimulationController
 
-__all__ = ["Sofa", "SofaRuntime", "SimulationController"]
+__all__ = ["Sofa", "SimulationController"]
 
-# Make Sofa and SofaRuntime available in the global namespace
-globals()['Sofa'] = Sofa
-globals()['SofaRuntime'] = SofaRuntime
+# # Make Sofa and SofaRuntime available in the global namespace
+# globals()['Sofa'] = Sofa
+# globals()['SofaRuntime'] = SofaRuntime
+
+sys.excepthook = defaultExecHook
