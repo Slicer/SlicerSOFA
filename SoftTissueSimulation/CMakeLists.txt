@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME OrganManipulation)
+set(MODULE_NAME SoftTissueSimulation)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

@@ -33,19 +33,19 @@ from slicer import vtkMRMLSequenceNode
 from SofaSimulation import *
 
 #
-# OrganManipulation
+# SoftTissueSimulation
 #
 
 
-class OrganManipulation(ScriptedLoadableModule):
+class SoftTissueSimulation(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("Ogan Manipulation")
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Simulation.SOFA")]
+        self.parent.title = _("Soft Tissue Simulation")
+        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []  # TODO: add here list of module names that this module requires
         self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, inc.)"]
         # TODO: update with short description of the module and a link to online module documentation
@@ -87,11 +87,11 @@ def registerSampleData():
     )
 
 #
-# OrganManipulationParameterNode
+# SoftTissueSimulationParameterNode
 #
 
 @parameterNodeWrapper
-class OrganManipulationParameterNode:
+class SoftTissueSimulationParameterNode:
     """
     The parameters needed by module.
     """
@@ -187,10 +187,10 @@ class OrganManipulationParameterNode:
         return cell_connectivity
 
 #
-# OrganManipulationWidget
+# SoftTissueSimulationWidget
 #
 
-class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """Uses ScriptedLoadableModuleWidget base class, available at:
     https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
@@ -217,13 +217,13 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
         # Load widget from .ui file (created by Qt Designer).
         # Additional widgets can be instantiated manually and added to self.layout.
-        uiWidget = slicer.util.loadUI(self.resourcePath("UI/OrganManipulation.ui"))
+        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SoftTissueSimulation.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
         # Create logic class. Logic implements all computations that should be possible to run
         # in batch mode, without a graphical user interface.
-        self.logic = OrganManipulationLogic()
+        self.logic = SoftTissueSimulationLogic()
 
         # Set scene in MRML widgets. Make sure that in Qt designer the top-level qMRMLWidget's
         # "mrmlSceneChanged(vtkMRMLScene*)" signal in is connected to each MRML widget's.
@@ -292,7 +292,7 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self._parameterNode.currentStep = self.ui.currentStepSpinBox.value
         self._parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
 
-    def setParameterNode(self, inputParameterNode: Optional[OrganManipulationParameterNode]) -> None:
+    def setParameterNode(self, inputParameterNode: Optional[SoftTissueSimulationParameterNode]) -> None:
         """
         Set and observe parameter node.
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
@@ -313,10 +313,10 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
 
 #
-# OrganManipulationLogic
+# SoftTissueSimulationLogic
 #
 
-class OrganManipulationLogic(ScriptedLoadableModuleLogic):
+class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
     computation done by your module.  The interface
     should be such that other python code can import
@@ -338,7 +338,7 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self._simulationController.clean()
 
     def getParameterNode(self):
-        return OrganManipulationParameterNode(super().getParameterNode())
+        return SoftTissueSimulationParameterNode(super().getParameterNode())
 
     def startSimulation(self) -> None:
 
@@ -355,7 +355,7 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             browserNode.SetRecordingActive(True)
 
         if self._parameterNode.modelNode is not None:
-            self._simulationController = OrganManipulationController(self._parameterNode)
+            self._simulationController = SoftTissueSimulationController(self._parameterNode)
             self._simulationController.setupScene()
             self._simulationController.start()
 
@@ -495,11 +495,11 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
             sequenceNode.SetIndexUnit(masterSequenceNode.GetIndexUnit())
 
 #
-# OrganManipulationTest
+# SoftTissueSimulationTest
 #
 
 
-class OrganManipulationTest(ScriptedLoadableModuleTest):
+class SoftTissueSimulationTest(ScriptedLoadableModuleTest):
     """
     This is the test case for your scripted module.
     Uses ScriptedLoadableModuleTest base class, available at:
@@ -515,11 +515,11 @@ class OrganManipulationTest(ScriptedLoadableModuleTest):
         pass
 
 
-class OrganManipulationController(SimulationController):
+class SoftTissueSimulationController(SimulationController):
 
     def __init__(self, parameterNode, parent=None):
 
-        super(OrganManipulationController, self).__init__(parameterNode, parent)
+        super(SoftTissueSimulationController, self).__init__(parameterNode, parent)
         self._boxROI = None
         self._mouseInteractor = None
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>OrganManipulation</class>
- <widget class="qMRMLWidget" name="OrganManipulation">
+ <class>SoftTissueSimulation</class>
+ <widget class="qMRMLWidget" name="SoftTissueSimulation">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -499,7 +499,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>OrganManipulation</sender>
+   <sender>SoftTissueSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>movingPointComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -515,7 +515,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>OrganManipulation</sender>
+   <sender>SoftTissueSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>SOFAMRMLModelNodeComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -531,7 +531,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>OrganManipulation</sender>
+   <sender>SoftTissueSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>recordingSequenceComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -547,7 +547,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>OrganManipulation</sender>
+   <sender>SoftTissueSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>boundaryROIComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -563,7 +563,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>OrganManipulation</sender>
+   <sender>SoftTissueSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>gravityVectorComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
