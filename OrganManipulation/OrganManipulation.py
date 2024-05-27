@@ -253,6 +253,7 @@ class OrganManipulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.logic.cleanup()
         self.removeObservers()
 
+
     def enter(self) -> None:
         # """Called each time the user opens this module."""
         # # Make sure parameter node exists and observed
@@ -333,7 +334,8 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
         self._simulationController = None
 
     def cleanup(self) -> None:
-        pass
+        print("Cleaning Simulation")
+        self._simulationController.clean()
 
     def getParameterNode(self):
         return OrganManipulationParameterNode(super().getParameterNode())
@@ -354,6 +356,7 @@ class OrganManipulationLogic(ScriptedLoadableModuleLogic):
 
         if self._parameterNode.modelNode is not None:
             self._simulationController = OrganManipulationController(self._parameterNode)
+            self._simulationController.setupScene()
             self._simulationController.start()
 
     def onModelNodeModified(self, caller, event) -> None:
@@ -521,11 +524,12 @@ class OrganManipulationController(SimulationController):
         self._mouseInteractor = None
 
     def updateParameters(self) -> None:
-        super(OrganManipulationController, self).updateParameters()
-        if self.parameterNode:
+        if self.parameterNode is not None:
             self._BoxROI.box = [self.parameterNode.getBoundaryROI()]
         if self.parameterNode.movingPointNode:
             self._mouseInteractor.position = [list(self.parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
+        if self.parameterNode.gravityVector is not None:
+            self.rootNode.gravity = self.parameterNode.getGravityVector()
 
     def updateScene(self) -> None:
         points_vtk = numpy_to_vtk(num_array=self._mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
@@ -574,10 +578,11 @@ class OrganManipulationController(SimulationController):
             "Sofa.Component.Engine.Select",
             "Sofa.Component.Constraint.Projective",
             "SofaIGTLink"
-        ], dt=0.0, gravity=[0.0, 0.0, 0.0])
+        ])
 
         rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
         rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
+        slicer.modules.rootNode = rootNode
 
         femNode = rootNode.addChild('FEM')
         femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
