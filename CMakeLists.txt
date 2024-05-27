@@ -36,7 +36,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(SlicerSofa)
-add_subdirectory(OrganManipulation)
+add_subdirectory(SoftTissueSimulation)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
