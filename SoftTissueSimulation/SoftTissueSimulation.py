@@ -200,16 +200,16 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)  # needed for parameter node observation
         self.logic = None
-        self._parameterNode = None
-        self._parameterNodeGuiTag = None
+        self.parameterNode = None
+        self.parameterNodeGuiTag = None
 
         # These two variables are part of a workaround to solve a race condition
         # between the parameter node update and the gui update (e.g., (1) when a dynamic
         # property is defined in QT Designer and (2) a manual QT connect is defined and (3)
         # the corresponding slot function needs an updated parameter node). This workaround
         # uses a timer to make the slot function go last in the order of events.
-        self._timer = qt.QTimer()
-        self._timeout = False
+        self.timer = qt.QTimer()
+        self.timeout = False
 
     def setup(self) -> None:
         """Called when the user opens the module the first time and the widget is initialized."""
@@ -263,9 +263,9 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
     def exit(self) -> None:
         """Called each time the user opens a different module."""
         # Do not react to parameter node changes (GUI will be updated when the user enters into the module)
-        if self._parameterNode:
-            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
-            self._parameterNodeGuiTag = None
+        if self.parameterNode:
+            self.parameterNode.disconnectGui(self.parameterNodeGuiTag)
+            self.parameterNodeGuiTag = None
 
     def onSceneStartClose(self, caller, event) -> None:
         """Called just before the scene is closed."""
@@ -283,32 +283,32 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
         # so that when the scene is saved and reloaded, these settings are restored.
 
         self.setParameterNode(self.logic.getParameterNode())
-        self._parameterNode.modelNode = None
-        self._parameterNode.boundaryROI = None
-        self._parameterNode.gravityVector = None
-        self._parameterNode.sequenceNode = None
-        self._parameterNode.sequenceBrowserNode = None
-        self._parameterNode.dt = self.ui.dtSpinBox.value
-        self._parameterNode.currentStep = self.ui.currentStepSpinBox.value
-        self._parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
+        self.parameterNode.modelNode = None
+        self.parameterNode.boundaryROI = None
+        self.parameterNode.gravityVector = None
+        self.parameterNode.sequenceNode = None
+        self.parameterNode.sequenceBrowserNode = None
+        self.parameterNode.dt = self.ui.dtSpinBox.value
+        self.parameterNode.currentStep = self.ui.currentStepSpinBox.value
+        self.parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
 
     def setParameterNode(self, inputParameterNode: Optional[SoftTissueSimulationParameterNode]) -> None:
         """
         Set and observe parameter node.
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
         """
-        if self._parameterNode:
-            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
-        self._parameterNode = inputParameterNode
-        if self._parameterNode:
+        if self.parameterNode:
+            self.parameterNode.disconnectGui(self.parameterNodeGuiTag)
+        self.parameterNode = inputParameterNode
+        if self.parameterNode:
             # Note: in the .ui file, a Qt dynamic property called "SlicerParameterName" is set on each
             # ui element that needs connection.
-            self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
+            self.parameterNodeGuiTag = self.parameterNode.connectGui(self.ui)
 
     def updateSimulationPushButtons(self, caller, event):
         """This enables/disables the simulation buttons according to the state of the parameter node"""
 
-        modelNode = self._parameterNode.modelNode
+        modelNode = self.parameterNode.modelNode
         enableSimulationButton = True if None not in [modelNode] else False
         self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
 
@@ -330,22 +330,22 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
         ScriptedLoadableModuleLogic.__init__(self)
         self.connectionStatus = 0
-        self._parameterNode = self.getParameterNode()
-        self._simulationController = None
+        self.parameterNode = self.getParameterNode()
+        self.simulationController = None
 
     def cleanup(self) -> None:
         print("Cleaning Simulation")
-        self._simulationController.clean()
+        self.simulationController.clean()
 
     def getParameterNode(self):
         return SoftTissueSimulationParameterNode(super().getParameterNode())
 
     def startSimulation(self) -> None:
 
-        sequenceNode = self._parameterNode.sequenceNode
-        browserNode = self._parameterNode.sequenceBrowserNode
-        modelNode = self._parameterNode.modelNode
-        movingPointNode = self._parameterNode.movingPointNode
+        sequenceNode = self.parameterNode.sequenceNode
+        browserNode = self.parameterNode.sequenceBrowserNode
+        modelNode = self.parameterNode.modelNode
+        movingPointNode = self.parameterNode.movingPointNode
 
         # Synchronize and set up the sequence browser node
         if None not in [sequenceNode, browserNode, modelNode]:
@@ -354,27 +354,27 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
             browserNode.SetRecording(sequenceNode, True)
             browserNode.SetRecordingActive(True)
 
-        if self._parameterNode.modelNode is not None:
-            self._simulationController = SoftTissueSimulationController(self._parameterNode)
-            self._simulationController.setupScene()
-            self._simulationController.start()
+        if self.parameterNode.modelNode is not None:
+            self.simulationController = SoftTissueSimulationController(self.parameterNode)
+            self.simulationController.setupScene()
+            self.simulationController.start()
 
     def onModelNodeModified(self, caller, event) -> None:
-        if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
-            self._parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-        elif self._parameterNode.modelNode.GetPolyData() is not None:
-            self._parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+        if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
+            self.parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
+        elif self.parameterNode.modelNode.GetPolyData() is not None:
+            self.parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addBoundaryROI(self) -> None:
         roiNode = slicer.vtkMRMLMarkupsROINode()
         mesh = None
         bounds = None
 
-        if self._parameterNode.modelNode is not None:
-            if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
-                mesh = self._parameterNode.modelNode.GetUnstructuredGrid()
-            elif self._parameterNode.modelNode.GetPolyData() is not None:
-                mesh = self._parameterNode.modelNode.GetPolyData()
+        if self.parameterNode.modelNode is not None:
+            if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
+                mesh = self.parameterNode.modelNode.GetUnstructuredGrid()
+            elif self.parameterNode.modelNode.GetPolyData() is not None:
+                mesh = self.parameterNode.modelNode.GetPolyData()
 
         if mesh is not None:
             bounds = mesh.GetBounds()
@@ -394,11 +394,11 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         mesh = None
 
         # Check if there is a model node set in the parameter node and get its mesh
-        if self._parameterNode.modelNode is not None:
-            if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
-                mesh = self._parameterNode.modelNode.GetUnstructuredGrid()
-            elif self._parameterNode.modelNode.GetPolyData() is not None:
-                mesh = self._parameterNode.modelNode.GetPolyData()
+        if self.parameterNode.modelNode is not None:
+            if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
+                mesh = self.parameterNode.modelNode.GetUnstructuredGrid()
+            elif self.parameterNode.modelNode.GetPolyData() is not None:
+                mesh = self.parameterNode.modelNode.GetPolyData()
 
         # If a mesh is found, compute its bounding box and center
         if mesh is not None:
@@ -429,8 +429,8 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
     def addMovingPoint(self) -> None:
 
         cameraNode = slicer.util.getNode('Camera')
-        if None not in [self._parameterNode.modelNode, cameraNode]:
-            self.addFiducialToClosestPoint(self._parameterNode.modelNode, cameraNode)
+        if None not in [self.parameterNode.modelNode, cameraNode]:
+            self.addFiducialToClosestPoint(self.parameterNode.modelNode, cameraNode)
 
     def addFiducialToClosestPoint(self, modelNode, cameraNode) -> None:
         # Obtain the camera's position
@@ -440,10 +440,10 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         # Get the polydata from the model node
         modelData = None
 
-        if self._parameterNode.modelNode.GetUnstructuredGrid() is not None:
-            modelData = self._parameterNode.modelNode.GetUnstructuredGrid()
-        elif self._parameterNode.modelNode.GetPolyData() is not None:
-            modelData = self._parameterNode.modelNode.GetPolyData()
+        if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
+            modelData = self.parameterNode.modelNode.GetUnstructuredGrid()
+        elif self.parameterNode.modelNode.GetPolyData() is not None:
+            modelData = self.parameterNode.modelNode.GetPolyData()
 
         # Set up the point locator
         pointLocator = vtk.vtkPointLocator()
@@ -466,15 +466,15 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
 
     def addRecordingSequence(self) -> None:
 
-        browserNode = self._parameterNode.sequenceBrowserNode
-        modelNode = self._parameterNode.modelNode
+        browserNode = self.parameterNode.sequenceBrowserNode
+        modelNode = self.parameterNode.modelNode
 
         # Ensure there is a sequence browser node; create if not present
         if browserNode is None:
             browserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation")
             browserNode.SetPlaybackActive(False)
             browserNode.SetRecordingActive(False)
-            self._parameterNode.sequenceBrowserNode = browserNode  # Update the parameter node reference
+            self.parameterNode.sequenceBrowserNode = browserNode  # Update the parameter node reference
 
         sequenceNode = slicer.vtkMRMLSequenceNode()
 
@@ -486,7 +486,7 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         # Now add the configured sequence node to the scene
         slicer.mrmlScene.AddNode(sequenceNode)
 
-        self._parameterNode.sequenceNode = sequenceNode  # Update the parameter node reference
+        self.parameterNode.sequenceNode = sequenceNode  # Update the parameter node reference
 
         # Configure index name and unit based on the master sequence node, if present
         masterSequenceNode = browserNode.GetMasterSequenceNode()
@@ -520,19 +520,19 @@ class SoftTissueSimulationController(SimulationController):
     def __init__(self, parameterNode, parent=None):
 
         super(SoftTissueSimulationController, self).__init__(parameterNode, parent)
-        self._boxROI = None
-        self._mouseInteractor = None
+        self.boxROI = None
+        self.mouseInteractor = None
 
     def updateParameters(self) -> None:
         if self.parameterNode is not None:
-            self._BoxROI.box = [self.parameterNode.getBoundaryROI()]
+            self.BoxROI.box = [self.parameterNode.getBoundaryROI()]
         if self.parameterNode.movingPointNode:
-            self._mouseInteractor.position = [list(self.parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
+            self.mouseInteractor.position = [list(self.parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
         if self.parameterNode.gravityVector is not None:
             self.rootNode.gravity = self.parameterNode.getGravityVector()
 
     def updateScene(self) -> None:
-        points_vtk = numpy_to_vtk(num_array=self._mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+        points_vtk = numpy_to_vtk(num_array=self.mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
         vtk_points = vtk.vtkPoints()
         vtk_points.SetData(points_vtk)
         self.parameterNode.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
@@ -588,9 +588,9 @@ class SoftTissueSimulationController(SimulationController):
         femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
         femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
 
-        self._container = femNode.addObject('TetrahedronSetTopologyContainer', name="Container")
-        self._container.position = parameterNode.getModelPointsArray()
-        self._container.tetrahedra = parameterNode.getModelCellsArray()
+        self.container = femNode.addObject('TetrahedronSetTopologyContainer', name="Container")
+        self.container.position = parameterNode.getModelPointsArray()
+        self.container.tetrahedra = parameterNode.getModelCellsArray()
 
         femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
         femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
@@ -598,18 +598,18 @@ class SoftTissueSimulationController(SimulationController):
         femNode.addObject('MeshMatrixMass', totalMass=1)
 
         fixedROI = femNode.addChild('FixedROI')
-        self._BoxROI = fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
+        self.BoxROI = fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
                                           position="@../mstate.rest_position", name="FixedROI",
                                           computeTriangles=False, computeTetrahedra=False, computeEdges=False)
         fixedROI.addObject('FixedConstraint', indices="@FixedROI.indices")
-        slicer.modules.boxROI = self._BoxROI
+        slicer.modules.boxROI = self.BoxROI
 
         collisionNode = femNode.addChild('Collision')
         collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
         collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
         collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
         collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
-        self._mechanicalObject = collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
+        self.mechanicalObject = collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
         collisionNode.addObject('IdentityMapping', name='visualMapping')
 
         femNode.addObject('LinearSolverConstraintCorrection', linearSolver="@precond")
@@ -618,6 +618,6 @@ class SoftTissueSimulationController(SimulationController):
         attachPointNode.addObject('PointSetTopologyContainer', name="Container")
         attachPointNode.addObject('PointSetTopologyModifier', name="Modifier")
         attachPointNode.addObject('MechanicalObject', name="mstate", template="Vec3d", drawMode=2, showObjectScale=0.01, showObject=False)
-        self._mouseInteractor = attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
+        self.mouseInteractor = attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
 
         return rootNode
