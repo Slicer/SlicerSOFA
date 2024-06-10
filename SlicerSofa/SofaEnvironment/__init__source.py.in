@@ -1,0 +1,13 @@
+import os
+import sys
+
+os.environ['SOFA_ROOT'] = '@CMAKE_BINARY_DIR@/@EXTENSION_BUILD_SUBDIRECTORY@/@Slicer_LIB_DIR@'
+
+defaultExecHook = sys.excepthook
+
+import Sofa
+import SofaRuntime
+
+sys.excepthook = defaultExecHook
+
+__all__ = ["Sofa", "SofaRuntime"]
