@@ -41,6 +41,9 @@
          <property name="hideChildNodeTypes">
           <stringlist notr="true"/>
          </property>
+         <property name="noneEnabled">
+          <bool>true</bool>
+         </property>
          <property name="addEnabled">
           <bool>false</bool>
          </property>
@@ -178,13 +181,16 @@
        <item>
         <widget class="QSpinBox" name="gravityMagnitudeSpinBox">
          <property name="minimum">
-          <number>1</number>
+          <number>0</number>
          </property>
          <property name="maximum">
           <number>9999</number>
          </property>
          <property name="stepType">
           <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+         </property>
+         <property name="value">
+          <number>0</number>
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>gravityMagnitude</string>
@@ -227,7 +233,9 @@
           <bool>true</bool>
          </property>
          <property name="nodeTypes">
-          <stringlist notr="true"/>
+          <stringlist notr="true">
+           <string>vtkMRMLMarkupsFiducialNode</string>
+          </stringlist>
          </property>
          <property name="hideChildNodeTypes">
           <stringlist notr="true"/>
@@ -326,29 +334,6 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_7">
      <item>
-      <widget class="QPushButton" name="resetSimulationPushButton">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="text">
-        <string>Reset Simulation</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
       <widget class="QPushButton" name="startSimulationPushButton">
        <property name="enabled">
         <bool>false</bool>
@@ -357,19 +342,6 @@
         <string>Start Simulation</string>
        </property>
       </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_3">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
      <item>
       <widget class="QPushButton" name="stopSimulationPushButton">

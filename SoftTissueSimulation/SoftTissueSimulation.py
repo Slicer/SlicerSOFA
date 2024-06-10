@@ -30,7 +30,8 @@ from slicer import vtkMRMLModelNode
 from slicer import vtkMRMLSequenceBrowserNode
 from slicer import vtkMRMLSequenceNode
 
-from SofaSimulation import *
+from SofaEnvironment import Sofa
+from SlicerSofa import SlicerSofaLogic
 
 #
 # SoftTissueSimulation
@@ -46,12 +47,9 @@ class SoftTissueSimulation(ScriptedLoadableModule):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = _("Soft Tissue Simulation")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
-        self.parent.dependencies = []  # TODO: add here list of module names that this module requires
+        self.parent.dependencies = []
         self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, inc.)"]
-        # TODO: update with short description of the module and a link to online module documentation
-        # _() function marks text as translatable to other languages
         self.parent.helpText = _("""""")
-        # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = _("""""")
 
         # Additional initialization step after application startup is complete
@@ -69,7 +67,7 @@ def registerSampleData():
 
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
 
-    slicerSOFADataURL= 'https://github.com/rafaelpalomar/SlicerSOFATestingData/releases/download/'
+    sofaDataURL= 'https://github.com/rafaelpalomar/SofaTestingData/releases/download/'
 
     # To ensure that the source code repository remains small (can be downloaded and installed quickly)
     # it is recommended to store data sets that are larger than a few MB in a Github release.
@@ -79,7 +77,7 @@ def registerSampleData():
         category='SOFA',
         sampleName='RightLungLowTetra',
         thumbnailFileName=os.path.join(iconsPath, 'RightLungLowTetra.png'),
-        uris=slicerSOFADataURL+ 'SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+        uris=sofaDataURL+ 'SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
         fileNames='RightLungLowTetra.vtk',
         checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
         nodeNames='RightLung',
@@ -107,6 +105,7 @@ class SoftTissueSimulationParameterNode:
     dt: float
     totalSteps: int
     currentStep: int
+    simulationRunning: bool
 
     def getBoundaryROI(self):
 
@@ -202,14 +201,8 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
         self.logic = None
         self.parameterNode = None
         self.parameterNodeGuiTag = None
-
-        # These two variables are part of a workaround to solve a race condition
-        # between the parameter node update and the gui update (e.g., (1) when a dynamic
-        # property is defined in QT Designer and (2) a manual QT connect is defined and (3)
-        # the corresponding slot function needs an updated parameter node). This workaround
-        # uses a timer to make the slot function go last in the order of events.
-        self.timer = qt.QTimer()
-        self.timeout = False
+        self.timer = qt.QTimer(parent)
+        self.timer.timeout.connect(self.simulationStep)
 
     def setup(self) -> None:
         """Called when the user opens the module the first time and the widget is initialized."""
@@ -236,29 +229,27 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
-        self.ui.startSimulationPushButton.connect("clicked()", self.logic.startSimulation)
+        self.ui.startSimulationPushButton.connect("clicked()", self.startSimulation)
+        self.ui.stopSimulationPushButton.connect("clicked()", self.stopSimulation)
         self.ui.addBoundaryROIPushButton.connect("clicked()", self.logic.addBoundaryROI)
         self.ui.addGravityVectorPushButton.connect("clicked()", self.logic.addGravityVector)
         self.ui.addMovingPointPushButton.connect("clicked()", self.logic.addMovingPoint)
         self.ui.addRecordingSequencePushButton.connect("clicked()", self.logic.addRecordingSequence)
 
-        # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
-
-        parameterNode = self.logic.getParameterNode()
-        parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationPushButtons)
+        self.logic.getParameterNode().AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationGUI)
 
     def cleanup(self) -> None:
         """Called when the application closes and the module widget is destroyed."""
-        self.logic.cleanup()
+        self.timer.stop()
+        self.logic.stopSimulation()
+        self.logic.clean()
         self.removeObservers()
-
 
     def enter(self) -> None:
         # """Called each time the user opens this module."""
         # # Make sure parameter node exists and observed
-        # self.initializeParameterNode()
-        pass
+        self.initializeParameterNode()
 
     def exit(self) -> None:
         """Called each time the user opens a different module."""
@@ -282,15 +273,9 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
         # Parameter node stores all user choices in parameter values, node selections, etc.
         # so that when the scene is saved and reloaded, these settings are restored.
 
-        self.setParameterNode(self.logic.getParameterNode())
-        self.parameterNode.modelNode = None
-        self.parameterNode.boundaryROI = None
-        self.parameterNode.gravityVector = None
-        self.parameterNode.sequenceNode = None
-        self.parameterNode.sequenceBrowserNode = None
-        self.parameterNode.dt = self.ui.dtSpinBox.value
-        self.parameterNode.currentStep = self.ui.currentStepSpinBox.value
-        self.parameterNode.totalSteps= self.ui.totalStepsSpinBox.value
+        if self.logic:
+            self.setParameterNode(self.logic.getParameterNode())
+            self.logic.resetParameterNode()
 
     def setParameterNode(self, inputParameterNode: Optional[SoftTissueSimulationParameterNode]) -> None:
         """
@@ -305,18 +290,30 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
             # ui element that needs connection.
             self.parameterNodeGuiTag = self.parameterNode.connectGui(self.ui)
 
-    def updateSimulationPushButtons(self, caller, event):
+    def updateSimulationGUI(self, caller, event):
         """This enables/disables the simulation buttons according to the state of the parameter node"""
+        self.ui.startSimulationPushButton.setEnabled(not self.logic.isSimulationRunning and
+                                                     self.logic.getParameterNode().modelNode is not None)
+        self.ui.stopSimulationPushButton.setEnabled(self.logic.isSimulationRunning)
 
-        modelNode = self.parameterNode.modelNode
-        enableSimulationButton = True if None not in [modelNode] else False
-        self.ui.startSimulationPushButton.setEnabled(enableSimulationButton)
+    def startSimulation(self):
+        self.logic.dt = self.ui.dtSpinBox.value
+        self.logic.totalSteps = self.ui.totalStepsSpinBox.value
+        self.logic.currentStep = self.ui.currentStepSpinBox.value
+        self.logic.startSimulation()
+        self.timer.start(0) #This timer drives the simulation updates
+
+    def stopSimulation(self):
+        self.timer.stop()
+
+    def simulationStep(self):
+       self.logic.simulationStep(self.parameterNode)
 
 #
 # SoftTissueSimulationLogic
 #
 
-class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
+class SoftTissueSimulationLogic(SlicerSofaLogic):
     """This class should implement all the actual
     computation done by your module.  The interface
     should be such that other python code can import
@@ -328,24 +325,47 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self) -> None:
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
-        ScriptedLoadableModuleLogic.__init__(self)
+        super().__init__()
         self.connectionStatus = 0
-        self.parameterNode = self.getParameterNode()
-        self.simulationController = None
+        self.boxROI = None
+        self.mouseInteractor = None
 
-    def cleanup(self) -> None:
-        print("Cleaning Simulation")
-        self.simulationController.clean()
+    def updateSofa(self, parameterNode) -> None:
+        if parameterNode is not None:
+            self.BoxROI.box = [parameterNode.getBoundaryROI()]
+        if parameterNode.movingPointNode:
+            self.mouseInteractor.position = [list(parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
+        if parameterNode.gravityVector is not None:
+            self.rootNode.gravity = parameterNode.getGravityVector()
+
+    def updateMRML(self, parameterNode) -> None:
+        points_vtk = numpy_to_vtk(num_array=self.mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+        vtk_points = vtk.vtkPoints()
+        vtk_points.SetData(points_vtk)
+        parameterNode.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
 
     def getParameterNode(self):
         return SoftTissueSimulationParameterNode(super().getParameterNode())
 
-    def startSimulation(self) -> None:
+    def resetParameterNode(self):
+        if self.getParameterNode():
+            self.getParameterNode().modelNode = None
+            self.getParameterNode().boundaryROI = None
+            self.getParameterNode().gravityVector = None
+            self.getParameterNode().sequenceNode = None
+            self.getParameterNode().sequenceBrowserNode = None
+            self.getParameterNode().dt = 0.01
+            self.getParameterNode().currentStep = 0
+            self.getParameterNode().totalSteps = -1
 
-        sequenceNode = self.parameterNode.sequenceNode
-        browserNode = self.parameterNode.sequenceBrowserNode
-        modelNode = self.parameterNode.modelNode
-        movingPointNode = self.parameterNode.movingPointNode
+    def getSimulationController(self):
+        return self.simulationController
+
+    def startSimulation(self) -> None:
+        sequenceNode = self.getParameterNode().sequenceNode
+        browserNode = self.getParameterNode().sequenceBrowserNode
+        modelNode = self.getParameterNode().modelNode
+        movingPointNode = self.getParameterNode().movingPointNode
 
         # Synchronize and set up the sequence browser node
         if None not in [sequenceNode, browserNode, modelNode]:
@@ -354,27 +374,24 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
             browserNode.SetRecording(sequenceNode, True)
             browserNode.SetRecordingActive(True)
 
-        if self.parameterNode.modelNode is not None:
-            self.simulationController = SoftTissueSimulationController(self.parameterNode)
-            self.simulationController.setupScene()
-            self.simulationController.start()
+        super().startSimulation(self.getParameterNode())
 
     def onModelNodeModified(self, caller, event) -> None:
-        if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
-            self.parameterNode.modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-        elif self.parameterNode.modelNode.GetPolyData() is not None:
-            self.parameterNode.modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+        if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+            self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
+        elif self.getParameterNode().modelNode.GetPolyData() is not None:
+            self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addBoundaryROI(self) -> None:
-        roiNode = slicer.vtkMRMLMarkupsROINode()
+        roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
         mesh = None
         bounds = None
 
-        if self.parameterNode.modelNode is not None:
-            if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
-                mesh = self.parameterNode.modelNode.GetUnstructuredGrid()
-            elif self.parameterNode.modelNode.GetPolyData() is not None:
-                mesh = self.parameterNode.modelNode.GetPolyData()
+        if self.getParameterNode().modelNode is not None:
+            if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+                mesh = self.getParameterNode().modelNode.GetUnstructuredGrid()
+            elif self.getParameterNode().modelNode.GetPolyData() is not None:
+                mesh = self.getParameterNode().modelNode.GetPolyData()
 
         if mesh is not None:
             bounds = mesh.GetBounds()
@@ -383,9 +400,7 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
             roiNode.SetXYZ(center)
             roiNode.SetRadiusXYZ(size[0], size[1], size[2])
 
-        roiNode = slicer.mrmlScene.AddNode(roiNode)
-        if roiNode is not None:
-            roiNode.CreateDefaultDisplayNodes()
+        self.getParameterNode().boundaryROI = roiNode
 
     def addGravityVector(self) -> None:
         # Create a new line node for the gravity vector
@@ -394,11 +409,11 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         mesh = None
 
         # Check if there is a model node set in the parameter node and get its mesh
-        if self.parameterNode.modelNode is not None:
-            if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
-                mesh = self.parameterNode.modelNode.GetUnstructuredGrid()
-            elif self.parameterNode.modelNode.GetPolyData() is not None:
-                mesh = self.parameterNode.modelNode.GetPolyData()
+        if self.getParameterNode().modelNode is not None:
+            if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+                mesh = self.getParameterNode().modelNode.GetUnstructuredGrid()
+            elif self.getParameterNode().modelNode.GetPolyData() is not None:
+                mesh = self.getParameterNode().modelNode.GetPolyData()
 
         # If a mesh is found, compute its bounding box and center
         if mesh is not None:
@@ -426,13 +441,15 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         if gravityVector is not None:
             gravityVector.CreateDefaultDisplayNodes()
 
+        self.getParameterNode().gravityVector = gravityVector
+
     def addMovingPoint(self) -> None:
-
         cameraNode = slicer.util.getNode('Camera')
-        if None not in [self.parameterNode.modelNode, cameraNode]:
-            self.addFiducialToClosestPoint(self.parameterNode.modelNode, cameraNode)
+        if None not in [self.getParameterNode().modelNode, cameraNode]:
+            fiducialNode = self.addFiducialToClosestPoint(self.getParameterNode().modelNode, cameraNode)
+            self.getParameterNode().movingPointNode = fiducialNode
 
-    def addFiducialToClosestPoint(self, modelNode, cameraNode) -> None:
+    def addFiducialToClosestPoint(self, modelNode, cameraNode) -> vtkMRMLMarkupsFiducialNode:
         # Obtain the camera's position
         camera = cameraNode.GetCamera()
         camPosition = camera.GetPosition()
@@ -440,10 +457,10 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         # Get the polydata from the model node
         modelData = None
 
-        if self.parameterNode.modelNode.GetUnstructuredGrid() is not None:
-            modelData = self.parameterNode.modelNode.GetUnstructuredGrid()
-        elif self.parameterNode.modelNode.GetPolyData() is not None:
-            modelData = self.parameterNode.modelNode.GetPolyData()
+        if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+            modelData = self.getParameterNode().modelNode.GetUnstructuredGrid()
+        elif self.getParameterNode().modelNode.GetPolyData() is not None:
+            modelData = self.getParameterNode().modelNode.GetPolyData()
 
         # Set up the point locator
         pointLocator = vtk.vtkPointLocator()
@@ -464,17 +481,19 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         if displayNode:
             displayNode.SetSelectedColor(1, 0, 0)  # Red color for the selected fiducial
 
+        return fiducialNode
+
     def addRecordingSequence(self) -> None:
 
-        browserNode = self.parameterNode.sequenceBrowserNode
-        modelNode = self.parameterNode.modelNode
+        browserNode = self.getParameterNode().sequenceBrowserNode
+        modelNode = self.getParameterNode().modelNode
 
         # Ensure there is a sequence browser node; create if not present
         if browserNode is None:
             browserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation")
             browserNode.SetPlaybackActive(False)
             browserNode.SetRecordingActive(False)
-            self.parameterNode.sequenceBrowserNode = browserNode  # Update the parameter node reference
+            self.getParameterNode().sequenceBrowserNode = browserNode  # Update the parameter node reference
 
         sequenceNode = slicer.vtkMRMLSequenceNode()
 
@@ -486,7 +505,7 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
         # Now add the configured sequence node to the scene
         slicer.mrmlScene.AddNode(sequenceNode)
 
-        self.parameterNode.sequenceNode = sequenceNode  # Update the parameter node reference
+        self.getParameterNode().sequenceNode = sequenceNode  # Update the parameter node reference
 
         # Configure index name and unit based on the master sequence node, if present
         masterSequenceNode = browserNode.GetMasterSequenceNode()
@@ -494,48 +513,6 @@ class SoftTissueSimulationLogic(ScriptedLoadableModuleLogic):
             sequenceNode.SetIndexName(masterSequenceNode.GetIndexName())
             sequenceNode.SetIndexUnit(masterSequenceNode.GetIndexUnit())
 
-#
-# SoftTissueSimulationTest
-#
-
-
-class SoftTissueSimulationTest(ScriptedLoadableModuleTest):
-    """
-    This is the test case for your scripted module.
-    Uses ScriptedLoadableModuleTest base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
-    """
-
-    def setUp(self):
-        """Do whatever is needed to reset the state - typically a scene clear will be enough."""
-        slicer.mrmlScene.Clear()
-
-    def runTest(self):
-        """Run as few or as many tests as needed here."""
-        pass
-
-
-class SoftTissueSimulationController(SimulationController):
-
-    def __init__(self, parameterNode, parent=None):
-
-        super(SoftTissueSimulationController, self).__init__(parameterNode, parent)
-        self.boxROI = None
-        self.mouseInteractor = None
-
-    def updateParameters(self) -> None:
-        if self.parameterNode is not None:
-            self.BoxROI.box = [self.parameterNode.getBoundaryROI()]
-        if self.parameterNode.movingPointNode:
-            self.mouseInteractor.position = [list(self.parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
-        if self.parameterNode.gravityVector is not None:
-            self.rootNode.gravity = self.parameterNode.getGravityVector()
-
-    def updateScene(self) -> None:
-        points_vtk = numpy_to_vtk(num_array=self.mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
-        vtk_points = vtk.vtkPoints()
-        vtk_points.SetData(points_vtk)
-        self.parameterNode.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
 
     def createScene(self, parameterNode) -> Sofa.Core.Node:
         from stlib3.scene import MainHeader, ContactHeader
@@ -580,9 +557,10 @@ class SoftTissueSimulationController(SimulationController):
             "SofaIGTLink"
         ])
 
+        rootNode.gravity = parameterNode.getGravityVector()
+
         rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
         rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
-        slicer.modules.rootNode = rootNode
 
         femNode = rootNode.addChild('FEM')
         femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
@@ -602,7 +580,6 @@ class SoftTissueSimulationController(SimulationController):
                                           position="@../mstate.rest_position", name="FixedROI",
                                           computeTriangles=False, computeTetrahedra=False, computeEdges=False)
         fixedROI.addObject('FixedConstraint', indices="@FixedROI.indices")
-        slicer.modules.boxROI = self.BoxROI
 
         collisionNode = femNode.addChild('Collision')
         collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
@@ -621,3 +598,25 @@ class SoftTissueSimulationController(SimulationController):
         self.mouseInteractor = attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
 
         return rootNode
+
+#
+# SoftTissueSimulationTest
+#
+
+
+class SoftTissueSimulationTest(ScriptedLoadableModuleTest):
+    """
+    This is the test case for your scripted module.
+    Uses ScriptedLoadableModuleTest base class, available at:
+    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
+    """
+
+    def setUp(self):
+        """Do whatever is needed to reset the state - typically a scene clear will be enough."""
+        slicer.mrmlScene.Clear()
+
+    def runTest(self):
+        """Run as few or as many tests as needed here."""
+        pass
+
+
