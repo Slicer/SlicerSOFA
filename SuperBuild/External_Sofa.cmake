@@ -95,6 +95,31 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     )
   set(${proj}_DIR ${EP_BINARY_DIR})
 
+  #-----------------------------------------------------------------------------
+  # Launcher setting specific to build tree
+
+  # library paths
+  set(${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
+    ${${proj}_DIR}/lib
+    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
+    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}/<CMAKE_CFG_INTDIR>
+    )
+  mark_as_superbuild(
+    VARS ${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
+    LABELS "LIBRARY_PATHS_LAUNCHER_BUILD"
+    )
+
+  # python paths
+  set(${proj}_PYTHONPATH_LAUNCHER_BUILD
+    ${${proj}_DIR}/lib/python3/site-packages
+    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
+    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}/<CMAKE_CFG_INTDIR>
+    )
+  mark_as_superbuild(
+    VARS ${proj}_PYTHONPATH_LAUNCHER_BUILD
+    LABELS "PYTHONPATH_LAUNCHER_BUILD"
+    )
+
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
 endif()
