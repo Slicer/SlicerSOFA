@@ -1,4 +1,4 @@
-set(proj SOFA)
+set(proj Sofa)
 
 # Set dependency list
 set(${proj}_DEPENDS
@@ -37,7 +37,10 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/sofa-framework/sofa.git"
-    GIT_TAG "1a4bb3e76a10f230d5210c295e85f6bfcebda048" #master-20240423
+    GIT_TAG "2628b9f29cf3e082a514ca591f5a998bc3b0331d" #v24.06.00
+    URL ${SOFA_URL}
+    URL_HASH ${SOFA_URL_HASH}
+    DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
     SOURCE_DIR ${EP_SOURCE_DIR}
     BINARY_DIR ${EP_BINARY_DIR}
     CMAKE_CACHE_ARGS
@@ -61,7 +64,11 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCOLLECTION_SOFAMISCCOLLISION:BOOL=ON
       -DCOLLECTION_SOFAUSERINTERACTION:BOOL=ON
       -DSOFA_GUI_QT_ENABLE_QDOCBROWSER:BOOL=OFF
-      -#DSofaPython3_ENABLED:BOOL=ON
+      -DSOFA_INSTALL_RESOURCES_FILES:BOOL=OFF
+      # Output directory
+      -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
+      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
+      -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
       -DSofaSTLIB_ENABLED:BOOL=ON
       -DLIBRARY_SOFA_GUI:BOOL=ON
       -DLIBRARY_SOFA_GUI_COMMON:BOOL=ON
@@ -93,22 +100,3 @@ else()
 endif()
 
 mark_as_superbuild(${proj}_DIR:PATH)
-
-# Add a custom target that depends on the external project
-add_custom_target(slicer_${proj}_install ALL
-    COMMENT "Installing .so  and python files to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib"
-)
-
-add_dependencies(slicer_${proj}_install ${proj})
-
-add_custom_command(
-    TARGET slicer_${proj}_install POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -D LIB_DIR="${SOFA_DIR}/lib" -D CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" -D EXTENSION_BUILD_SUBDIRECTORY="${EXTENSION_BUILD_SUBDIRECTORY}" -D Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR="${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}" -P ${CMAKE_SOURCE_DIR}/cmake/InstallSOFiles.cmake
-    COMMENT "Copying SO files..."
-)
-
-add_custom_command(
-    TARGET slicer_${proj}_install POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -D LIB_PYTHON_DIR="${SOFA_DIR}/lib/python3/site-packages" -D CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" -D EXTENSION_BUILD_SUBDIRECTORY="${EXTENSION_BUILD_SUBDIRECTORY}" -D Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR="${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}" -P ${CMAKE_SOURCE_DIR}/cmake/InstallPythonFiles.cmake
-    COMMENT "Copying Python directories..."
-)

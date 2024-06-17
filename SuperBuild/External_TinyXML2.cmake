@@ -54,16 +54,3 @@ else()
 endif()
 
 mark_as_superbuild(${proj}_DIR:PATH)
-
-# Add a custom target that depends on the external project
-add_custom_target(slicer_${proj}_install ALL
-    COMMENT "Installing .so  and python files to ${CMAKE_BINARY_DIR}/${EXTENSION_BUILD_SUBDIRECTORY}/${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}/lib"
-)
-
-add_dependencies(slicer_${proj}_install ${proj})
-
-add_custom_command(
-    TARGET slicer_${proj}_install POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -D LIB_DIR="${TinyXML2_DIR}" -D CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" -D EXTENSION_BUILD_SUBDIRECTORY="${EXTENSION_BUILD_SUBDIRECTORY}" -D Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR="${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}" -P ${CMAKE_SOURCE_DIR}/cmake/InstallSOFiles.cmake
-    COMMENT "Copying SO files..."
-)
