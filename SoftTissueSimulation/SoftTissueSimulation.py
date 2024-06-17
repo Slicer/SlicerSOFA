@@ -49,8 +49,8 @@ class SoftTissueSimulation(ScriptedLoadableModule):
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []
         self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, inc.)"]
-        self.parent.helpText = _("""""")
-        self.parent.acknowledgementText = _("""""")
+        self.parent.helpText = _("""This is an example module to use the SOFA framework to simulate soft tissue""")
+        self.parent.acknowledgementText = _("""This project was funded by Oslo Universtiy Hospital""")
 
         # Additional initialization step after application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
