@@ -305,6 +305,7 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
 
     def stopSimulation(self):
         self.timer.stop()
+        self.logic.stopSimulation()
 
     def simulationStep(self):
        self.logic.simulationStep(self.parameterNode)
@@ -375,6 +376,15 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
             browserNode.SetRecordingActive(True)
 
         super().startSimulation(self.getParameterNode())
+        self._simulationRunning = True
+        self.getParameterNode().Modified()
+
+    def stopSimulation(self) -> None:
+        super().stopSimulation()
+        self._simulationRunning = False
+        browserNode = self.getParameterNode().sequenceBrowserNode
+        browserNode.SetRecordingActive(False)
+        self.getParameterNode().Modified()
 
     def onModelNodeModified(self, caller, event) -> None:
         if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
