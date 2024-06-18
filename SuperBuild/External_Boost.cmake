@@ -25,6 +25,12 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   set(BOOST_URL "https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz")
   set(BOOST_URL_HASH "SHA256=4d27e9efed0f6f152dc28db6430b9d3dfb40c0345da7342eaa5a987dde57bd95") # Replace <expected hash value> with the actual SHA256 hash of the tar.gz file
 
+  if(WIN32)
+    set(BUILD_COMMAND ${EP_SOURCE_DIR}/bootstrap.bat)
+  else()
+    set(BUILD_COMMAND ${EP_SOURCE_DIR}/bootstrap.sh)
+  endif()
+
   ExternalProject_Add(${proj}
     URL ${BOOST_URL}
     URL_HASH ${BOOST_URL_HASH}
@@ -32,7 +38,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     SOURCE_DIR ${EP_SOURCE_DIR}
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${EP_SOURCE_DIR}/bootstrap.sh
+    BUILD_COMMAND ${BUILD_COMMAND}
     INSTALL_COMMAND ${EP_SOURCE_DIR}/b2 --prefix=${EP_INSTALL_DIR} install
     BUILD_IN_SOURCE 1
     DEPENDS
