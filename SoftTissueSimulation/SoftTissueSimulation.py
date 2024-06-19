@@ -383,7 +383,8 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         super().stopSimulation()
         self._simulationRunning = False
         browserNode = self.getParameterNode().sequenceBrowserNode
-        browserNode.SetRecordingActive(False)
+        if browserNode is not None:
+            browserNode.SetRecordingActive(False)
         self.getParameterNode().Modified()
 
     def onModelNodeModified(self, caller, event) -> None:
