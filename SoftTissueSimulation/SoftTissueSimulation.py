@@ -67,7 +67,7 @@ def registerSampleData():
 
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
 
-    sofaDataURL= 'https://github.com/rafaelpalomar/SofaTestingData/releases/download/'
+    sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
     # To ensure that the source code repository remains small (can be downloaded and installed quickly)
     # it is recommended to store data sets that are larger than a few MB in a Github release.
