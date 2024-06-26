@@ -4,6 +4,7 @@ set(proj Sofa)
 set(${proj}_DEPENDS
   Boost
   Eigen3
+  GLEW
   TinyXML2
   pybind11
   OpenIGTLink
@@ -113,6 +114,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DPLUGIN_SOFA_GUI_QT:BOOL=ON
       -DSOFA_ROOT:PATH=${EP_SOURCE_DIR}
       -DSOFA_WITH_OPENGL:BOOL=ON
+      -DGLEW_DIR:PATH=${GLEW_DIR}
       -DBoost_INCLUDE_DIR:PATH=${Boost_DIR}/include
       -DEIGEN3_INCLUDE_DIR:PATH=${Eigen3_DIR}/include/eigen3
       -DTinyXML2_INCLUDE_DIR:PATH=${TinyXML2_DIR}/../TinyXML2
