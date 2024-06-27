@@ -26,6 +26,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   # Sanity checks
   set(expected_defined_vars
+    Qt5_DIR
     ZLIB_INCLUDE_DIR
     ZLIB_LIBRARY
     )
@@ -134,6 +135,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DBoost_DIR:PATH=${Boost_DIR}
       -DBoost_NO_BOOST_CMAKE:BOOL=FALSE # Support finding Boost as config-file package
       -DEIGEN3_INCLUDE_DIR:PATH=${Eigen3_DIR}/include/eigen3
+      -DQt5_DIR:PATH=${Qt5_DIR}
       -DTinyXML2_INCLUDE_DIR:PATH=${TinyXML2_DIR}/../TinyXML2
       -DTinyXML2_LIBRARY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libtinyxml2.so.10
       -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
