@@ -74,7 +74,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "4183113b4baaa433606aa2dc7dded8db33578bb6" # slicer-v24.06.00-2024-06-07-2628b9f29
+    GIT_TAG "a0028bc91e46f143037668e53bd9a435b04ee730" # slicer-v24.06.00-2024-06-07-2628b9f29
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
@@ -114,7 +114,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DSOFA_ROOT:PATH=${EP_SOURCE_DIR}
       -DSOFA_WITH_OPENGL:BOOL=ON
       -DGLEW_DIR:PATH=${GLEW_DIR}
-      -DBoost_INCLUDE_DIR:PATH=${Boost_DIR}/include
+      -DBoost_DIR:PATH=${Boost_DIR}
+      -DBoost_NO_BOOST_CMAKE:BOOL=FALSE # Support finding Boost as config-file package
       -DEIGEN3_INCLUDE_DIR:PATH=${Eigen3_DIR}/include/eigen3
       -DTinyXML2_INCLUDE_DIR:PATH=${TinyXML2_DIR}/../TinyXML2
       -DTinyXML2_LIBRARY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libtinyxml2.so.10
