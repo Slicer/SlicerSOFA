@@ -142,7 +142,8 @@ class SlicerSofa(ScriptedLoadableModule):
             "Jean Christophe Fillion-Robin (Kitware, Inc., USA)"
         ]
         self.parent.helpText = _("""
-        This module supports SOFA simulations. See documentation <a href="https://github.com/RafaelPalomar/Slicer-SOFA">here</a>.
+        This is a support module to enable simulations using the SOFA framework
+        See more information in <a href="https://github.com/RafaelPalomar/SlicerSOFA">module documentation</a>.
         """)
         self.parent.acknowledgementText = _("""
         Funded by Oslo University Hospital
@@ -197,8 +198,7 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def exit(self) -> None:
         """
-w
-        iCleanup GUI connections when the module is exited.
+        Cleanup GUI connections when the module is exited.
         """
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
@@ -307,13 +307,6 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
     def getUi(self, ui):
         return self.ui
-
-    # @abstractmethod
-    # def CreateScene() -> Sofa.Core.Node:
-    #     """
-    #     Creates the SOFA scene and returns the root node. I needs to be implemented in derived classes
-    #     """
-    #     return None
 
     def setupScene(self, parameterNode):
         """
