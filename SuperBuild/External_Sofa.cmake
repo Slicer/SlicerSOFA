@@ -24,6 +24,17 @@ endif()
 
 if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
 
+  # Sanity checks
+  set(expected_defined_vars
+    ZLIB_INCLUDE_DIR
+    ZLIB_LIBRARY
+    )
+  foreach(var ${expected_defined_vars})
+    if(NOT DEFINED ${var})
+      message(FATAL_ERROR "Variable ${var} is not defined")
+    endif()
+  endforeach()
+
   set(SOFA_EXTERNAL_DIRECTORIES)
 
   include(FetchContent)
@@ -125,6 +136,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DEIGEN3_INCLUDE_DIR:PATH=${Eigen3_DIR}/include/eigen3
       -DTinyXML2_INCLUDE_DIR:PATH=${TinyXML2_DIR}/../TinyXML2
       -DTinyXML2_LIBRARY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libtinyxml2.so.10
+      -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
+      -DZLIB_LIBRARY:PATH=${ZLIB_LIBRARY}
       -DSOFA_EXTERNAL_DIRECTORIES:STRING=${SOFA_EXTERNAL_DIRECTORIES}
       # SofaPython3
       -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE}
