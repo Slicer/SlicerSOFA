@@ -22,7 +22,9 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
   set(EP_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
-  set(BOOST_URL "https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz")
+
+  set(_version "1.84.0")
+  set(BOOST_URL "https://github.com/boostorg/boost/releases/download/boost-${_version}/boost-${_version}.tar.gz")
   set(BOOST_URL_HASH "SHA256=4d27e9efed0f6f152dc28db6430b9d3dfb40c0345da7342eaa5a987dde57bd95") # Replace <expected hash value> with the actual SHA256 hash of the tar.gz file
 
   if(WIN32)
@@ -52,7 +54,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     DEPENDS
       ${${proj}_DEPENDS}
   )
-  set(${proj}_DIR ${EP_INSTALL_DIR})
+  set(${proj}_DIR ${EP_INSTALL_DIR}/lib/cmake/Boost-${_version}/)
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
