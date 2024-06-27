@@ -46,7 +46,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
-    GIT_REPOSITORY "https://github.com/sofa-framework/SofaPython3.git"
+    GIT_REPOSITORY "https://github.com/Slicer/SofaPython3.git"
     GIT_TAG        "1972c51819b6eb5ac1bbc479ff4e29f6f55f36f4" # v23.12-20240313
     GIT_PROGRESS   1
     QUIET
