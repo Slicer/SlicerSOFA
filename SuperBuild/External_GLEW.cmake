@@ -60,7 +60,17 @@ if(NOT DEFINED GLEW_DIR AND NOT Autoscoper_USE_SYSTEM_${proj})
     DEPENDS
       ${${proj}_DEPENDENCIES}
     )
+  if(APPLE)
+    ExternalProject_Add_Step(${proj} fix_rpath
+      COMMAND install_name_tool -id
+        ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libGLEW.2.2.0.dylib
+        ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libGLEW.2.2.0.dylib
+      DEPENDEES install
+      )
+  endif()
+
   set(GLEW_DIR ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/cmake/glew)
+
   ExternalProject_Message(${proj} "GLEW_DIR:${GLEW_DIR}")
   mark_as_superbuild(GLEW_DIR:PATH)
 endif()
