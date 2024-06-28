@@ -1,4 +1,4 @@
-set(proj TinyXML2)
+set(proj tinyxml2)
 
 # Set dependency list
 set(${proj}_DEPENDS
@@ -13,8 +13,8 @@ if(${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
 endif()
 
 # Sanity checks
-if(DEFINED TinyXML2_DIR AND NOT EXISTS ${TinyXML2_DIR})
-  message(FATAL_ERROR "TinyXML2_DIR [${TinyXML2_DIR}] variable is defined but corresponds to nonexistent directory")
+if(DEFINED tinyxml2_DIR AND NOT EXISTS ${tinyxml2_DIR})
+  message(FATAL_ERROR "tinyxml2_DIR [${tinyxml2_DIR}] variable is defined but corresponds to nonexistent directory")
 endif()
 
 if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
