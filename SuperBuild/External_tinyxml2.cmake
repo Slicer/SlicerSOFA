@@ -39,7 +39,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCMAKE_CXX_EXTENSIONS:BOOL=${CMAKE_CXX_EXTENSIONS}
       # Options
       -DBUILD_TESTING:BOOL=OFF
-      -Dtinyxml2_SHARED_LIBS:BOOL=ON
+      -Dtinyxml2_SHARED_LIBS:BOOL=OFF
+      -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
       # Output directory
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
@@ -52,8 +53,27 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     )
   set(${proj}_DIR ${EP_BINARY_DIR})
 
+  set(${proj}_INCLUDE_DIR ${EP_SOURCE_DIR})
+
+  if(DEFINED CMAKE_CONFIGURATION_TYPES)
+    set(lib_cfg_dir "$<CONFIG>")
+  else()
+    set(lib_cfg_dir ".")
+  endif()
+  if(WIN32)
+    set(${proj}_LIBRARY ${EP_BINARY_DIR}/${lib_cfg_dir}/tinyxml2.lib)
+  else()
+    set(${proj}_LIBRARY ${EP_BINARY_DIR}/${lib_cfg_dir}/libtinyxml2.a)
+  endif()
+
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
 endif()
 
 mark_as_superbuild(${proj}_DIR:PATH)
+
+mark_as_superbuild(
+  VARS
+    ${proj}_INCLUDE_DIR:PATH
+    ${proj}_LIBRARY:FILEPATH
+  )
