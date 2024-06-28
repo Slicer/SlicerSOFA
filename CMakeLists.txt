@@ -41,8 +41,21 @@ add_subdirectory(SoftTissueSimulation)
 
 #-----------------------------------------------------------------------------
 set(EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS)
+if(NOT APPLE)
+  list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${EXTENSION_SUPERBUILD_BINARY_DIR}/GLEW-build;glew;Runtime;/")
+endif()
 list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${Sofa_DIR};Sofa;ALL;/")
 set(${EXTENSION_NAME}_CPACK_INSTALL_CMAKE_PROJECTS "${EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS}" CACHE STRING "List of external projects to install" FORCE)
+
+if(APPLE)
+  set(EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES)
+
+  # GLEW
+  set(GLEW_RUNTIME_LIBRARY_DIR "${EXTENSION_SUPERBUILD_BINARY_DIR}/GLEW-install/${Slicer_INSTALL_THIRDPARTY_LIB_DIR}")
+  list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES ${GLEW_RUNTIME_LIBRARY_DIR})
+
+  set(${EXTENSION_NAME}_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES}" CACHE STRING "List of directories to look up libraries to copy into the application package" FORCE)
+endif()
 
 #-----------------------------------------------------------------------------
 list(APPEND CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
