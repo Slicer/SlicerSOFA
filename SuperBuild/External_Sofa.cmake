@@ -86,7 +86,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "a0028bc91e46f143037668e53bd9a435b04ee730" # slicer-v24.06.00-2024-06-07-2628b9f29
+    GIT_TAG "ef7c9dc4820e0864f2b553e3b2f550c2dca479a4" # slicer-v24.06.00-2024-06-07-2628b9f29
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
