@@ -142,49 +142,6 @@ class MultiMaterialSimulationParameterNode:
 
         return normalized_gravity_vector*self.gravityMagnitude
 
-    def getModelPointsArray(self):
-        """
-        Convert the point positions from the VTK model to a Python list.
-        """
-        # Get the unstructured grid from the model node
-        unstructured_grid = self.simulationModelNode.GetPolyData()
-
-        # Extract point data from the unstructured grid
-        points = unstructured_grid.GetPoints()
-        num_points = points.GetNumberOfPoints()
-
-        # Convert the VTK points to a list
-        point_coords = []
-        for i in range(num_points):
-            point_coords.append(points.GetPoint(i))
-
-        return point_coords
-
-    def getModelCellsArray(self):
-        """
-        Convert the cell connectivity from the VTK model to a Python list.
-        """
-        # Get the unstructured grid from the model node
-        unstructured_grid = self.simulationModelNode.GetUnstructuredGrid()
-
-        # Extract cell data from the unstructured grid
-        cells = unstructured_grid.GetCells()
-        cell_array = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
-
-        # The first integer in each cell entry is the number of points per cell (always 4 for tetrahedra)
-        # Followed by the point indices
-        num_cells = unstructured_grid.GetNumberOfCells()
-        cell_connectivity = []
-
-        # Fill the cell connectivity list
-        idx = 0
-        for i in range(num_cells):
-            num_points = cell_array[idx]  # Should always be 4 for tetrahedra
-            cell_connectivity.append(cell_array[idx+1:idx+1+num_points].tolist())
-            idx += num_points + 1
-
-        return cell_connectivity
-
 #
 # MultiMaterialSimulationWidget
 #
@@ -339,17 +296,11 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         #     self.rootNode.gravity = parameterNode.getGravityVector()
 
     def updateMRML(self, parameterNode) -> None:
-        points_vtk = numpy_to_vtk(num_array=self.mechanicalObject.position.array()*1000, deep=True, array_type=vtk.VTK_FLOAT)
-        vtk_points = vtk.vtkPoints()
-        vtk_points.SetData(points_vtk)
-        parameterNode.simulationModelNode.GetPolyData().SetPoints(vtk_points)
-
-        # #meshPointsArray = self.mechanicalState.position.array()
-        # meshPointsArray = self.mechanicalObject.position.array()
-        # modelPointsArray = slicer.util.arrayFromModelPoints(parameterNode.simulationModelNode)
-        # modelPointsArrayNew = meshPointsArray
-        # modelPointsArray[:] = modelPointsArrayNew
-        # slicer.util.arrayFromModelPointsModified(parameterNode.simulationModelNode)
+        meshPointsArray = self.mechanicalObject.position.array()*1000
+        modelPointsArray = slicer.util.arrayFromModelPoints(parameterNode.simulationModelNode)
+        modelPointsArrayNew = meshPointsArray
+        modelPointsArray[:] = modelPointsArrayNew
+        slicer.util.arrayFromModelPointsModified(parameterNode.simulationModelNode)
 
     def getParameterNode(self):
         return MultiMaterialSimulationParameterNode(super().getParameterNode())
@@ -495,7 +446,6 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             sequenceNode.SetIndexName(masterSequenceNode.GetIndexName())
             sequenceNode.SetIndexUnit(masterSequenceNode.GetIndexUnit())
 
-
     def createScene(self, parameterNode) -> Sofa.Core.Node:
         from stlib3.scene import MainHeader, ContactHeader
         from stlib3.solver import DefaultSolver
@@ -539,8 +489,8 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             "Sofa.Component.Topology.Container.Grid"
         ])
 
-        rootNode.dt = 0.02
-        rootNode.gravity = [0, 0, 0]
+        rootNode.dt = parameterNode.dt
+        rootNode.gravity = parameterNode.getGravityVector()
 
         rootNode.addObject('DefaultAnimationLoop', parallelODESolving=True)
         rootNode.addObject('VisualStyle', displayFlags="showBehaviorModels showForceFields")
@@ -550,41 +500,35 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         rootNode.addObject('ParallelBVHNarrowPhase')
         rootNode.addObject('MinProximityIntersection', name="Proximity", alarmDistance=0.005, contactDistance=0.003)
         rootNode.addObject('DefaultContactManager', name="Response", response="PenalityContactForceField")
-        #rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
-        #rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
 
-        myo = rootNode.addChild('Myo')
-        myo.addObject('MeshOBJLoader', name="meshLoader", filename="/home/rafael/Documents/SOFA_Data/myo/segmentation-models/merged_dec1.obj", scale3d=[-0.001, -0.001, 0.001])
-        myo.addObject('SparseGridTopology', n=[24, 24, 24], position="@meshLoader.position")
-        myo.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
-        myo.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
-        self.mechanicalObject = myo.addObject('MechanicalObject', name='MO')
-        myo.addObject('UniformMass', totalMass=0.5)
-        myo.addObject('ParallelHexahedronFEMForceField', name="FEM", youngModulus=50000000, poissonRatio=0.40, method="large")
+        inputNode = rootNode.addChild('InputSurfaceNode')
+        inputNode.addObject('TriangleSetTopologyContainer', name='Container')
 
-        visu = myo.addChild('Visu')
-        visu.addObject('OglModel', name="Visual", src="@../meshLoader", color="blue")
-        visu.addObject('BarycentricMapping', input="@..", output="@Visual")
+        fem = rootNode.addChild('FEM')
+        fem.addObject('SparseGridTopology', n=[10, 10, 10], position="@../InputSurfaceNode/Container.position")
+        fem.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
+        fem.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
+        self.mechanicalObject = fem.addObject('MechanicalObject', name='MO')
+        fem.addObject('UniformMass', totalMass=0.5)
+        fem.addObject('ParallelHexahedronFEMForceField', name="FEMForce", youngModulus=50000000, poissonRatio=0.40, method="large")
 
-        surf = myo.addChild('Surf')
-        surf.addObject('MeshTopology', src="@../meshLoader")
-        self.mechanicalObject = surf.addObject('MechanicalObject', src="@../meshLoader")
+        surf = fem.addChild('Surf')
+        surf.addObject('MeshTopology', position="@../../InputSurfaceNode/Container.position")
+        self.mechanicalObject = surf.addObject('MechanicalObject', position="@../../InputSurfaceNode/Container.position")
         surf.addObject('TriangleCollisionModel', selfCollision=True)
         surf.addObject('LineCollisionModel')
         surf.addObject('PointCollisionModel')
         surf.addObject('BarycentricMapping')
 
-        self.BoxROI = myo.addObject('BoxROI', template="Vec3", box=[0.02, -0.2, -0.1, 0.05, 0, -0.3], drawBoxes=False,
-                                          position="@../MO.rest_position", name="FixedROI",
-                                          computeTriangles=False, computeTetrahedra=False, computeEdges=False)
-        myo.addObject('FixedConstraint', indices="@FixedROI.indices")
+        self.BoxROI = fem.addObject('BoxROI', name="FixedROI",
+                                    template="Vec3", box=[0.02, -0.2, -0.1, 0.05, 0, -0.3], drawBoxes=False,
+                                    position="@../MO.rest_position",
+                                    computeTriangles=False, computeTetrahedra=False, computeEdges=False)
+        fem.addObject('FixedConstraint', indices="@FixedROI.indices")
 
-
-        # myo.addObject('BoxConstraint', name="fixed", box=[-0.05, 0, -0.1, -0.02, 0.2, -0.3], drawBoxes=False)
-        boxForce = myo.addObject('BoxROI', name="boxForce", box=[-0.17, -0.15, -0.2, -0.13, -0.05, -0.3], drawBoxes=True)
-        myo.addObject('AffineMovementConstraint', name="bilinearConstraint", template="Vec3d", indices="@boxForce.indices", meshIndices="@boxForce.indices",
+        boxForce = fem.addObject('BoxROI', name="boxForce", box=[-0.17, -0.15, -0.2, -0.13, -0.05, -0.3], drawBoxes=True)
+        fem.addObject('AffineMovementConstraint', name="bilinearConstraint", template="Vec3d", indices="@boxForce.indices", meshIndices="@boxForce.indices",
                      translation=[0.05, 0, 0], rotation=[[1, 0, 0], [0, 1, 0], [0, 0, 1]], drawConstrainedPoints=1, beginConstraintTime=0, endConstraintTime=1)
-        # # myo.addObject('ConstantForceField', indices="@boxForce.indices", totalForce=[-3, 0, 0, 0, 0, 0, 1], showArrowSize=1)
 
         return rootNode
 
