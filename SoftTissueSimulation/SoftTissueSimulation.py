@@ -21,7 +21,6 @@ from slicer.parameterNodeWrapper import (
     WithinRange,
 )
 
-from slicer import vtkMRMLIGTLConnectorNode
 from slicer import vtkMRMLMarkupsFiducialNode
 from slicer import vtkMRMLMarkupsLineNode
 from slicer import vtkMRMLMarkupsNode

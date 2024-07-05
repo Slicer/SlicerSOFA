@@ -72,16 +72,15 @@ def registerSampleData():
     # it is recommended to store data sets that are larger than a few MB in a Github release.
 
     # Right lung low poly tetrahedral mesh dataset
-    SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        category='SOFA',
-        sampleName='RightLungLowTetra',
-        thumbnailFileName=os.path.join(iconsPath, 'RightLungLowTetra.png'),
-        uris=sofaDataURL+ 'SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
-        fileNames='RightLungLowTetra.vtk',
-        checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
-        nodeNames='RightLung',
-        loadFileType='ModelFile'
-    )
+    SampleData.SampleDataLogic.registerCustomSampleDataSource( category='SOFA',
+                                                               sampleName='HeartDeviceJoint',
+                                                               thumbnailFileName=os.path.join(iconsPath, 'HeartDeviceJoint.png'),
+                                                               uris=sofaDataURL+ 'SHA256/6d0cecb9f1e8dd48c6bd458ae2ca29aa592c219ff9190220dc80adb507e33676',
+                                                               fileNames='HeartDeviceJoint.vtk',
+                                                               checksums='SHA256:6d0cecb9f1e8dd48c6bd458ae2ca29aa592c219ff9190220dc80adb507e33676',
+                                                               nodeNames='HeartDeviceJoint',
+                                                               loadFileType='ModelFile'
+                                                              )
 
 #
 # MultiMaterialSimulationParameterNode
@@ -511,7 +510,6 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             "Sofa.Component.Topology.Mapping",
             "Sofa.Component.Engine.Select",
             "Sofa.Component.Constraint.Projective",
-            "SofaIGTLink",
             "Sofa.Component.Topology.Container.Grid"
         ])
 
@@ -578,4 +576,62 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         """Run as few or as many tests as needed here."""
+<<<<<<< Updated upstream
         pass
+=======
+
+        self.delayDisplay("Starting test_multi_material_simulation")
+        self.test_multi_material_simulation()
+        self.delayDisplay('Test test_multi_material_simulation passed')
+
+    def test_multi_material_simulation(self):
+        import SampleData
+
+        # Get the layout manager
+        layoutManager = slicer.app.layoutManager()
+
+        # Set layout to 3D-only view
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
+
+        self.setUp()
+        logic = MultiMaterialSimulationLogic()
+
+        self.delayDisplay('Loading Testing Data')
+        simulationModelNode = SampleData.downloadSample("HeartDeviceJoint")
+
+        self.delayDisplay('Creating fixed ROI selection')
+        fixedROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode', 'FixedROI')
+        fixedROINode.SetSize([39.54909142993799, 143.343979, 128.243714])
+        fixedROINode.SetCenter([19.346689224243164, -106.59119415283203, -218.28884887695312])
+
+        self.delayDisplay('Creating moving ROI selection')
+        movingROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode', 'MovingROI')
+        movingROINode.SetSize([57.7977844590271, 55.72434095648424, 60.922046056195654])
+        movingROINode.SetCenter([-140.12936401367188, -99.91403198242188, -234.55825805664062])
+
+        self.delayDisplay('Creating force vector')
+        forceLineNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', 'Force')
+        forceLineNode.AddControlPoint([-183.86535407878318, -94.46268756919284, -234.9103926334161])
+        forceLineNode.AddControlPoint([44.804605575202274, -109.81929381733754, -180.68919726749039])
+
+        self.delayDisplay('Setting simulation parameters')
+        logic.getParameterNode().simulationModelNode = simulationModelNode
+        logic.getParameterNode().fixedROI = fixedROINode
+        logic.getParameterNode().movingROI = movingROINode
+        logic.getParameterNode().forceVector = forceLineNode
+        logic.getParameterNode().forceMagnitude = 0.5
+        logic.getParameterNode().dt = 0.001
+        logic.getParameterNode().currentStep = 0
+        logic.getParameterNode().totalSteps = 100
+        logic.totalSteps = logic.getParameterNode().totalSteps
+        logic.currentStep = logic.getParameterNode().currentStep
+
+        self.delayDisplay('Starting simulation')
+        view=slicer.app.layoutManager().threeDWidget(0).threeDView()
+        logic.startSimulation()
+        for i in range(logic.getParameterNode().totalSteps):
+            logic.simulationStep(logic.getParameterNode())
+            view.forceRender()
+        logic.stopSimulation()
+        logic.clean()
+>>>>>>> Stashed changes
