@@ -47,9 +47,9 @@ class MultiMaterialSimulation(ScriptedLoadableModule):
         self.parent.title = _("Multi-Material Simulation")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []
-        self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, inc.)"]
-        self.parent.helpText = _("""This is an example module to use the SOFA framework to do multi-material simulation""")
-        self.parent.acknowledgementText = _("""This project was funded by Oslo Universtiy Hospital""")
+        self.parent.contributors = ["Rafael Palomar (Oslo University Hospital, Norway), Nazim Haouchine (Harvard/BWH, USA), Paul Baksic (INRIA, France), Andras Lasso (Queen's University, Canada)"]
+        self.parent.helpText = _("""This is an example module to use the SOFA framework to do simple multi-material simulation based on surface meshes, ROI selections and a single force vector""")
+        self.parent.acknowledgementText = _("""This project was collaboratively developed during Project Week 41""")
 
         # Additional initialization step after application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
@@ -94,28 +94,34 @@ class MultiMaterialSimulationParameterNode:
     """
     #Simulation data
     simulationModelNode: vtkMRMLModelNode
-    shellStaticModelNode: vtkMRMLModelNode
-    shellMovingModelNode: vtkMRMLModelNode
-    DeviceTransformNode: vtkMRMLTransformNode
-    boundaryROI: vtkMRMLMarkupsROINode
-    gravityVector: vtkMRMLMarkupsLineNode
-    gravityMagnitude: int
+    fixedROI: vtkMRMLMarkupsROINode
+    movingROI: vtkMRMLMarkupsROINode
     sequenceNode: vtkMRMLSequenceNode
     sequenceBrowserNode: vtkMRMLSequenceBrowserNode
+    forceVector: vtkMRMLMarkupsLineNode
+    forceMagnitude: float
     #Simulation control
     dt: float
     totalSteps: int
     currentStep: int
     simulationRunning: bool
 
-    def getBoundaryROI(self):
+    def getROI(self, ROIType):
 
-        if self.boundaryROI is None:
+        roi = None
+        if ROIType == 'Fixed':
+            roi = self.fixedROI
+        elif ROIType == 'Moving':
+            roi = self.movingROI
+        else:
+            raise ValueError('ROIType must be either \'Fixed\' or \'Moving\'')
+
+        if roi is None:
             return [0.0]*6
 
         center = [0]*3
-        self.boundaryROI.GetCenter(center)
-        size = self.boundaryROI.GetSize()
+        roi.GetCenter(center)
+        size = roi.GetSize()
 
         # Calculate min and max RAS bounds from center and size
         R_min = center[0] - size[0] / 2
@@ -127,20 +133,20 @@ class MultiMaterialSimulationParameterNode:
 
         # Return the two opposing bounds corners
         # First corner: (minL, minP, minS), Second corner: (maxL, maxP, maxS)
-        return [R_min, A_min, S_min, R_max, A_max, S_max]
+        return np.array([R_min, A_min, S_min, R_max, A_max, S_max])*0.001
 
-    def getGravityVector(self):
+    def getForceVector(self):
 
-        if self.gravityVector is None:
+        if self.forceVector is None:
             return [0.0]*3
 
-        p1 = self.gravityVector.GetNthControlPointPosition(0)
-        p2 = self.gravityVector.GetNthControlPointPosition(1)
-        gravity_vector = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]])
-        magnitude = np.linalg.norm(gravity_vector)
-        normalized_gravity_vector = gravity_vector / magnitude if magnitude != 0 else gravity_vector
+        p1 = self.forceVector.GetNthControlPointPosition(0)
+        p2 = self.forceVector.GetNthControlPointPosition(1)
+        force_vector = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]])
+        magnitude = np.linalg.norm(force_vector)
+        normalized_force_vector = force_vector / magnitude if magnitude != 0 else force_vector
 
-        return normalized_gravity_vector*self.gravityMagnitude
+        return normalized_force_vector*self.forceMagnitude
 
 #
 # MultiMaterialSimulationWidget
@@ -188,9 +194,9 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
 
         self.ui.startSimulationPushButton.connect("clicked()", self.startSimulation)
         self.ui.stopSimulationPushButton.connect("clicked()", self.stopSimulation)
-        self.ui.addBoundaryROIPushButton.connect("clicked()", self.logic.addBoundaryROI)
-        self.ui.addGravityVectorPushButton.connect("clicked()", self.logic.addGravityVector)
-        self.ui.addDeviceTransformPushButton.connect("clicked()", self.logic.addDeviceTransform)
+        self.ui.addFixedROIPushButton.connect("clicked()", self.logic.addFixedROI)
+        self.ui.addMovingROIPushButton.connect("clicked()", self.logic.addMovingROI)
+        self.ui.addForceVectorPushButton.connect("clicked()", self.logic.addForceVector)
         self.ui.addRecordingSequencePushButton.connect("clicked()", self.logic.addRecordingSequence)
 
         self.initializeParameterNode()
@@ -253,6 +259,10 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
                                                      self.logic.getParameterNode().simulationModelNode is not None)
         self.ui.stopSimulationPushButton.setEnabled(self.logic.isSimulationRunning)
 
+        self.ui.addFixedROIPushButton.setEnabled(self.parameterNode is not None)
+        self.ui.addMovingROIPushButton.setEnabled(self.parameterNode is not None)
+        self.ui.addForceVectorPushButton.setEnabled(self.parameterNode is not None)
+
     def startSimulation(self):
         self.logic.dt = self.ui.dtSpinBox.value
         self.logic.totalSteps = self.ui.totalStepsSpinBox.value
@@ -285,15 +295,12 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         """Called when the logic class is instantiated. Can be used for initializing member variables."""
         super().__init__()
         self.connectionStatus = 0
-        self.boxROI = None
+        self.fixedBoxROI = None
+        self.movingBoxROI = None
         self.mouseInteractor = None
 
     def updateSofa(self, parameterNode) -> None:
         pass
-        # if parameterNode is not None:
-        #     self.BoxROI.box = [parameterNode.getBoundaryROI()]
-        # if parameterNode.gravityVector is not None:
-        #     self.rootNode.gravity = parameterNode.getGravityVector()
 
     def updateMRML(self, parameterNode) -> None:
         meshPointsArray = self.mechanicalObject.position.array()*1000
@@ -309,7 +316,6 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         if self.getParameterNode():
             self.getParameterNode().simulationModelNode = None
             self.getParameterNode().boundaryROI = None
-            self.getParameterNode().gravityVector = None
             self.getParameterNode().sequenceNode = None
             self.getParameterNode().sequenceBrowserNode = None
             self.getParameterNode().dt = 0.01
@@ -349,7 +355,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         elif self.getParameterNode().simulationModelNode.GetPolyData() is not None:
             self.getParameterNode().simulationModelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
-    def addBoundaryROI(self) -> None:
+    def addFixedROI(self) -> None:
         roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
         mesh = None
         bounds = None
@@ -367,12 +373,37 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             roiNode.SetXYZ(center)
             roiNode.SetRadiusXYZ(size[0], size[1], size[2])
 
-        self.getParameterNode().boundaryROI = roiNode
+        self.getParameterNode().fixedROI= roiNode
 
-    def addGravityVector(self) -> None:
-        # Create a new line node for the gravity vector
-        gravityVector = slicer.vtkMRMLMarkupsLineNode()
-        gravityVector.SetName("Gravity")
+
+    def addMovingROI(self) -> None:
+        roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
+        mesh = None
+        bounds = None
+
+        if self.getParameterNode().simulationModelNode is not None:
+            if self.getParameterNode().simulationModelNode.GetUnstructuredGrid() is not None:
+                mesh = self.getParameterNode().simulationModelNode.GetUnstructuredGrid()
+            elif self.getParameterNode().simulationModelNode.GetPolyData() is not None:
+                mesh = self.getParameterNode().simulationModelNode.GetPolyData()
+
+        if mesh is not None:
+            bounds = mesh.GetBounds()
+            center = [(bounds[0] + bounds[1])/2.0, (bounds[2] + bounds[3])/2.0, (bounds[4] + bounds[5])/2.0]
+            size = [abs(bounds[1] - bounds[0])/2.0, abs(bounds[3] - bounds[2])/2.0, abs(bounds[5] - bounds[4])/2.0]
+            roiNode.SetXYZ(center)
+            roiNode.SetRadiusXYZ(size[0], size[1], size[2])
+
+        self.getParameterNode().movingROI= roiNode
+
+    def addForceVector(self) -> None:
+        # Create a new line node for the force vector
+        #forceVector = slicer.vtkMRMLMarkupsLineNode()
+        forceVector = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', 'Force')
+        if forceVector is not None:
+            forceVector.CreateDefaultDisplayNodes()
+        measurement = forceVector.GetMeasurement('length')
+        measurement.EnabledOff()
         mesh = None
 
         # Check if there is a model node set in the parameter node and get its mesh
@@ -400,15 +431,10 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             endPoint[1] = midPoint + vectorLength / 2.0
 
             # Add control points to define the line
-            gravityVector.AddControlPoint(vtk.vtkVector3d(startPoint))
-            gravityVector.AddControlPoint(vtk.vtkVector3d(endPoint))
+            forceVector.AddControlPoint(vtk.vtkVector3d(startPoint))
+            forceVector.AddControlPoint(vtk.vtkVector3d(endPoint))
 
-        # Add the gravity vector line node to the scene
-        gravityVector = slicer.mrmlScene.AddNode(gravityVector)
-        if gravityVector is not None:
-            gravityVector.CreateDefaultDisplayNodes()
-
-        self.getParameterNode().gravityVector = gravityVector
+        self.getParameterNode().forceVector = forceVector
 
 
     def addDeviceTransform(self) -> None:
@@ -490,7 +516,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         ])
 
         rootNode.dt = parameterNode.dt
-        rootNode.gravity = parameterNode.getGravityVector()
+        rootNode.gravity = [0, 0, 0]
 
         rootNode.addObject('DefaultAnimationLoop', parallelODESolving=True)
         rootNode.addObject('VisualStyle', displayFlags="showBehaviorModels showForceFields")
@@ -508,7 +534,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         fem.addObject('SparseGridTopology', n=[10, 10, 10], position="@../InputSurfaceNode/Container.position")
         fem.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
         fem.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
-        self.mechanicalObject = fem.addObject('MechanicalObject', name='MO')
+        fem.addObject('MechanicalObject', name='MO')
         fem.addObject('UniformMass', totalMass=0.5)
         fem.addObject('ParallelHexahedronFEMForceField', name="FEMForce", youngModulus=50000000, poissonRatio=0.40, method="large")
 
@@ -520,20 +546,19 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         surf.addObject('PointCollisionModel')
         surf.addObject('BarycentricMapping')
 
-        self.BoxROI = fem.addObject('BoxROI', name="FixedROI",
-                                    template="Vec3", box=[0.02, -0.2, -0.1, 0.05, 0, -0.3], drawBoxes=False,
+        self.fixedBoxROI = fem.addObject('BoxROI', name="FixedROI",
+                                    template="Vec3", box=[parameterNode.getROI('Fixed')], drawBoxes=False,
                                     position="@../MO.rest_position",
                                     computeTriangles=False, computeTetrahedra=False, computeEdges=False)
         fem.addObject('FixedConstraint', indices="@FixedROI.indices")
 
-        boxForce = fem.addObject('BoxROI', name="boxForce", box=[-0.17, -0.15, -0.2, -0.13, -0.05, -0.3], drawBoxes=True)
-        fem.addObject('AffineMovementConstraint', name="bilinearConstraint", template="Vec3d", indices="@boxForce.indices", meshIndices="@boxForce.indices",
+        self.movingBoxROI = fem.addObject('BoxROI', name="boxForce", box=[parameterNode.getROI('Moving')], drawBoxes=True)
+        self.forceVector = fem.addObject('AffineMovementConstraint', name="bilinearConstraint", template="Vec3d", indices="@boxForce.indices", meshIndices="@boxForce.indices",
                      translation=[0.05, 0, 0], rotation=[[1, 0, 0], [0, 1, 0], [0, 0, 1]], drawConstrainedPoints=1, beginConstraintTime=0, endConstraintTime=1)
+        self.forceVector.translation = parameterNode.getForceVector()
+
 
         return rootNode
-
-
-
 
 #
 # MultiMaterialSimulationTest

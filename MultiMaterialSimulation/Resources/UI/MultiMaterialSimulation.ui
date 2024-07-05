@@ -26,7 +26,7 @@
      <item row="0" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_6">
        <item>
-        <widget class="qMRMLNodeComboBox" name="SimulationModelComboBox">
+        <widget class="qMRMLNodeComboBox" name="simulationModelComboBox">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -83,16 +83,16 @@
       </layout>
      </item>
      <item row="1" column="0">
-      <widget class="QLabel" name="boundaryROILabel">
+      <widget class="QLabel" name="fixedROILabel">
        <property name="text">
-        <string>Boundary ROI:</string>
+        <string>Fixed ROI:</string>
        </property>
       </widget>
      </item>
      <item row="1" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="qMRMLNodeComboBox" name="boundaryROIComboBox">
+        <widget class="qMRMLNodeComboBox" name="fixedROIComboBox">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -117,12 +117,15 @@
           <bool>true</bool>
          </property>
          <property name="SlicerParameterName" stdset="0">
-          <string>boundaryROI</string>
+          <string>fixedROI</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="addBoundaryROIPushButton">
+        <widget class="QPushButton" name="addFixedROIPushButton">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -143,22 +146,22 @@
       </layout>
      </item>
      <item row="2" column="0">
-      <widget class="QLabel" name="gravityVectorLabel">
+      <widget class="QLabel" name="movingROILabel">
        <property name="text">
-        <string>Gravity Vector:</string>
+        <string>Moving ROI:</string>
        </property>
       </widget>
      </item>
      <item row="2" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
-        <widget class="qMRMLNodeComboBox" name="gravityVectorComboBox">
+        <widget class="qMRMLNodeComboBox" name="movingROIComboBox">
          <property name="enabled">
           <bool>true</bool>
          </property>
          <property name="nodeTypes">
           <stringlist notr="true">
-           <string>vtkMRMLMarkupsLineNode</string>
+           <string>vtkMRMLMarkupsROINode</string>
           </stringlist>
          </property>
          <property name="hideChildNodeTypes">
@@ -173,32 +176,19 @@
          <property name="interactionNodeSingletonTag">
           <string notr="true"/>
          </property>
+         <property name="selectNodeUponCreation">
+          <bool>true</bool>
+         </property>
          <property name="SlicerParameterName" stdset="0">
-          <string>gravityVector</string>
+          <string>movingROI</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="gravityMagnitudeSpinBox">
-         <property name="minimum">
-          <number>0</number>
+        <widget class="QPushButton" name="addMovingROIPushButton">
+         <property name="enabled">
+          <bool>false</bool>
          </property>
-         <property name="maximum">
-          <number>9999</number>
-         </property>
-         <property name="stepType">
-          <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
-         </property>
-         <property name="value">
-          <number>0</number>
-         </property>
-         <property name="SlicerParameterName" stdset="0">
-          <string>gravityMagnitude</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="addGravityVectorPushButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -219,13 +209,96 @@
       </layout>
      </item>
      <item row="3" column="0">
+      <widget class="QLabel" name="movingROILabel_2">
+       <property name="text">
+        <string>Force:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
+       <item>
+        <widget class="qMRMLNodeComboBox" name="forceVectorComboBox">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="nodeTypes">
+          <stringlist notr="true">
+           <string>vtkMRMLMarkupsROINode</string>
+          </stringlist>
+         </property>
+         <property name="hideChildNodeTypes">
+          <stringlist notr="true"/>
+         </property>
+         <property name="noneEnabled">
+          <bool>true</bool>
+         </property>
+         <property name="addEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="interactionNodeSingletonTag">
+          <string notr="true"/>
+         </property>
+         <property name="selectNodeUponCreation">
+          <bool>true</bool>
+         </property>
+         <property name="SlicerParameterName" stdset="0">
+          <string>forceVector</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="magnitudeLabel">
+         <property name="text">
+          <string>Magnitude:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="magnitudeSpinBox">
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="singleStep">
+          <double>0.010000000000000</double>
+         </property>
+         <property name="SlicerParameterName" stdset="0">
+          <string>forceMagnitude</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="addForceVectorPushButton">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>31</width>
+           <height>23</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>+</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="4" column="0">
       <widget class="QLabel" name="recordingSequenceLabel">
        <property name="text">
         <string>Rec. Sequence:</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
+     <item row="4" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout_3">
        <item>
         <widget class="qMRMLNodeComboBox" name="recordingSequenceComboBox">
@@ -419,7 +492,7 @@
   <connection>
    <sender>MultiMaterialSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>SimulationModelComboBox</receiver>
+   <receiver>simulationModelComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -435,23 +508,7 @@
   <connection>
    <sender>MultiMaterialSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>gravityVectorComboBox</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>264</x>
-     <y>277</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>183</x>
-     <y>86</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>MultiMaterialSimulation</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>boundaryROIComboBox</receiver>
+   <receiver>fixedROIComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -477,6 +534,38 @@
     <hint type="destinationlabel">
      <x>215</x>
      <y>141</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>MultiMaterialSimulation</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>movingROIComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>242</x>
+     <y>277</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>282</x>
+     <y>84</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>MultiMaterialSimulation</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>forceVectorComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>242</x>
+     <y>277</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>282</x>
+     <y>115</y>
     </hint>
    </hints>
   </connection>
