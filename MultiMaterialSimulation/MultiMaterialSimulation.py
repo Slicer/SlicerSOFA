@@ -36,6 +36,7 @@ from SlicerSofa import SlicerSofaLogic
 # MultiMaterialSimulation
 #
 
+sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
 class MultiMaterialSimulation(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
@@ -47,9 +48,9 @@ class MultiMaterialSimulation(ScriptedLoadableModule):
         self.parent.title = _("Multi-Material Simulation")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []
-        self.parent.contributors = ["Rafael Palomar (Oslo University Hospital, Norway), Nazim Haouchine (Harvard/BWH, USA), Paul Baksic (INRIA, France), Andras Lasso (Queen's University, Canada)"]
+        self.parent.contributors = ["Rafael Palomar (Oslo University Hospital/NTNU, Norway), Nazim Haouchine (Harvard/BWH, USA), Paul Baksic (INRIA, France), Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada)"]
         self.parent.helpText = _("""This is an example module to use the SOFA framework to do simple multi-material simulation based on surface meshes, ROI selections and a single force vector""")
-        self.parent.acknowledgementText = _("""This project was collaboratively developed during Project Week 41""")
+        self.parent.acknowledgementText = _("""""")
 
         # Additional initialization step after application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
@@ -65,8 +66,6 @@ def registerSampleData():
     import SampleData
 
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
-
-    sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
     # To ensure that the source code repository remains small (can be downloaded and installed quickly)
     # it is recommended to store data sets that are larger than a few MB in a Github release.
@@ -298,9 +297,6 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         self.movingBoxROI = None
         self.mouseInteractor = None
 
-    def updateSofa(self, parameterNode) -> None:
-        pass
-
     def updateMRML(self, parameterNode) -> None:
         meshPointsArray = self.mechanicalObject.position.array()*1000
         modelPointsArray = slicer.util.arrayFromModelPoints(parameterNode.simulationModelNode)
@@ -317,12 +313,9 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             self.getParameterNode().boundaryROI = None
             self.getParameterNode().sequenceNode = None
             self.getParameterNode().sequenceBrowserNode = None
-            self.getParameterNode().dt = 0.01
+            self.getParameterNode().dt = 0.001
             self.getParameterNode().currentStep = 0
             self.getParameterNode().totalSteps = -1
-
-    def getSimulationController(self):
-        return self.simulationController
 
     def startSimulation(self) -> None:
         sequenceNode = self.getParameterNode().sequenceNode
@@ -576,13 +569,49 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         """Run as few or as many tests as needed here."""
-<<<<<<< Updated upstream
-        pass
-=======
 
         self.delayDisplay("Starting test_multi_material_simulation")
         self.test_multi_material_simulation()
         self.delayDisplay('Test test_multi_material_simulation passed')
+
+    def compareModels(self, referenceModelNode, testModelNode):
+
+        # Compute distance map
+        distance_filter = vtk.vtkDistancePolyDataFilter()
+        distance_filter.SetInputData(0, referenceModelNode.GetPolyData())
+        distance_filter.SetInputData(1, testModelNode.GetPolyData())
+        distance_filter.Update()
+
+        # Calculate summary statistics
+        distance_poly_data = distance_filter.GetOutput()
+        distance_array = vtk.util.numpy_support.vtk_to_numpy(distance_poly_data.GetPointData().GetScalars('Distance'))
+        mean_distance = distance_array.mean()
+        max_distance = distance_array.max()
+        std_distance = distance_array.std()
+
+        # Define thresholds
+        mean_threshold_pass = 0.5
+        mean_threshold_fail = 1.0
+        max_threshold_pass = 2.0
+        max_threshold_fail = 3.0
+        std_threshold_pass = 0.2
+        std_threshold_fail = 0.5
+
+        # Evaluate pass/fail
+        mean_status = "Pass" if mean_distance < mean_threshold_pass else "Warning" if mean_distance < mean_threshold_fail else "Fail"
+        max_status = "Pass" if max_distance < max_threshold_pass else "Warning" if max_distance < max_threshold_fail else "Fail"
+        std_status = "Pass" if std_distance < std_threshold_pass else "Warning" if std_distance < std_threshold_fail else "Fail"
+
+        # Overall status
+        overall_status = "Pass" if mean_status == "Pass" and max_status == "Pass" and std_status == "Pass" else "Warning" if "Warning" in [mean_status, max_status, std_status] else "Fail"
+
+        # Print results
+        print(f'Mean Distance: {mean_distance:.3f} mm - Status: {mean_status}')
+        print(f'Max Distance: {max_distance:.3f} mm - Status: {max_status}')
+        print(f'Standard Deviation: {std_distance:.3f} mm - Status: {std_status}')
+        print(f'Overall Status: {overall_status}')
+
+        return True if overall_status == "Pass" else False
 
     def test_multi_material_simulation(self):
         import SampleData
@@ -598,6 +627,14 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
 
         self.delayDisplay('Loading Testing Data')
         simulationModelNode = SampleData.downloadSample("HeartDeviceJoint")
+        deformedModelDataSource = SampleData.SampleDataSource(sampleName='HeartDeviceJointDeformed',
+                                                               uris=sofaDataURL+ 'SHA256/17cfdce795b0df95049f8fe4f5c6923fdaa3db304e1dfd7e6276e5e7c6a2497e',
+                                                               fileNames='HeartDeviceJointDeformed.vtk',
+                                                               checksums='SHA256:17cfdce795b0df95049f8fe4f5c6923fdaa3db304e1dfd7e6276e5e7c6a2497e',
+                                                               nodeNames='HeartDeviceJointDeformed',
+                                                               loadFileType='ModelFile')
+        sampleDataLogic = SampleData.SampleDataLogic()
+        deformedModelNode = sampleDataLogic.downloadFromSource(deformedModelDataSource)[0]
 
         self.delayDisplay('Creating fixed ROI selection')
         fixedROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode', 'FixedROI')
@@ -634,4 +671,6 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
             view.forceRender()
         logic.stopSimulation()
         logic.clean()
->>>>>>> Stashed changes
+
+        if not self.compareModels(deformedModelNode, simulationModelNode):
+            raise(Exception("Model comparison failed"))
