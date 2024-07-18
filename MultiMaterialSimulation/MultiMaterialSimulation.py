@@ -1,3 +1,32 @@
+###################################################################################
+# MIT License
+#
+# Copyright (c) 2024 Oslo University Hospital, Norway. All Rights Reserved.
+# Copyright (c) 2024 NTNU, Norway. All Rights Reserved.
+# Copyright (c) 2024 INRIA, France. All Rights Reserved.
+# Copyright (c) 2004 Brigham and Women's Hospital (BWH). All Rights Reserved.
+# Copyright (c) 2024 Isomics, Inc., USA. All Rights Reserved.
+# Copyright (c) 2024 Queen's University, Canada. All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###################################################################################
+
 import logging
 import os
 from typing import Optional
@@ -29,9 +58,13 @@ from slicer import vtkMRMLSequenceBrowserNode
 SOFA_DATA_URL = 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
 class MultiMaterialSimulation(ScriptedLoadableModule):
-    """Uses ScriptedLoadableModule base class"""
+    """Main class for Multi-Material Simulation module.
+
+    This class uses the ScriptedLoadableModule base class.
+    """
 
     def __init__(self, parent):
+        """Initialize the MultiMaterialSimulation module."""
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = _("Multi-Material Simulation")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
@@ -43,16 +76,18 @@ class MultiMaterialSimulation(ScriptedLoadableModule):
             "Steve Pieper (Isomics, Inc., USA)",
             "Andras Lasso (Queen's University, Canada)"
         ]
-        self.parent.helpText = _("""This is an example module to use the SOFA framework to do simple multi-material simulation based on surface meshes, ROI selections and a single force vector""")
+        self.parent.helpText = _("""This is an example module to use the SOFA framework to do simple multi-material simulation based on triangular meshes (instead of tetrahedral), ROI selections for depiction of fixed/moving points, and a single force vector""")
         self.parent.acknowledgementText = _("""""")
 
+        # Register sample data after the application startup is complete
         slicer.app.connect("startupCompleted()", registerSampleData)
 
 def registerSampleData():
-    """Add data sets to Sample Data module."""
+    """Register sample data sets in the Sample Data module."""
     import SampleData
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
 
+    # Register sample data source for HeartDeviceJoint
     SampleData.SampleDataLogic.registerCustomSampleDataSource(
         category='SOFA',
         sampleName='HeartDeviceJoint',
@@ -66,7 +101,7 @@ def registerSampleData():
 
 @parameterNodeWrapper
 class MultiMaterialSimulationParameterNode:
-    """The parameters needed by the module."""
+    """Defines the parameters needed by the MultiMaterialSimulation module."""
     simulationModelNode: vtkMRMLModelNode
     fixedROI: vtkMRMLMarkupsROINode
     movingROI: vtkMRMLMarkupsROINode
@@ -80,7 +115,14 @@ class MultiMaterialSimulationParameterNode:
     simulationRunning: bool
 
     def getROI(self, ROIType: str) -> np.array:
-        """Get the Region of Interest (ROI) bounds."""
+        """Get the bounds of the specified ROI (Region of Interest).
+
+        Args:
+            ROIType (str): The type of ROI ('Fixed' or 'Moving').
+
+        Returns:
+            np.array: The bounds of the specified ROI in meters (converted from mm).
+        """
         roi = self.fixedROI if ROIType == 'Fixed' else self.movingROI if ROIType == 'Moving' else None
         if roi is None:
             raise ValueError('ROIType must be either \'Fixed\' or \'Moving\'')
@@ -93,10 +135,15 @@ class MultiMaterialSimulationParameterNode:
         A_min, A_max = center[1] - size[1] / 2, center[1] + size[1] / 2
         S_min, S_max = center[2] - size[2] / 2, center[2] + size[2] / 2
 
+        # Convert the bounds from millimeters to meters (SI units)
         return np.array([R_min, A_min, S_min, R_max, A_max, S_max]) * 0.001
 
     def getForceVector(self) -> np.array:
-        """Get the normalized force vector."""
+        """Get the normalized force vector.
+
+        Returns:
+            np.array: The force vector scaled by the magnitude
+        """
         if self.forceVector is None:
             return [0.0] * 3
 
@@ -106,12 +153,17 @@ class MultiMaterialSimulationParameterNode:
         magnitude = np.linalg.norm(force_vector)
         normalized_force_vector = force_vector / magnitude if magnitude != 0 else force_vector
 
+        # Scale the vector by the magnitude
         return normalized_force_vector * self.forceMagnitude
 
 class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
-    """Uses ScriptedLoadableModuleWidget base class"""
+    """User interface class for the MultiMaterialSimulation module.
+
+    This class uses the ScriptedLoadableModuleWidget base class.
+    """
 
     def __init__(self, parent=None) -> None:
+        """Initialize the MultiMaterialSimulation widget."""
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
         self.logic = None
@@ -121,18 +173,23 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
         self.timer.timeout.connect(self.simulationStep)
 
     def setup(self) -> None:
+        """Setup the UI components and logic for the MultiMaterialSimulation module."""
         ScriptedLoadableModuleWidget.setup(self)
 
+        # Load the UI from the .ui file
         uiWidget = slicer.util.loadUI(self.resourcePath("UI/MultiMaterialSimulation.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
+        # Create the logic class
         self.logic = MultiMaterialSimulationLogic()
         uiWidget.setMRMLScene(slicer.mrmlScene)
 
+        # Add observers to update parameter node when the scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
+        # Connect UI buttons to their respective functions
         self.ui.startSimulationPushButton.connect("clicked()", self.startSimulation)
         self.ui.stopSimulationPushButton.connect("clicked()", self.stopSimulation)
         self.ui.addFixedROIPushButton.connect("clicked()", self.logic.addFixedROI)
@@ -140,36 +197,48 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
         self.ui.addForceVectorPushButton.connect("clicked()", self.logic.addForceVector)
         self.ui.addRecordingSequencePushButton.connect("clicked()", self.logic.addRecordingSequence)
 
+        # Initialize the parameter node
         self.initializeParameterNode()
         self.logic.getParameterNode().AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationGUI)
 
     def cleanup(self) -> None:
+        """Cleanup function called when the application closes and the module widget is destroyed."""
         self.timer.stop()
         self.logic.stopSimulation()
         self.logic.clean()
         self.removeObservers()
 
     def enter(self) -> None:
+        """Called each time the user opens this module."""
         self.initializeParameterNode()
 
     def exit(self) -> None:
+        """Called each time the user opens a different module."""
         if self.parameterNode:
             self.parameterNode.disconnectGui(self.parameterNodeGuiTag)
             self.parameterNodeGuiTag = None
 
     def onSceneStartClose(self, caller, event) -> None:
+        """Called just before the scene is closed."""
         self.setParameterNode(None)
 
     def onSceneEndClose(self, caller, event) -> None:
+        """Called just after the scene is closed."""
         if self.parent.isEntered:
             self.initializeParameterNode()
 
     def initializeParameterNode(self) -> None:
+        """Initialize the parameter node and reset its values."""
         if self.logic:
             self.setParameterNode(self.logic.getParameterNode())
             self.logic.resetParameterNode()
 
     def setParameterNode(self, inputParameterNode: Optional[MultiMaterialSimulationParameterNode]) -> None:
+        """Set and observe the parameter node.
+
+        Args:
+            inputParameterNode (Optional[MultiMaterialSimulationParameterNode]): The parameter node to set.
+        """
         if self.parameterNode:
             self.parameterNode.disconnectGui(self.parameterNodeGuiTag)
         self.parameterNode = inputParameterNode
@@ -177,6 +246,7 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
             self.parameterNodeGuiTag = self.parameterNode.connectGui(self.ui)
 
     def updateSimulationGUI(self, caller, event) -> None:
+        """Update the GUI elements according to the state of the parameter node."""
         self.ui.startSimulationPushButton.setEnabled(not self.logic.isSimulationRunning and
                                                      self.logic.getParameterNode().simulationModelNode is not None)
         self.ui.stopSimulationPushButton.setEnabled(self.logic.isSimulationRunning)
@@ -186,6 +256,7 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
         self.ui.addForceVectorPushButton.setEnabled(self.parameterNode is not None)
 
     def startSimulation(self) -> None:
+        """Start the simulation and initiate the timer for updates."""
         self.logic.dt = self.ui.dtSpinBox.value
         self.logic.totalSteps = self.ui.totalStepsSpinBox.value
         self.logic.currentStep = self.ui.currentStepSpinBox.value
@@ -193,16 +264,22 @@ class MultiMaterialSimulationWidget(ScriptedLoadableModuleWidget, VTKObservation
         self.timer.start(0)  # This timer drives the simulation updates
 
     def stopSimulation(self) -> None:
+        """Stop the simulation and the update timer."""
         self.timer.stop()
         self.logic.stopSimulation()
 
     def simulationStep(self) -> None:
+        """Perform a single step of the simulation."""
         self.logic.simulationStep(self.parameterNode)
 
 class MultiMaterialSimulationLogic(SlicerSofaLogic):
-    """This class implements all the actual computation done by your module."""
+    """Logic class for the MultiMaterialSimulation module.
+
+    This class implements all the computations and data manipulations required by the module.
+    """
 
     def __init__(self) -> None:
+        """Initialize the logic class."""
         super().__init__()
         self.connectionStatus = 0
         self.fixedBoxROI = None
@@ -210,15 +287,26 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         self.mouseInteractor = None
 
     def updateMRML(self, parameterNode) -> None:
-        meshPointsArray = self.mechanicalObject.position.array() * 1000
+        """Update the MRML model node with the new mesh points from the simulation.
+
+        Args:
+            parameterNode (MultiMaterialSimulationParameterNode): The parameter node containing the simulation data.
+        """
+        meshPointsArray = self.mechanicalObject.position.array() * 1000  # Convert from meters to millimeters
         modelPointsArray = slicer.util.arrayFromModelPoints(parameterNode.simulationModelNode)
         modelPointsArray[:] = meshPointsArray
         slicer.util.arrayFromModelPointsModified(parameterNode.simulationModelNode)
 
     def getParameterNode(self) -> MultiMaterialSimulationParameterNode:
+        """Get the parameter node for the simulation.
+
+        Returns:
+            MultiMaterialSimulationParameterNode: The parameter node for the simulation.
+        """
         return MultiMaterialSimulationParameterNode(super().getParameterNode())
 
     def resetParameterNode(self) -> None:
+        """Reset the values of the parameter node to their defaults."""
         if self.getParameterNode():
             self.getParameterNode().simulationModelNode = None
             self.getParameterNode().boundaryROI = None
@@ -229,11 +317,13 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             self.getParameterNode().totalSteps = -1
 
     def startSimulation(self) -> None:
+        """Start the simulation."""
         parameterNode = self.getParameterNode()
         sequenceNode = parameterNode.sequenceNode
         browserNode = parameterNode.sequenceBrowserNode
         simulationModelNode = parameterNode.simulationModelNode
 
+        # Setup and synchronize the sequence browser node
         if None not in [sequenceNode, browserNode, simulationModelNode]:
             browserNode.AddSynchronizedSequenceNodeID(sequenceNode.GetID())
             browserNode.AddProxyNode(simulationModelNode, sequenceNode, False)
@@ -245,6 +335,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         parameterNode.Modified()
 
     def stopSimulation(self) -> None:
+        """Stop the simulation."""
         super().stopSimulation()
         self._simulationRunning = False
         browserNode = self.getParameterNode().sequenceBrowserNode
@@ -253,6 +344,12 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         self.getParameterNode().Modified()
 
     def onSimulationModelNodeModified(self, caller, event) -> None:
+        """Update the model node when it is modified during the simulation.
+
+        Args:
+            caller: The caller object triggering the event.
+            event: The event triggered.
+        """
         simulationModelNode = self.getParameterNode().simulationModelNode
         if simulationModelNode.GetUnstructuredGrid() is not None:
             simulationModelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
@@ -260,6 +357,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             simulationModelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addFixedROI(self) -> None:
+        """Add a fixed Region of Interest (ROI) to the scene."""
         roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
         mesh, bounds = self._getMeshAndBounds()
         if mesh is not None:
@@ -267,6 +365,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         self.getParameterNode().fixedROI = roiNode
 
     def addMovingROI(self) -> None:
+        """Add a moving Region of Interest (ROI) to the scene."""
         roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
         mesh, bounds = self._getMeshAndBounds()
         if mesh is not None:
@@ -274,6 +373,7 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         self.getParameterNode().movingROI = roiNode
 
     def addForceVector(self) -> None:
+        """Add a force vector to the scene."""
         forceVector = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', 'Force')
         if forceVector is not None:
             forceVector.CreateDefaultDisplayNodes()
@@ -284,11 +384,13 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         self.getParameterNode().forceVector = forceVector
 
     def addDeviceTransform(self) -> None:
+        """Add a device transform node to the scene."""
         transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTransformNode", "Device Transform")
         transformNode.CreateDefaultDisplayNodes()
         self.getParameterNode().DeviceTransformNode = transformNode
 
     def addRecordingSequence(self) -> None:
+        """Add a recording sequence to the scene."""
         browserNode = self.getParameterNode().sequenceBrowserNode
         modelNode = self.getParameterNode().simulationModelNode
 
@@ -310,6 +412,14 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
             sequenceNode.SetIndexUnit(masterSequenceNode.GetIndexUnit())
 
     def createScene(self, parameterNode) -> Sofa.Core.Node:
+        """Create the SOFA simulation scene.
+
+        Args:
+            parameterNode (MultiMaterialSimulationParameterNode): The parameter node containing the simulation data.
+
+        Returns:
+            Sofa.Core.Node: The root node of the SOFA simulation scene.
+        """
         from stlib3.scene import MainHeader, ContactHeader
         from stlib3.solver import DefaultSolver
         from stlib3.physics.deformable import ElasticMaterialObject
@@ -397,7 +507,11 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         return rootNode
 
     def _getMeshAndBounds(self):
-        """Helper function to get mesh and bounds from simulation model node."""
+        """Helper function to get mesh and bounds from the simulation model node.
+
+        Returns:
+            Tuple: A tuple containing the mesh and its bounds.
+        """
         simulationModelNode = self.getParameterNode().simulationModelNode
         if simulationModelNode is not None:
             if simulationModelNode.GetUnstructuredGrid() is not None:
@@ -407,14 +521,24 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         return None, None
 
     def _setROICenterAndSize(self, roiNode, bounds):
-        """Helper function to set ROI center and size."""
+        """Helper function to set the center and size of an ROI node.
+
+        Args:
+            roiNode: The ROI node to set.
+            bounds: The bounds of the mesh.
+        """
         center = [(bounds[0] + bounds[1]) / 2.0, (bounds[2] + bounds[3]) / 2.0, (bounds[4] + bounds[5]) / 2.0]
         size = [abs(bounds[1] - bounds[0]) / 2.0, abs(bounds[3] - bounds[2]) / 2.0, abs(bounds[5] - bounds[4]) / 2.0]
         roiNode.SetXYZ(center)
         roiNode.SetRadiusXYZ(size[0], size[1], size[2])
 
     def _setForceVectorPoints(self, forceVector, bounds):
-        """Helper function to set force vector points."""
+        """Helper function to set the points of a force vector.
+
+        Args:
+            forceVector: The force vector to set.
+            bounds: The bounds of the mesh.
+        """
         center = [(bounds[0] + bounds[1]) / 2.0, (bounds[2] + bounds[3]) / 2.0, (bounds[4] + bounds[5]) / 2.0]
         startPoint = [center[0], bounds[2], center[2]]
         endPoint = [center[0], bounds[3], center[2]]
@@ -426,17 +550,31 @@ class MultiMaterialSimulationLogic(SlicerSofaLogic):
         forceVector.AddControlPoint(vtk.vtkVector3d(endPoint))
 
 class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
-    """This is the test case for your scripted module."""
+    """This is the test case for your scripted module.
+
+    This class uses the ScriptedLoadableModuleTest base class.
+    """
 
     def setUp(self):
+        """Reset the state by clearing the MRML scene."""
         slicer.mrmlScene.Clear()
 
     def runTest(self):
+        """Run the tests for the MultiMaterialSimulation module."""
         self.delayDisplay("Starting test_multi_material_simulation")
         self.test_multi_material_simulation()
         self.delayDisplay('Test test_multi_material_simulation passed')
 
     def compareModels(self, referenceModelNode, testModelNode) -> bool:
+        """Compare two model nodes to evaluate the simulation accuracy.
+
+        Args:
+            referenceModelNode: The reference model node.
+            testModelNode: The test model node.
+
+        Returns:
+            bool: True if the comparison passes, False otherwise.
+        """
         distance_filter = vtk.vtkDistancePolyDataFilter()
         distance_filter.SetInputData(0, referenceModelNode.GetPolyData())
         distance_filter.SetInputData(1, testModelNode.GetPolyData())
@@ -463,13 +601,14 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
         return overall_status == "Pass"
 
     def test_multi_material_simulation(self):
+        """Test the multi-material simulation using predefined data."""
         import SampleData
 
         layoutManager = slicer.app.layoutManager()
         layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
 
         self.setUp()
-        simulationLogic = MultiMaterialSimulationLogic()
+        logic = MultiMaterialSimulationLogic()
 
         self.delayDisplay('Loading Testing Data')
         simulationModelNode = SampleData.downloadSample("HeartDeviceJoint")
@@ -500,7 +639,7 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
         forceLineNode.AddControlPoint([44.804605575202274, -109.81929381733754, -180.68919726749039])
 
         self.delayDisplay('Setting simulation parameters')
-        parameterNode = simulationLogic.getParameterNode()
+        parameterNode = logic.getParameterNode()
         parameterNode.simulationModelNode = simulationModelNode
         parameterNode.fixedROI = fixedROINode
         parameterNode.movingROI = movingROINode
@@ -509,17 +648,17 @@ class MultiMaterialSimulationTest(ScriptedLoadableModuleTest):
         parameterNode.dt = 0.001
         parameterNode.currentStep = 0
         parameterNode.totalSteps = 100
-        simulationLogic.totalSteps = parameterNode.totalSteps
-        simulationLogic.currentStep = parameterNode.currentStep
+        logic.totalSteps = parameterNode.totalSteps
+        logic.currentStep = parameterNode.currentStep
 
         self.delayDisplay('Starting simulation')
         view = slicer.app.layoutManager().threeDWidget(0).threeDView()
-        simulationLogic.startSimulation()
+        logic.startSimulation()
         for _ in range(parameterNode.totalSteps):
-            simulationLogic.simulationStep(parameterNode)
+            logic.simulationStep(parameterNode)
             view.forceRender()
-        simulationLogic.stopSimulation()
-        simulationLogic.clean()
+        logic.stopSimulation()
+        logic.clean()
 
         if not self.compareModels(deformedModelNode, simulationModelNode):
             raise Exception("Model comparison failed")
