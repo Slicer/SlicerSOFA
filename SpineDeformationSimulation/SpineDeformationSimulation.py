@@ -92,9 +92,9 @@ def registerSampleData():
         category='SOFA',
         sampleName='Spine',
         thumbnailFileName=os.path.join(iconsPath, 'SpineDataset.png'),
-        uris=SOFA_DATA_URL + 'SHA256/da55b6baa69730059693185e4e73bee2818209bcce562e547bb5c121f31e9412',
+        uris=SOFA_DATA_URL + 'SHA256/ece32566f46cd3584e36442f7933dae1f4e2ea96f93d7801141eccba6ee1a6e0',
         fileNames='SpineScene.mrb',
-        checksums='SHA256:da55b6baa69730059693185e4e73bee2818209bcce562e547bb5c121f31e9412',
+        checksums='SHA256:ece32566f46cd3584e36442f7933dae1f4e2ea96f93d7801141eccba6ee1a6e0',
         loadFiles=True,
         loadFileType='SceneFile'
     )
@@ -614,17 +614,17 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
 
         self.delayDisplay('Loading Testing Data')
         SampleData.downloadSample('Spine')
-        simulationModelNode = slicer.util.getNode('SpineSurfaceModel')
-        # deformedModelDataSource = SampleData.SampleDataSource(
-        #     sampleName='HeartDeviceJointDeformed',
-        #     uris=SOFA_DATA_URL + 'SHA256/17cfdce795b0df95049f8fe4f5c6923fdaa3db304e1dfd7e6276e5e7c6a2497e',
-        #     fileNames='HeartDeviceJointDeformed.vtk',
-        #     checksums='SHA256:17cfdce795b0df95049f8fe4f5c6923fdaa3db304e1dfd7e6276e5e7c6a2497e',
-        #     nodeNames='HeartDeviceJointDeformed',
-        #     loadFileType='ModelFile'
-        # )
+        simulationModelNode = slicer.util.getNode('SpineSurfaceModel_Dec')
+        deformedModelDataSource = SampleData.SampleDataSource(
+            sampleName='SpineSurfaceModel_Dec_deformed',
+            uris=SOFA_DATA_URL + 'SHA256/417e57d5e634519a9d23677d1bb205d907c5afe0e659da79d118766fd3743bdf',
+            fileNames='SpineSurfaceModel_Dec_deformed.vtk',
+            checksums='SHA256:417e57d5e634519a9d23677d1bb205d907c5afe0e659da79d118766fd3743bdf',
+            nodeNames='SpineSurfaceModel_Dec_deformed',
+            loadFileType='ModelFile'
+        )
         sampleDataLogic = SampleData.SampleDataLogic()
-        #deformedModelNode = sampleDataLogic.downloadFromSource(deformedModelDataSource)[0]
+        deformedModelNode = sampleDataLogic.downloadFromSource(deformedModelDataSource)[0]
 
         self.delayDisplay('Creating fixed ROI selection')
         fixedROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode', 'FixedROI')
@@ -638,8 +638,8 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
 
         self.delayDisplay('Creating force vector')
         forceLineNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', 'Force')
-        forceLineNode.AddControlPoint([-183.86535407878318, -94.46268756919284, -234.9103926334161])
-        forceLineNode.AddControlPoint([44.804605575202274, -109.81929381733754, -180.68919726749039])
+        forceLineNode.AddControlPoint([-8.383174999999998, 85.42806199999998, 223.870506])
+        forceLineNode.AddControlPoint([-8.383174999999998, 220.092743, 223.870506])
 
         self.delayDisplay('Setting simulation parameters')
         parameterNode = logic.getParameterNode()
@@ -647,7 +647,7 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
         parameterNode.fixedROI = fixedROINode
         parameterNode.movingROI = movingROINode
         parameterNode.forceVector = forceLineNode
-        parameterNode.forceMagnitude = 0.5
+        parameterNode.forceMagnitude = 10000
         parameterNode.dt = 0.001
         parameterNode.currentStep = 0
         parameterNode.totalSteps = 100
@@ -663,5 +663,5 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
         logic.stopSimulation()
         logic.clean()
 
-        # if not self.compareModels(deformedModelNode, simulationModelNode):
-        #     raise Exception("Model comparison failed")
+        if not self.compareModels(deformedModelNode, simulationModelNode):
+            raise Exception("Model comparison failed")
