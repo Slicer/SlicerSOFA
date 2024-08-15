@@ -57,6 +57,31 @@ from slicer import vtkMRMLSequenceBrowserNode
 # Constants
 SOFA_DATA_URL = 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
+def addGridTransformFromArray(narray, name="Grid Transform"):
+    """Create a new grid transform node from content of a numpy array and add it to the scene.
+
+    Voxels values are deep-copied, therefore if the numpy array
+    is modified after calling this method, voxel values in the volume node will not change.
+    :param narray: numpy array containing grid vectors.
+    Must be [slices, rows, columns, 3]
+    :param name: grid transform node name
+    """
+    import slicer
+
+    if len(narray.shape) != 4 or narray.shape[3] != 3:
+        raise RuntimeError("Need vector volume numpy array for grid transform")
+    nodeClassName = "vtkMRMLGridTransformNode"
+    gridNode = slicer.mrmlScene.AddNewNodeByClass(nodeClassName, name)
+    gridNode.CreateDefaultDisplayNodes()
+    displacementGrid = gridNode.GetTransformFromParent().GetDisplacementGrid()
+    arrayShape = narray.shape
+    displacementGrid.SetDimensions(arrayShape[2], arrayShape[1], arrayShape[0])
+    scalarType = vtk.util.numpy_support.get_vtk_array_type(narray.dtype)
+    displacementGrid.AllocateScalars(scalarType, 3)
+    displacementArray = slicer.util.arrayFromGridTransform(gridNode)
+    displacementArray[:] = narray
+    slicer.util.arrayFromGridTransformModified(gridNode)
+    return gridNode
 
 class SpineDeformationSimulation(ScriptedLoadableModule):
     """Main class for Spine deformation Simulation module.
@@ -270,21 +295,180 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
     def __init__(self) -> None:
         """Initialize the logic class."""
         super().__init__()
-        self.connectionStatus = 0
-        self.fixedBoxROI = None
-        self.movingBoxROI = None
-        self.mouseInteractor = None
+
+        self.femModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
+        self.femModelNode.SetAndObserveMesh(self._initFEMUnstructuredGrid())
+        self.femModelNode.CreateDefaultDisplayNodes()
+        self.probeDimension = 10
+        self.probeGrid = None
+        self.probeFilter = None
+        self.displacementGridNode = None
+        self.femTopology = None
+
+        self._createGridTransformPipeline()
+
+        # Initialize MarkupsROI and ScalarVolume for debugging
+        self.debugROINode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", "ProbingBoundsROI")
+        self.debugVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", "ProbingSpaceVolume")
+
+    def _createGridTransformPipeline(self) -> None:
+        # Initialize probe grid and filter
+        self.probeGrid = vtk.vtkImageData()
+        self.probeGrid.SetDimensions(self.probeDimension, self.probeDimension, self.probeDimension)
+        self.probeGrid.AllocateScalars(vtk.VTK_DOUBLE, 1)
+        self.probeGrid.SetOrigin(0, 0, 0)
+        self.probeGrid.SetSpacing(1, 1, 1)
+        self.probeFilter = vtk.vtkProbeFilter()
+        self.probeFilter.SetInputData(self.probeGrid)
+        self.probeFilter.SetSourceData(self.femModelNode.GetUnstructuredGrid())
+        self.probeFilter.SetPassPointArrays(True)
+
+        # Create the grid transform node if it doesn't exist
+        if not self.displacementGridNode:
+            self.displacementGridNode = addGridTransformFromArray(np.zeros((self.probeDimension, self.probeDimension, self.probeDimension, 3)), name="Displacement")
+
+    def _initFEMUnstructuredGrid(self) -> vtk.vtkUnstructuredGrid:
+        points = vtk.vtkPoints()
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        unstructuredGrid.SetPoints(points)
+        displacementVTKArray = vtk.vtkFloatArray()
+        displacementVTKArray.SetNumberOfComponents(3)
+        displacementVTKArray.SetName('Displacement')
+        unstructuredGrid.GetPointData().AddArray(displacementVTKArray)
+        return unstructuredGrid
 
     def updateMRML(self, parameterNode) -> None:
-        """Update the MRML model node with the new mesh points from the simulation.
-
-        Args:
-            parameterNode (SpineDeformationSimulationParameterNode): The parameter node containing the simulation data.
-        """
-        meshPointsArray = self.mechanicalObject.position.array() * 1000  # Convert from meters to millimeters
-        modelPointsArray = slicer.util.arrayFromModelPoints(parameterNode.simulationModelNode)
-        modelPointsArray[:] = meshPointsArray
+        """Update the MRML model node with the new mesh points from the simulation."""
+        # Update surface points
+        surfacePointsArray = self.surfaceMechanicalObject.position.array() * 1000  # Convert from meters to millimeters
+        surfaceModelPointsArray = slicer.util.arrayFromModelPoints(parameterNode.simulationModelNode)
+        surfaceModelPointsArray[:] = surfacePointsArray
         slicer.util.arrayFromModelPointsModified(parameterNode.simulationModelNode)
+
+        #Update Grid Transform
+        # Since the sparse grid was created by SOFA, we need to update our femModelNode and the associated Displacement array
+        self.femModelNode.GetUnstructuredGrid().GetPoints().SetNumberOfPoints(int(self.femMechanicalObject.position.size/3))
+        femModelPointsArray = slicer.util.arrayFromModelPoints(self.femModelNode)
+        femModelPointsArray[:] = self.femMechanicalObject.position.array() * 1000
+        self.femModelNode.GetUnstructuredGrid().GetPointData().GetArray("Displacement").SetNumberOfTuples(int(self.femMechanicalObject.position.size/3))
+        displacementArray = slicer.util.arrayFromModelPointData(self.femModelNode, "Displacement")
+        displacementArray[:] = (self.femMechanicalObject.position - self.femMechanicalObject.rest_position)*1000
+        self._add_hexahedral_cells_to_unstructured_grid(self.femTopology.hexahedra.array(), self.femModelNode.GetUnstructuredGrid())
+        slicer.util.arrayFromModelPointsModified(self.femModelNode)
+
+        # Update the geometry of the probing image, which need to match the sparse grid created by SOFA
+        femGridBounds = [0] * 6
+        self.femModelNode.GetRASBounds(femGridBounds)
+        self.probeGrid.SetOrigin(femGridBounds[0], femGridBounds[2], femGridBounds[4])
+        probeSize = (abs(femGridBounds[1] - femGridBounds[0]),
+                     abs(femGridBounds[3] - femGridBounds[2]),
+                     abs(femGridBounds[5] - femGridBounds[4]))
+        self.probeGrid.SetSpacing(probeSize[0] / self.probeDimension,
+                                  probeSize[1] / self.probeDimension,
+                                  probeSize[2] / self.probeDimension)
+        self.probeGrid.AllocateScalars(vtk.VTK_DOUBLE, 1)
+        self.probeGrid.Modified()
+        self.probeFilter.Update()
+
+        probeGrid = self.probeFilter.GetOutputDataObject(0)
+        probeVTKArray = probeGrid.GetPointData().GetArray("Displacement")
+        probeArray = vtk.util.numpy_support.vtk_to_numpy(probeVTKArray)
+        probeArrayShape = (self.probeDimension,self.probeDimension,self.probeDimension,3)
+        probeArray = probeArray.reshape(probeArrayShape)
+        gridArray = slicer.util.arrayFromGridTransform(self.displacementGridNode)
+        gridArray[:] = -1. * probeArray
+        slicer.util.arrayFromGridTransformModified(self.displacementGridNode)
+        self.displacementGrid = self.displacementGridNode.GetTransformFromParent().GetDisplacementGrid()
+        self.displacementGrid.SetOrigin(probeGrid.GetOrigin())
+        self.displacementGrid.SetSpacing(probeGrid.GetSpacing())
+
+        # # Update the debugging ROI node with the probe bounds
+        # self._updateDebugROINode(self.probeGrid.GetBounds())
+
+        # # Update the debugging volume node with the displacement values
+        # self._updateDebugVolumeNode(probeGrid)
+
+    def _add_hexahedral_cells_to_unstructured_grid(self, cell_connectivity, unstructured_grid):
+        """
+        Add hexahedral cells to an existing vtkUnstructuredGrid.
+
+        Parameters:
+        - cell_connectivity: List of lists where each inner list represents the point indices for a hexahedron cell.
+        - unstructured_grid: An existing vtkUnstructuredGrid to which the hexahedral cells will be added.
+
+        Returns:
+        - vtkUnstructuredGrid: The unstructured grid with added hexahedral cells.
+        """
+        # Ensure the unstructured grid is a valid vtkUnstructuredGrid instance
+        if not isinstance(unstructured_grid, vtk.vtkUnstructuredGrid):
+            raise ValueError("The provided unstructured grid must be an instance of vtkUnstructuredGrid.")
+
+        # Create a vtkCellArray to store the cells
+        cell_array = vtk.vtkCellArray()
+
+        # Iterate over the cell connectivity to create hexahedral cells
+        for cell in cell_connectivity:
+            if len(cell) != 8:
+                raise ValueError("Each hexahedral cell should have exactly 8 points.")
+
+            hexahedron = vtk.vtkHexahedron()
+
+            for i in range(8):
+                hexahedron.GetPointIds().SetId(i, cell[i])
+
+            cell_array.InsertNextCell(hexahedron)
+
+        # Set the cells (hexahedrons) into the unstructured grid
+        unstructured_grid.SetCells(vtk.VTK_HEXAHEDRON, cell_array)
+
+        return unstructured_grid
+
+
+    def _updateDebugROINode(self, bounds) -> None:
+            """Update the ROI node with the bounds of the probed data."""
+            center = [(bounds[0] + bounds[1]) / 2.0, (bounds[2] + bounds[3]) / 2.0, (bounds[4] + bounds[5]) / 2.0]
+            size = [abs(bounds[1] - bounds[0]), abs(bounds[3] - bounds[2]), abs(bounds[5] - bounds[4])]
+            self.debugROINode.SetXYZ(center)
+            self.debugROINode.SetRadiusXYZ(size[0] / 2, size[1] / 2, size[2] / 2)
+
+    def _updateDebugVolumeNode(self, probeImage) -> None:
+        """Update the scalar volume node with the probed displacement values."""
+        dimensions = probeImage.GetDimensions()
+        origin = probeImage.GetOrigin()
+        spacing = probeImage.GetSpacing()
+
+        # Allocate and set vtkImageData
+        imageData = vtk.vtkImageData()
+        imageData.SetDimensions(dimensions)
+        imageData.SetOrigin(origin)
+        imageData.SetSpacing(spacing)
+        imageData.AllocateScalars(vtk.VTK_DOUBLE, 1)  # Use double to match displacement data
+
+        # Get the displacement data from the probe filter output
+        probeArray = vtk.util.numpy_support.vtk_to_numpy(probeImage.GetPointData().GetArray('Displacement'))
+
+        # Reshape and extract the magnitude of the displacement vectors
+        probeArray = np.linalg.norm(probeArray.reshape(-1, 3), axis=1)
+        probeArray = probeArray.reshape(dimensions)
+
+        # Set the probed displacement magnitudes to the scalar volume
+        imageDataArray = vtk.util.numpy_support.vtk_to_numpy(imageData.GetPointData().GetScalars())
+        imageDataArray[:] = probeArray.ravel()
+
+        # Set the vtkImageData to the scalar volume node
+        self.debugVolumeNode.SetAndObserveImageData(imageData)
+        self.debugVolumeNode.SetOrigin(imageData.GetOrigin())
+        self.debugVolumeNode.SetSpacing(imageData.GetSpacing())
+        self.debugVolumeNode.CreateDefaultDisplayNodes()
+        self.debugVolumeNode.GetDisplayNode().SetAutoWindowLevel(False)
+        self.debugVolumeNode.GetDisplayNode().SetWindowLevel(probeArray.max(), probeArray.mean())
+        self.debugVolumeNode.GetDisplayNode().SetAndObserveColorNodeID("vtkMRMLColorTableNodeGrey")
+
+    def simulationStep(self, parameterNode) -> None:
+        self.forceVector.totalForce = parameterNode.getForceVector()
+        super().simulationStep(parameterNode)
+        self.updateMRML(parameterNode)
+
 
     def getParameterNode(self) -> SpineDeformationSimulationParameterNode:
         """Get the parameter node for the simulation.
@@ -450,7 +634,7 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
             "Sofa.Component.Topology.Mapping",
             "Sofa.Component.Engine.Select",
             "Sofa.Component.Constraint.Projective",
-            "Sofa.Component.Topology.Container.Grid"
+            "Sofa.Component.Topology.Container.Grid",
         ])
 
         rootNode.dt = parameterNode.dt
@@ -470,16 +654,17 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
         container.triangle = slicer.util.arrayFromModelPolyIds(parameterNode.simulationModelNode).reshape(-1,4)[:,1:]
 
         fem = rootNode.addChild('FEM')
-        fem.addObject('SparseGridTopology', n=[10, 10, 10], position="@../InputSurfaceNode/Container.position")
+        self.femTopology = fem.addObject('SparseGridTopology', n=[16, 16, 8], position="@../InputSurfaceNode/Container.position")
         fem.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
         fem.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
-        fem.addObject('MechanicalObject', name='MO')
+        self.femMechanicalObject = fem.addObject('MechanicalObject', name='MO')
+        slicer.modules.fmo = self.femMechanicalObject
         fem.addObject('UniformMass', totalMass=0.5)
         fem.addObject('ParallelHexahedronFEMForceField', name="FEMForce", youngModulus=50000000, poissonRatio=0.40, method="large")
 
         surf = fem.addChild('Surf')
         surf.addObject('MeshTopology', position="@../../InputSurfaceNode/Container.position")
-        self.mechanicalObject = surf.addObject('MechanicalObject', position="@../../InputSurfaceNode/Container.position")
+        self.surfaceMechanicalObject = surf.addObject('MechanicalObject', position="@../../InputSurfaceNode/Container.position")
         surf.addObject('TriangleCollisionModel', selfCollision=True)
         surf.addObject('LineCollisionModel')
         surf.addObject('PointCollisionModel')
@@ -595,9 +780,6 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
         """Test the spine deformation simulation using predefined data."""
         import SampleData
 
-        layoutManager = slicer.app.layoutManager()
-        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
-
         self.setUp()
         logic = SpineDeformationSimulationLogic()
 
@@ -614,6 +796,9 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
         )
         sampleDataLogic = SampleData.SampleDataLogic()
         deformedModelNode = sampleDataLogic.downloadFromSource(deformedModelDataSource)[0]
+
+        layoutManager = slicer.app.layoutManager()
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
 
         self.delayDisplay('Creating fixed ROI selection')
         fixedROINode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsROINode', 'FixedROI')
