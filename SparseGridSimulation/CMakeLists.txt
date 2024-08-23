@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME SpineDeformationSimulation)
+set(MODULE_NAME SparseGridSimulation)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

@@ -83,16 +83,16 @@ def addGridTransformFromArray(narray, name="Grid Transform"):
     slicer.util.arrayFromGridTransformModified(gridNode)
     return gridNode
 
-class SpineDeformationSimulation(ScriptedLoadableModule):
-    """Main class for Spine deformation Simulation module.
+class SparseGridSimulation(ScriptedLoadableModule):
+    """Main class for sparse grid Simulation module.
 
     This class uses the ScriptedLoadableModule base class.
     """
 
     def __init__(self, parent):
-        """Initialize the SpineDeformationSimulation module."""
+        """Initialize the SparseGridSimulation module."""
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("Spine deformation Simulation")
+        self.parent.title = _("sparse grid Simulation")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []
         self.parent.contributors = [
@@ -102,7 +102,7 @@ class SpineDeformationSimulation(ScriptedLoadableModule):
             "Steve Pieper (Isomics, Inc., USA)",
             "Andras Lasso (Queen's University, Canada)"
         ]
-        self.parent.helpText = _("""This is an example module to use the SOFA framework to do simple spine deformation simulation based on triangular meshes (instead of tetrahedral), ROI selections for depiction of fixed/moving points, and a single force vector""")
+        self.parent.helpText = _("""This is an example module to use the SOFA framework to do simple sparse grid simulation based on triangular meshes (instead of tetrahedral), ROI selections for depiction of fixed/moving points, and a single force vector""")
         self.parent.acknowledgementText = _("""""")
 
         # Register sample data after the application startup is complete
@@ -110,12 +110,32 @@ class SpineDeformationSimulation(ScriptedLoadableModule):
 
 def registerSampleData():
     """Register sample data sets in the Sample Data module."""
+
     import SampleData
+
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
 
+    sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
+
+    # To ensure that the source code repository remains small (can be downloaded and installed quickly)
+    # it is recommended to store data sets that are larger than a few MB in a Github release.
+
+    # Right lung low poly tetrahedral mesh dataset
+    SampleData.SampleDataLogic.registerCustomSampleDataSource(
+        category='SOFA',
+        sampleName='LiverSimulationScene',
+        thumbnailFileName=os.path.join(iconsPath, 'LiverSimulationScene.png'),
+        uris=sofaDataURL+ 'SHA256/19b38403d6ef301f2b049e3f32134962461b74dbccf31278938c2f7986371e89',
+        fileNames='LiverSimulationScene.mrb',
+        checksums='SHA256:19b38403d6ef301f2b049e3f32134962461b74dbccf31278938c2f7986371e89',
+        nodeNames='LiverSimulationScene',
+        loadFileType='SceneFile',
+        loadFiles=True
+    )
+
 @parameterNodeWrapper
-class SpineDeformationSimulationParameterNode:
-    """Defines the parameters needed by the SpineDeformationSimulation module."""
+class SparseGridSimulationParameterNode:
+    """Defines the parameters needed by the SparseGridSimulation module."""
     simulationModelNode: vtkMRMLModelNode
     fixedROI: vtkMRMLMarkupsROINode
     movingROI: vtkMRMLMarkupsROINode
@@ -170,14 +190,14 @@ class SpineDeformationSimulationParameterNode:
 
         return normalized_force_vector * magnitude
 
-class SpineDeformationSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
-    """User interface class for the SpineDeformationSimulation module.
+class SparseGridSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+    """User interface class for the SparseGridSimulation module.
 
     This class uses the ScriptedLoadableModuleWidget base class.
     """
 
     def __init__(self, parent=None) -> None:
-        """Initialize the SpineDeformationSimulation widget."""
+        """Initialize the SparseGridSimulation widget."""
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
         self.logic = None
@@ -187,16 +207,16 @@ class SpineDeformationSimulationWidget(ScriptedLoadableModuleWidget, VTKObservat
         self.timer.timeout.connect(self.simulationStep)
 
     def setup(self) -> None:
-        """Setup the UI components and logic for the SpineDeformationSimulation module."""
+        """Setup the UI components and logic for the SparseGridSimulation module."""
         ScriptedLoadableModuleWidget.setup(self)
 
         # Load the UI from the .ui file
-        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SpineDeformationSimulation.ui"))
+        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SparseGridSimulation.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
         # Create the logic class
-        self.logic = SpineDeformationSimulationLogic()
+        self.logic = SparseGridSimulationLogic()
         uiWidget.setMRMLScene(slicer.mrmlScene)
 
         # Add observers to update parameter node when the scene is closed
@@ -247,11 +267,11 @@ class SpineDeformationSimulationWidget(ScriptedLoadableModuleWidget, VTKObservat
             self.setParameterNode(self.logic.getParameterNode())
             self.logic.resetParameterNode()
 
-    def setParameterNode(self, inputParameterNode: Optional[SpineDeformationSimulationParameterNode]) -> None:
+    def setParameterNode(self, inputParameterNode: Optional[SparseGridSimulationParameterNode]) -> None:
         """Set and observe the parameter node.
 
         Args:
-            inputParameterNode (Optional[SpineDeformationSimulationParameterNode]): The parameter node to set.
+            inputParameterNode (Optional[SparseGridSimulationParameterNode]): The parameter node to set.
         """
         if self.parameterNode:
             self.parameterNode.disconnectGui(self.parameterNodeGuiTag)
@@ -286,8 +306,8 @@ class SpineDeformationSimulationWidget(ScriptedLoadableModuleWidget, VTKObservat
         """Perform a single step of the simulation."""
         self.logic.simulationStep(self.parameterNode)
 
-class SpineDeformationSimulationLogic(SlicerSofaLogic):
-    """Logic class for the SpineDeformationSimulation module.
+class SparseGridSimulationLogic(SlicerSofaLogic):
+    """Logic class for the SparseGridSimulation module.
 
     This class implements all the computations and data manipulations required by the module.
     """
@@ -470,13 +490,13 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
         self.updateMRML(parameterNode)
 
 
-    def getParameterNode(self) -> SpineDeformationSimulationParameterNode:
+    def getParameterNode(self) -> SparseGridSimulationParameterNode:
         """Get the parameter node for the simulation.
 
         Returns:
-            SpineDeformationSimulationParameterNode: The parameter node for the simulation.
+            SparseGridSimulationParameterNode: The parameter node for the simulation.
         """
-        return SpineDeformationSimulationParameterNode(super().getParameterNode())
+        return SparseGridSimulationParameterNode(super().getParameterNode())
 
     def resetParameterNode(self) -> None:
         """Reset the values of the parameter node to their defaults."""
@@ -592,7 +612,7 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
         """Create the SOFA simulation scene.
 
         Args:
-            parameterNode (SpineDeformationSimulationParameterNode): The parameter node containing the simulation data.
+            parameterNode (SparseGridSimulationParameterNode): The parameter node containing the simulation data.
 
         Returns:
             Sofa.Core.Node: The root node of the SOFA simulation scene.
@@ -654,7 +674,7 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
         container.triangle = slicer.util.arrayFromModelPolyIds(parameterNode.simulationModelNode).reshape(-1,4)[:,1:]
 
         fem = rootNode.addChild('FEM')
-        self.femTopology = fem.addObject('SparseGridTopology', n=[16, 16, 8], position="@../InputSurfaceNode/Container.position")
+        self.femTopology = fem.addObject('SparseGridTopology', n=[20, 20, 20], position="@../InputSurfaceNode/Container.position")
         fem.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
         fem.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
         self.femMechanicalObject = fem.addObject('MechanicalObject', name='MO')
@@ -725,7 +745,7 @@ class SpineDeformationSimulationLogic(SlicerSofaLogic):
         forceVector.AddControlPoint(vtk.vtkVector3d(startPoint))
         forceVector.AddControlPoint(vtk.vtkVector3d(endPoint))
 
-class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
+class SparseGridSimulationTest(ScriptedLoadableModuleTest):
     """This is the test case for your scripted module.
 
     This class uses the ScriptedLoadableModuleTest base class.
@@ -736,7 +756,7 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
         slicer.mrmlScene.Clear()
 
     def runTest(self):
-        """Run the tests for the SpineDeformationSimulation module."""
+        """Run the tests for the SparseGridSimulation module."""
         self.delayDisplay("Starting test_spine_deformation_simulation")
         self.test_spine_deformation_simulation()
         self.delayDisplay('Test test_spine_deformation_simulation passed')
@@ -777,11 +797,11 @@ class SpineDeformationSimulationTest(ScriptedLoadableModuleTest):
         return overall_status == "Pass"
 
     def test_spine_deformation_simulation(self):
-        """Test the spine deformation simulation using predefined data."""
+        """Test the sparse grid simulation using predefined data."""
         import SampleData
 
         self.setUp()
-        logic = SpineDeformationSimulationLogic()
+        logic = SparseGridSimulationLogic()
 
         self.delayDisplay('Loading Testing Data')
         SampleData.downloadSample('Spine')

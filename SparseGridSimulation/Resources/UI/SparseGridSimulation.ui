@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MultiMaterialSimulation</class>
- <widget class="qMRMLWidget" name="MultiMaterialSimulation">
+ <class>SparseGridSimulationWidget</class>
+ <widget class="qMRMLWidget" name="SparseGridSimulationWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -460,6 +460,9 @@
     </layout>
    </item>
    <item>
+    <widget class="qMRMLSegmentSelectorWidget" name="SegmentSelectorWidget"/>
+   </item>
+   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -486,11 +489,16 @@
    <header>qMRMLWidget.h</header>
    <container>1</container>
   </customwidget>
+  <customwidget>
+   <class>qMRMLSegmentSelectorWidget</class>
+   <extends>qMRMLWidget</extends>
+   <header>qMRMLSegmentSelectorWidget.h</header>
+  </customwidget>
  </customwidgets>
  <resources/>
  <connections>
   <connection>
-   <sender>MultiMaterialSimulation</sender>
+   <sender>SparseGridSimulationWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>simulationModelComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -506,7 +514,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>MultiMaterialSimulation</sender>
+   <sender>SparseGridSimulationWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>fixedROIComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -522,7 +530,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>MultiMaterialSimulation</sender>
+   <sender>SparseGridSimulationWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>recordingSequenceComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -538,7 +546,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>MultiMaterialSimulation</sender>
+   <sender>SparseGridSimulationWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>movingROIComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -554,7 +562,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>MultiMaterialSimulation</sender>
+   <sender>SparseGridSimulationWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>forceVectorComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -566,6 +574,22 @@
     <hint type="destinationlabel">
      <x>282</x>
      <y>115</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SparseGridSimulationWidget</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>SegmentSelectorWidget</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>242</x>
+     <y>277</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>242</x>
+     <y>251</y>
     </hint>
    </hints>
   </connection>

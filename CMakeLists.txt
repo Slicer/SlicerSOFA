@@ -6,7 +6,7 @@ project(Sofa)
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "https://github.com/RafaelPalomar/Slicer-SOFA")
 set(EXTENSION_CATEGORY "Simulation")
-set(EXTENSION_CONTRIBUTORS "Rafael Palomar (Oslo University Hospital, Norway), Paul Baksic (INRIA, France), Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada), Sam Horvath (Kitware, Inc., USA), Jean Christophe Fillion-Robin (Kitware, Inc., USA)")
+set(EXTENSION_CONTRIBUTORS "Rafael Palomar (Oslo University Hospital, Norway), Paul Baksic (INRIA, France), Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada), Jean Christophe Fillion-Robin (Kitware, Inc., USA)")
 set(EXTENSION_DESCRIPTION "This extension enables simulations using the SOFA framework")
 set(EXTENSION_ICONURL "https://github.com/RafaelPalomar/Slicer-SOFA/blob/main/slicer-sofa-logo.png")
 set(EXTENSION_SCREENSHOTURLS "https://github.com/RafaelPalomar/Slicer-SOFA/blob/main/Screenshots/SoftTissueSimulationScreenshot_1.png")
@@ -37,7 +37,7 @@ endif()
 # Extension modules
 add_subdirectory(SlicerSofa)
 add_subdirectory(SoftTissueSimulation)
-add_subdirectory(SpineDeformationSimulation)
+add_subdirectory(SparseGridSimulation)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
