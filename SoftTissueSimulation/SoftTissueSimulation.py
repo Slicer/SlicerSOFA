@@ -25,9 +25,9 @@ from slicer import vtkMRMLModelNode
 from SofaEnvironment import Sofa
 from SlicerSofa import (
     SlicerSofaLogic,
-    sofaParameterNodeWrapper,
+    SofaParameterNodeWrapper,
     NodeMapper,
-    run_once
+    RunOnce
 )
 
 def CreateScene() -> Sofa.Core.Node:
@@ -115,7 +115,7 @@ def CreateScene() -> Sofa.Core.Node:
 
 
 
-@sofaParameterNodeWrapper
+@SofaParameterNodeWrapper
 class SoftTissueSimulationParameterNode:
     """
     The parameters needed by the module.
@@ -189,87 +189,64 @@ class SoftTissueSimulationParameterNode:
 
         sofaNode.gravity = normalized_gravity_vector*self.gravityMagnitude
 
-    @run_once
+    # Maps VTK model node to SOFA node data
+    @RunOnce
     def modelNodetoSofaNode(self, sofaNode):
-        """
-        Convert the point positions from the VTK model to a Python list.
-        """
-        # Get the unstructured grid from the model node
-        unstructured_grid = self.modelNode.GetUnstructuredGrid()
+        unstructuredGrid = self.modelNode.GetUnstructuredGrid()
+        points = unstructuredGrid.GetPoints()
+        numPoints = points.GetNumberOfPoints()
 
-        # Extract point data from the unstructured grid
-        points = unstructured_grid.GetPoints()
-        num_points = points.GetNumberOfPoints()
+        # Convert VTK points to a list for SOFA node
+        pointCoords = [points.GetPoint(i) for i in range(numPoints)]
 
-        # Convert the VTK points to a list
-        point_coords = []
-        for i in range(num_points):
-            point_coords.append(points.GetPoint(i))
+        cells = unstructuredGrid.GetCells()
+        cellArray = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
 
-        # Extract cell data from the unstructured grid
-        cells = unstructured_grid.GetCells()
-        cell_array = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
-
-        # The first integer in each cell entry is the number of points per cell (always 4 for tetrahedra)
-        # Followed by the point indices
-        num_cells = unstructured_grid.GetNumberOfCells()
-        cell_connectivity = []
-
-        # Fill the cell connectivity list
+        # Parse cell data (tetrahedra connectivity)
+        cellConnectivity = []
         idx = 0
-        for i in range(num_cells):
-            num_points = cell_array[idx]  # Should always be 4 for tetrahedra
-            cell_connectivity.append(cell_array[idx+1:idx+1+num_points].tolist())
-            idx += num_points + 1
+        for i in range(unstructuredGrid.GetNumberOfCells()):
+            numPoints = cellArray[idx]
+            cellConnectivity.append(cellArray[idx+1:idx+1+numPoints].tolist())
+            idx += numPoints + 1
 
-        sofaNode["Container"].tetrahedra = cell_connectivity
-        sofaNode["Container"].position = point_coords
+        sofaNode["Container"].tetrahedra = cellConnectivity
+        sofaNode["Container"].position = pointCoords
 
+    # Maps SOFA node to VTK model node data
     def sofaNodeToModelNode(self, sofaNode):
-        points_vtk = numpy_to_vtk(num_array=sofaNode["Collision.dofs"].position.array(), deep=True, array_type=vtk.VTK_FLOAT)
-        vtk_points = vtk.vtkPoints()
-        vtk_points.SetData(points_vtk)
-        self.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
+        convertedPoints = numpy_to_vtk(num_array=sofaNode["Collision.dofs"].position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+        points = vtk.vtkPoints()
+        points.SetData(convertedPoints)
+        self.modelNode.GetUnstructuredGrid().SetPoints(points)
         self.modelNode.Modified()
 
+    # Maps MRML fiducial node to SOFA node point position
     def markupsFiducialNodeToSofaPoint(self, sofaNode):
         sofaNode.position = [list(self.movingPointNode.GetNthControlPointPosition(0))*3]
 
-#
-# SoftTissueSimulation
-#
-
+# Main module definition for Slicer UI and metadata setup
 class SoftTissueSimulation(ScriptedLoadableModule):
-    """Uses ScriptedLoadableModule base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
-    """
-
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = _("Soft Tissue Simulation")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
         self.parent.dependencies = []
         self.parent.contributors = ["Rafael Palomar (Oslo University Hospital), Paul Baksic (INRIA), Steve Pieper (Isomics, Inc.), Andras Lasso (Queen's University), Sam Horvath (Kitware, Inc.)"]
-        self.parent.helpText = _("""This is an example module to use the SOFA framework to simulate soft tissue""")
+        self.parent.helpText = _("""This module uses SOFA framework to simulate soft tissue""")
         self.parent.acknowledgementText = _("""This project was funded by Oslo University Hospital""")
 
-        # Additional initialization step after application startup is complete
+        # Additional initialization after startup
         slicer.app.connect("startupCompleted()", registerSampleData)
 
-#
-# Register sample data sets in Sample Data module
-#
-
+# Registers sample data for module
 def registerSampleData():
-    """Add data sets to Sample Data module."""
-
     import SampleData
 
     iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
+    sofaDataURL = 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
-    sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
-
-    # Right lung low poly tetrahedral mesh dataset
+    # Registers a sample lung model data set for the module
     SampleData.SampleDataLogic.registerCustomSampleDataSource(
         category='SOFA',
         sampleName='RightLungLowTetra',

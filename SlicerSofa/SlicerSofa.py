@@ -22,8 +22,8 @@ from slicer import vtkMRMLScalarVolumeNode
 
 from SofaEnvironment import *
 
-def run_once(func):
-    func.run_once = True
+def RunOnce(func):
+    func.runOnce = True
     return func
 
 #
@@ -42,8 +42,8 @@ class NodeMapper:
         self.sofaMapping = sofaMapping         # Function used to move data to SOFA
         self.mrmlMapping = mrmlMapping         # Function used to move data to MRML
         self.recordSequence = recordSequence   # Flag indicating if the node should be recorded
-        self.sofaMapping_has_run = False       # Whether the mapper runs only one time
-        self.mrmlMapping_has_run = False       # Whether the mapper runs only one time
+        self.sofaMappingHasRun = False       # Whether the mapper runs only one time
+        self.mrmlMappingHasRun = False       # Whether the mapper runs only one time
 
     def __get__(self, instance, owner):
         return self.value
@@ -53,19 +53,19 @@ class NodeMapper:
             raise ValueError(f"Expected type {str}, got {type(value)}")
         self.value = value
 
-    def infer_type(self, owner_class, field_name):
+    def infer_type(self, ownerClass, fieldName):
         # Get the type hints (annotations) of the owner class
-        type_hints = get_type_hints(owner_class)
-        # Store the type associated with the field_name
-        self.type = type_hints.get(field_name)
+        type_hints = get_type_hints(ownerClass)
+        # Store the type associated with the fieldName
+        self.type = type_hints.get(fieldName)
 
 #
-# sofaParameterNodeWrapper decorator
+# SofaParameterNodeWrapper decorator
 #
 
-def sofaParameterNodeWrapper(cls):
+def SofaParameterNodeWrapper(cls):
     # Temporary dictionary to store NodeMapper instances
-    sofa_node_mappers = {}
+    sofaNodeMappers = {}
 
     def __checkAndCreate__(cls, var, expectedType, defaultValue):
         if hasattr(cls, var):
@@ -89,19 +89,19 @@ def sofaParameterNodeWrapper(cls):
     __checkAndCreate__(cls, 'sofaParameterNodeWrapped', bool, True)
 
     # Infer types for SofaNode parameters and store them
-    for field_name, sofa_node in cls.__dict__.items():
+    for fieldName, sofa_node in cls.__dict__.items():
         if isinstance(sofa_node, NodeMapper):
             # Infer the type dynamically
-            sofa_node.infer_type(cls, field_name)
+            sofa_node.infer_type(cls, fieldName)
             # Store the NodeMapper instance
-            sofa_node_mappers[field_name] = sofa_node
+            sofaNodeMappers[fieldName] = sofa_node
 
     # Now, wrap the class using parameterNodeWrapper and dataclass
     wrapped_cls = parameterNodeWrapper(cls)
     wrapped_cls = dataclass(wrapped_cls)
 
-    # Assign the __sofa_node_mappers__ to the final class
-    setattr(wrapped_cls, '__sofa_node_mappers__', sofa_node_mappers)
+    # Assign the __sofaNodeMappers__ to the final class
+    setattr(wrapped_cls, '__sofaNodeMappers__', sofaNodeMappers)
 
     return wrapped_cls
 
@@ -119,7 +119,7 @@ class SlicerSofa(ScriptedLoadableModule):
         self.parent.title = _("Slicer Sofa")
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "")]
         self.parent.dependencies = []
-        self.parent.contributors = [ "Rafael Palomar (Oslo University Hospital, Norway), Paul Baksic (INRIA, France), Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada), Sam Horvath (Kitware, Inc., USA), Jean Christophe Fillion-Robin (Kitware, Inc., USA)"]
+        self.parent.contributors = [ "Rafael Palomar (Oslo University Hospital / NTNU, Norway), Paul Baksic (INRIA, France), Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada), Sam Horvath (Kitware, Inc., USA), Jean Christophe Fillion-Robin (Kitware, Inc., USA)"]
         self.parent.helpText = _("""
 This is a support module to enable simulations using the SOFA framework
 See more information in <a href="https://github.com/RafaelPalomar/Slicer-SOFA">module documentation</a>.
@@ -221,16 +221,16 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
     def setupSequenceRecording(self):
         """Sets up sequence recording for nodes that have recordSequence=True."""
-        sofa_node_mappers = self._parameterNode.__class__.__sofa_node_mappers__
+        sofaNodeMappers = self._parameterNode.__class__.__sofaNodeMappers__
 
-        for field_name, sofa_node_mapper in sofa_node_mappers.items():
-            if sofa_node_mapper.recordSequence:
-                mrmlNode = getattr(self._parameterNode, field_name)
+        for fieldName, sofaNodeMapper in sofaNodeMappers.items():
+            if sofaNodeMapper.recordSequence:
+                mrmlNode = getattr(self._parameterNode, fieldName)
                 if mrmlNode is not None:
                     # Create a sequence node for recording
                     sequenceNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceNode', mrmlNode.GetName() + "_Sequence")
                     # Store the sequence node in the mapper for future reference (optional)
-                    # sofa_node_mapper.sequenceNode = sequenceNode
+                    # sofaNodeMapper.sequenceNode = sequenceNode
                     # Get or create a sequence browser node
                     browserNode = self._getOrCreateSequenceBrowserNode()
                     # Add the sequence node to the browser
@@ -255,33 +255,33 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         return self._sequenceBrowserNode
 
     def __updateSofa__(self) -> None:
-        sofa_node_mappers = self._parameterNode.__class__.__sofa_node_mappers__
+        sofaNodeMappers = self._parameterNode.__class__.__sofaNodeMappers__
 
-        for field_name, sofa_node_mapper in sofa_node_mappers.items():
-            sofaMapping = sofa_node_mapper.sofaMapping
-            name = sofa_node_mapper.nodeName
+        for fieldName, sofaNodeMapper in sofaNodeMappers.items():
+            sofaMapping = sofaNodeMapper.sofaMapping
+            name = sofaNodeMapper.nodeName
 
             if sofaMapping is not None:
-                run_once = getattr(sofaMapping, 'run_once', False)
-                if run_once and sofa_node_mapper.sofaMapping_has_run:
+                runOnce = getattr(sofaMapping, 'runOnce', False)
+                if runOnce and sofaNodeMapper.sofaMappingHasRun:
                     continue  # Skip execution
                 node = self._rootNode[name] if name else self._rootNode
                 sofaMapping(self._parameterNode, node)
-                if run_once:
-                    sofa_node_mapper.sofaMapping_has_run = True
+                if runOnce:
+                    sofaNodeMapper.sofaMappingHasRun = True
 
     def __updateMRML__(self) -> None:
-        sofa_node_mappers = self._parameterNode.__class__.__sofa_node_mappers__
+        sofaNodeMappers = self._parameterNode.__class__.__sofaNodeMappers__
 
-        for field_name, sofa_node_mapper in sofa_node_mappers.items():
-            mrmlMapping = sofa_node_mapper.mrmlMapping
-            name = sofa_node_mapper.nodeName
+        for fieldName, sofaNodeMapper in sofaNodeMappers.items():
+            mrmlMapping = sofaNodeMapper.mrmlMapping
+            name = sofaNodeMapper.nodeName
 
             if mrmlMapping is not None:
-                run_once = getattr(mrmlMapping, 'run_once', False)
-                if run_once and sofa_node_mapper.mrmlMapping_has_run:
+                runOnce = getattr(mrmlMapping, 'runOnce', False)
+                if runOnce and sofaNodeMapper.mrmlMappingHasRun:
                     continue  # Skip execution
                 node = self._rootNode[name] if name else self._rootNode
                 mrmlMapping(self._parameterNode, node)
-                if run_once:
-                    sofa_node_mapper.mrmlMapping_has_run = True
+                if runOnce:
+                    sofaNodeMapper.mrmlMappingHasRun = True
