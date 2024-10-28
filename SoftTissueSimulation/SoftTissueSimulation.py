@@ -1,4 +1,5 @@
 import logging
+
 import os
 from typing import Annotated, Optional
 import qt
@@ -9,17 +10,11 @@ import time
 import uuid
 import numpy as np
 
-# import Simulations.SOFASimulationMulti as multi
-
 import slicer
 from slicer.i18n import tr as _
 from slicer.i18n import translate
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
-from slicer.parameterNodeWrapper import (
-    parameterNodeWrapper,
-    WithinRange,
-)
 
 from slicer import vtkMRMLIGTLConnectorNode
 from slicer import vtkMRMLMarkupsFiducialNode
@@ -31,12 +26,221 @@ from slicer import vtkMRMLSequenceBrowserNode
 from slicer import vtkMRMLSequenceNode
 
 from SofaEnvironment import Sofa
-from SlicerSofa import SlicerSofaLogic
+from SlicerSofa import (
+    SlicerSofaLogic,
+    sofaParameterNodeWrapper,
+    SofaNodeMapper,
+    run_once
+)
+
+def CreateScene() -> Sofa.Core.Node:
+    from stlib3.scene import MainHeader, ContactHeader
+    from stlib3.solver import DefaultSolver
+    from stlib3.physics.deformable import ElasticMaterialObject
+    from stlib3.physics.rigid import Floor
+    from splib3.numerics import Vec3
+
+    rootNode = Sofa.Core.Node("Root")
+
+    MainHeader(rootNode, plugins=[
+        "Sofa.Component.IO.Mesh",
+        "Sofa.Component.LinearSolver.Direct",
+        "Sofa.Component.LinearSolver.Iterative",
+        "Sofa.Component.Mapping.Linear",
+        "Sofa.Component.Mass",
+        "Sofa.Component.ODESolver.Backward",
+        "Sofa.Component.Setting",
+        "Sofa.Component.SolidMechanics.FEM.Elastic",
+        "Sofa.Component.StateContainer",
+        "Sofa.Component.Topology.Container.Dynamic",
+        "Sofa.Component.Visual",
+        "Sofa.GL.Component.Rendering3D",
+        "Sofa.Component.AnimationLoop",
+        "Sofa.Component.Collision.Detection.Algorithm",
+        "Sofa.Component.Collision.Detection.Intersection",
+        "Sofa.Component.Collision.Geometry",
+        "Sofa.Component.Collision.Response.Contact",
+        "Sofa.Component.Constraint.Lagrangian.Solver",
+        "Sofa.Component.Constraint.Lagrangian.Correction",
+        "Sofa.Component.LinearSystem",
+        "Sofa.Component.MechanicalLoad",
+        "MultiThreading",
+        "Sofa.Component.SolidMechanics.Spring",
+        "Sofa.Component.Constraint.Lagrangian.Model",
+        "Sofa.Component.Mapping.NonLinear",
+        "Sofa.Component.Topology.Container.Constant",
+        "Sofa.Component.Topology.Mapping",
+        "Sofa.Component.Topology.Container.Dynamic",
+        "Sofa.Component.Engine.Select",
+        "Sofa.Component.Constraint.Projective",
+        "SofaIGTLink"
+    ])
+
+    rootNode.gravity = [0,0,0]
+
+    rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
+    rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
+
+    femNode = rootNode.addChild('FEM')
+    femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
+    femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
+
+    femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=None, tetrahedra=None)
+    # parameterNode.getModelPointsArray()
+    # parameterNode.getModelCellsArray()
+    # self.container = femNode.addObject('TetrahedronSetTopologyContainer', name="Container")
+    # self.container.position = parameterNode.getModelPointsArray()
+    # self.container.tetrahedra = parameterNode.getModelCellsArray()
+
+    femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
+    femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
+    femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large")
+    femNode.addObject('MeshMatrixMass', totalMass=1)
+
+    fixedROI = femNode.addChild('FixedROI')
+    fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
+                       position="@../mstate.rest_position", name="BoxROI",
+                       computeTriangles=False, computeTetrahedra=False, computeEdges=False)
+    # self.BoxROI = fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
+    #                                     position="@../mstate.rest_position", name="FixedROI",
+    #                                     computeTriangles=False, computeTetrahedra=False, computeEdges=False)
+    fixedROI.addObject('FixedConstraint', indices="@BoxROI.indices")
+
+    collisionNode = femNode.addChild('Collision')
+    collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
+    collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
+    collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
+    collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
+    #self.mechanicalObject = collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
+    collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
+    collisionNode.addObject('IdentityMapping', name='visualMapping')
+
+    femNode.addObject('LinearSolverConstraintCorrection', linearSolver="@precond")
+
+    attachPointNode = rootNode.addChild('AttachPoint')
+    attachPointNode.addObject('PointSetTopologyContainer', name="Container")
+    attachPointNode.addObject('PointSetTopologyModifier', name="Modifier")
+    attachPointNode.addObject('MechanicalObject', name="mstate", template="Vec3d", drawMode=2, showObjectScale=0.01, showObject=False)
+    #self.mouseInteractor = attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
+    attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
+
+    return rootNode
+
+
+#
+# SoftTissueSimulationParameterNode
+#
+
+@sofaParameterNodeWrapper
+class SoftTissueSimulationParameterNode:
+    """
+    The parameters needed by module.
+    """
+    #Simulation data
+    modelNode: vtkMRMLModelNode = \
+        SofaNodeMapper(nodeName="FEM", \
+                       inputMapping=lambda self, sofaNode: self.modelNodetoSofaNode(sofaNode), \
+                       outputMapping = lambda self, sofaNode: self.sofaNodeToModelNode(sofaNode))
+
+    boundaryROI: vtkMRMLMarkupsROINode = \
+        SofaNodeMapper(nodeName="FEM.FixedROI.BoxROI", \
+                       inputMapping=lambda self, sofaNode: self.markupsROIToSofaROI(sofaNode))
+
+    gravityVector: vtkMRMLMarkupsLineNode = \
+        SofaNodeMapper(nodeName="", \
+                       inputMapping=lambda self, sofaNode: self.markupsLineToGravityVector(sofaNode))
+
+    movingPointNode: vtkMRMLMarkupsFiducialNode = \
+        SofaNodeMapper(nodeName="AttachPoint.mouseInteractor", \
+                       inputMapping=lambda self, sofaNode: self.markupsFiducialNodeToSofaPoint(sofaNode))
+
+    gravityMagnitude: int
+    sequenceNode: vtkMRMLSequenceNode
+    sequenceBrowserNode: vtkMRMLSequenceBrowserNode
+
+    def markupsROIToSofaROI(self, sofaNode):
+
+        if self.boundaryROI is None:
+            return [0.0]*6
+
+        center = [0]*3
+        self.boundaryROI.GetCenter(center)
+        size = self.boundaryROI.GetSize()
+
+        # Calculate min and max RAS bounds from center and size
+        R_min = center[0] - size[0] / 2
+        R_max = center[0] + size[0] / 2
+        A_min = center[1] - size[1] / 2
+        A_max = center[1] + size[1] / 2
+        S_min = center[2] - size[2] / 2
+        S_max = center[2] + size[2] / 2
+
+        # Return the two opposing bounds corners
+        # First corner: (minL, minP, minS), Second corner: (maxL, maxP, maxS)
+        sofaNode.box=[[R_min, A_min, S_min, R_max, A_max, S_max]]
+
+    def markupsLineToGravityVector(self, sofaNode):
+
+        if self.gravityVector is None:
+            return [0.0]*3
+
+        p1 = self.gravityVector.GetNthControlPointPosition(0)
+        p2 = self.gravityVector.GetNthControlPointPosition(1)
+        gravity_vector = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]])
+        magnitude = np.linalg.norm(gravity_vector)
+        normalized_gravity_vector = gravity_vector / magnitude if magnitude != 0 else gravity_vector
+
+        sofaNode.gravity = normalized_gravity_vector*self.gravityMagnitude
+
+    @run_once
+    def modelNodetoSofaNode(self, sofaNode):
+        """
+        Convert the point positions from the VTK model to a Python list.
+        """
+        # Get the unstructured grid from the model node
+        unstructured_grid = self.modelNode.GetUnstructuredGrid()
+
+        # Extract point data from the unstructured grid
+        points = unstructured_grid.GetPoints()
+        num_points = points.GetNumberOfPoints()
+
+        # Convert the VTK points to a list
+        point_coords = []
+        for i in range(num_points):
+            point_coords.append(points.GetPoint(i))
+
+        # Extract cell data from the unstructured grid
+        cells = unstructured_grid.GetCells()
+        cell_array = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
+
+        # The first integer in each cell entry is the number of points per cell (always 4 for tetrahedra)
+        # Followed by the point indices
+        num_cells = unstructured_grid.GetNumberOfCells()
+        cell_connectivity = []
+
+        # Fill the cell connectivity list
+        idx = 0
+        for i in range(num_cells):
+            num_points = cell_array[idx]  # Should always be 4 for tetrahedra
+            cell_connectivity.append(cell_array[idx+1:idx+1+num_points].tolist())
+            idx += num_points + 1
+
+        sofaNode["Container"].tetrahedra = cell_connectivity
+        sofaNode["Container"].position = point_coords
+
+    def sofaNodeToModelNode(self, sofaNode):
+        points_vtk = numpy_to_vtk(num_array=sofaNode["Collision.dofs"].position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+        vtk_points = vtk.vtkPoints()
+        vtk_points.SetData(points_vtk)
+        self.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
+        self.modelNode.Modified()
+
+    def markupsFiducialNodeToSofaPoint(self, sofaNode):
+        sofaNode.position = [list(self.movingPointNode.GetNthControlPointPosition(0))*3]
 
 #
 # SoftTissueSimulation
 #
-
 
 class SoftTissueSimulation(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
@@ -83,107 +287,6 @@ def registerSampleData():
         nodeNames='RightLung',
         loadFileType='ModelFile'
     )
-
-#
-# SoftTissueSimulationParameterNode
-#
-
-@parameterNodeWrapper
-class SoftTissueSimulationParameterNode:
-    """
-    The parameters needed by module.
-    """
-    #Simulation data
-    modelNode: vtkMRMLModelNode
-    boundaryROI: vtkMRMLMarkupsROINode
-    gravityVector: vtkMRMLMarkupsLineNode
-    gravityMagnitude: int
-    movingPointNode: vtkMRMLMarkupsFiducialNode
-    sequenceNode: vtkMRMLSequenceNode
-    sequenceBrowserNode: vtkMRMLSequenceBrowserNode
-    #Simulation control
-    dt: float
-    totalSteps: int
-    currentStep: int
-    simulationRunning: bool
-
-    def getBoundaryROI(self):
-
-        if self.boundaryROI is None:
-            return [0.0]*6
-
-        center = [0]*3
-        self.boundaryROI.GetCenter(center)
-        size = self.boundaryROI.GetSize()
-
-        # Calculate min and max RAS bounds from center and size
-        R_min = center[0] - size[0] / 2
-        R_max = center[0] + size[0] / 2
-        A_min = center[1] - size[1] / 2
-        A_max = center[1] + size[1] / 2
-        S_min = center[2] - size[2] / 2
-        S_max = center[2] + size[2] / 2
-
-        # Return the two opposing bounds corners
-        # First corner: (minL, minP, minS), Second corner: (maxL, maxP, maxS)
-        return [R_min, A_min, S_min, R_max, A_max, S_max]
-
-    def getGravityVector(self):
-
-        if self.gravityVector is None:
-            return [0.0]*3
-
-        p1 = self.gravityVector.GetNthControlPointPosition(0)
-        p2 = self.gravityVector.GetNthControlPointPosition(1)
-        gravity_vector = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]])
-        magnitude = np.linalg.norm(gravity_vector)
-        normalized_gravity_vector = gravity_vector / magnitude if magnitude != 0 else gravity_vector
-
-        return normalized_gravity_vector*self.gravityMagnitude
-
-
-    def getModelPointsArray(self):
-        """
-        Convert the point positions from the VTK model to a Python list.
-        """
-        # Get the unstructured grid from the model node
-        unstructured_grid = self.modelNode.GetUnstructuredGrid()
-
-        # Extract point data from the unstructured grid
-        points = unstructured_grid.GetPoints()
-        num_points = points.GetNumberOfPoints()
-
-        # Convert the VTK points to a list
-        point_coords = []
-        for i in range(num_points):
-            point_coords.append(points.GetPoint(i))
-
-        return point_coords
-
-    def getModelCellsArray(self):
-        """
-        Convert the cell connectivity from the VTK model to a Python list.
-        """
-        # Get the unstructured grid from the model node
-        unstructured_grid = self.modelNode.GetUnstructuredGrid()
-
-        # Extract cell data from the unstructured grid
-        cells = unstructured_grid.GetCells()
-        cell_array = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
-
-        # The first integer in each cell entry is the number of points per cell (always 4 for tetrahedra)
-        # Followed by the point indices
-        num_cells = unstructured_grid.GetNumberOfCells()
-        cell_connectivity = []
-
-        # Fill the cell connectivity list
-        idx = 0
-        for i in range(num_cells):
-            num_points = cell_array[idx]  # Should always be 4 for tetrahedra
-            cell_connectivity.append(cell_array[idx+1:idx+1+num_points].tolist())
-            idx += num_points + 1
-
-        return cell_connectivity
 
 #
 # SoftTissueSimulationWidget
@@ -292,14 +395,15 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
 
     def updateSimulationGUI(self, caller, event):
         """This enables/disables the simulation buttons according to the state of the parameter node"""
-        self.ui.startSimulationPushButton.setEnabled(not self.logic.isSimulationRunning and
-                                                     self.logic.getParameterNode().modelNode is not None)
-        self.ui.stopSimulationPushButton.setEnabled(self.logic.isSimulationRunning)
+        parameterNode = self.logic.getParameterNode()
+        self.ui.startSimulationPushButton.setEnabled(not parameterNode.isSimulationRunning and
+                                                     parameterNode.modelNode is not None)
+        self.ui.stopSimulationPushButton.setEnabled(parameterNode.isSimulationRunning)
 
     def startSimulation(self):
-        self.logic.dt = self.ui.dtSpinBox.value
-        self.logic.totalSteps = self.ui.totalStepsSpinBox.value
-        self.logic.currentStep = self.ui.currentStepSpinBox.value
+        # self.logic.dt = self.ui.dtSpinBox.value
+        # self.logic.totalSteps = self.ui.totalStepsSpinBox.value
+        # self.logic.currentStep = self.ui.currentStepSpinBox.value
         self.logic.startSimulation()
         self.timer.start(0) #This timer drives the simulation updates
 
@@ -308,7 +412,7 @@ class SoftTissueSimulationWidget(ScriptedLoadableModuleWidget, VTKObservationMix
         self.logic.stopSimulation()
 
     def simulationStep(self):
-       self.logic.simulationStep(self.parameterNode)
+       self.logic.simulationStep()
 
 #
 # SoftTissueSimulationLogic
@@ -331,19 +435,21 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         self.boxROI = None
         self.mouseInteractor = None
 
-    def updateSofa(self, parameterNode) -> None:
-        if parameterNode is not None:
-            self.BoxROI.box = [parameterNode.getBoundaryROI()]
-        if parameterNode.movingPointNode:
-            self.mouseInteractor.position = [list(parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
-        if parameterNode.gravityVector is not None:
-            self.rootNode.gravity = parameterNode.getGravityVector()
+        self._rootNode = CreateScene()
 
-    def updateMRML(self, parameterNode) -> None:
-        points_vtk = numpy_to_vtk(num_array=self.mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
-        vtk_points = vtk.vtkPoints()
-        vtk_points.SetData(points_vtk)
-        parameterNode.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
+    # def updateSofa(self, parameterNode) -> None:
+    #     if parameterNode is not None:
+    #         self.BoxROI.box = [parameterNode.getBoundaryROI()]
+    #     if parameterNode.movingPointNode:
+    #         self.mouseInteractor.position = [list(parameterNode.movingPointNode.GetNthControlPointPosition(0))*3]
+    #     if parameterNode.gravityVector is not None:
+    #         self.rootNode.gravity = parameterNode.getGravityVector()
+
+    # def updateMRML(self, parameterNode) -> None:
+    #     points_vtk = numpy_to_vtk(num_array=self.mechanicalObject.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+    #     vtk_points = vtk.vtkPoints()
+    #     vtk_points.SetData(points_vtk)
+    #     parameterNode.modelNode.GetUnstructuredGrid().SetPoints(vtk_points)
 
     def getParameterNode(self):
         return SoftTissueSimulationParameterNode(super().getParameterNode())
@@ -375,7 +481,9 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
             browserNode.SetRecording(sequenceNode, True)
             browserNode.SetRecordingActive(True)
 
-        super().startSimulation(self.getParameterNode())
+        self.setupScene(self.getParameterNode(),self._rootNode)
+
+        super().startSimulation()
         self._simulationRunning = True
         self.getParameterNode().Modified()
 
@@ -387,11 +495,11 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
             browserNode.SetRecordingActive(False)
         self.getParameterNode().Modified()
 
-    def onModelNodeModified(self, caller, event) -> None:
-        if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-            self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-        elif self.getParameterNode().modelNode.GetPolyData() is not None:
-            self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+    # def onModelNodeModified(self, caller, event) -> None:
+    #     if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+    #         self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
+    #     elif self.getParameterNode().modelNode.GetPolyData() is not None:
+    #         self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addBoundaryROI(self) -> None:
         roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
@@ -523,92 +631,6 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         if masterSequenceNode:
             sequenceNode.SetIndexName(masterSequenceNode.GetIndexName())
             sequenceNode.SetIndexUnit(masterSequenceNode.GetIndexUnit())
-
-
-    def createScene(self, parameterNode) -> Sofa.Core.Node:
-        from stlib3.scene import MainHeader, ContactHeader
-        from stlib3.solver import DefaultSolver
-        from stlib3.physics.deformable import ElasticMaterialObject
-        from stlib3.physics.rigid import Floor
-        from splib3.numerics import Vec3
-
-        rootNode = Sofa.Core.Node()
-
-        MainHeader(rootNode, plugins=[
-            "Sofa.Component.IO.Mesh",
-            "Sofa.Component.LinearSolver.Direct",
-            "Sofa.Component.LinearSolver.Iterative",
-            "Sofa.Component.Mapping.Linear",
-            "Sofa.Component.Mass",
-            "Sofa.Component.ODESolver.Backward",
-            "Sofa.Component.Setting",
-            "Sofa.Component.SolidMechanics.FEM.Elastic",
-            "Sofa.Component.StateContainer",
-            "Sofa.Component.Topology.Container.Dynamic",
-            "Sofa.Component.Visual",
-            "Sofa.GL.Component.Rendering3D",
-            "Sofa.Component.AnimationLoop",
-            "Sofa.Component.Collision.Detection.Algorithm",
-            "Sofa.Component.Collision.Detection.Intersection",
-            "Sofa.Component.Collision.Geometry",
-            "Sofa.Component.Collision.Response.Contact",
-            "Sofa.Component.Constraint.Lagrangian.Solver",
-            "Sofa.Component.Constraint.Lagrangian.Correction",
-            "Sofa.Component.LinearSystem",
-            "Sofa.Component.MechanicalLoad",
-            "MultiThreading",
-            "Sofa.Component.SolidMechanics.Spring",
-            "Sofa.Component.Constraint.Lagrangian.Model",
-            "Sofa.Component.Mapping.NonLinear",
-            "Sofa.Component.Topology.Container.Constant",
-            "Sofa.Component.Topology.Mapping",
-            "Sofa.Component.Topology.Container.Dynamic",
-            "Sofa.Component.Engine.Select",
-            "Sofa.Component.Constraint.Projective",
-            "SofaIGTLink"
-        ])
-
-        rootNode.gravity = parameterNode.getGravityVector()
-
-        rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
-        rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
-
-        femNode = rootNode.addChild('FEM')
-        femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
-        femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
-
-        self.container = femNode.addObject('TetrahedronSetTopologyContainer', name="Container")
-        self.container.position = parameterNode.getModelPointsArray()
-        self.container.tetrahedra = parameterNode.getModelCellsArray()
-
-        femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
-        femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
-        femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large")
-        femNode.addObject('MeshMatrixMass', totalMass=1)
-
-        fixedROI = femNode.addChild('FixedROI')
-        self.BoxROI = fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
-                                          position="@../mstate.rest_position", name="FixedROI",
-                                          computeTriangles=False, computeTetrahedra=False, computeEdges=False)
-        fixedROI.addObject('FixedConstraint', indices="@FixedROI.indices")
-
-        collisionNode = femNode.addChild('Collision')
-        collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
-        collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
-        collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
-        collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
-        self.mechanicalObject = collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
-        collisionNode.addObject('IdentityMapping', name='visualMapping')
-
-        femNode.addObject('LinearSolverConstraintCorrection', linearSolver="@precond")
-
-        attachPointNode = rootNode.addChild('AttachPoint')
-        attachPointNode.addObject('PointSetTopologyContainer', name="Container")
-        attachPointNode.addObject('PointSetTopologyModifier', name="Modifier")
-        attachPointNode.addObject('MechanicalObject', name="mstate", template="Vec3d", drawMode=2, showObjectScale=0.01, showObject=False)
-        self.mouseInteractor = attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
-
-        return rootNode
 
 #
 # SoftTissueSimulationTest
