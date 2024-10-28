@@ -26,32 +26,24 @@ def run_once(func):
     func.run_once = True
     return func
 
-def MRMLSofaMapperFunction(func):
-    """Decorator to turn a method into a lambda-like callable."""
-    @wraps(func)
-    def wrapper(self):
-        return lambda sofaNode: func(self, sofaNode)
-    return staticmethod(wrapper)
-
 #
-# SofaNodeMapper field class
+# NodeMapper field class
 #
-class SofaNodeMapper:
+class NodeMapper:
 
-    def __init__(self, nodeName=None, inputMapping=None, outputMapping=None, recordSequence=False):
-
-        if inputMapping is not None and not callable(inputMapping):
-            raise ValueError("inputMapping is not callable")
-        if outputMapping is not None and not callable(outputMapping):
-            raise ValueError("outputMapping is not callable")
+    def __init__(self, nodeName=None, sofaMapping=None, mrmlMapping=None, recordSequence=False):
+        if sofaMapping is not None and not callable(sofaMapping):
+            raise ValueError("sofaMapping is not callable")
+        if mrmlMapping is not None and not callable(mrmlMapping):
+            raise ValueError("mrmlMapping is not callable")
 
         self.nodeName = nodeName               # Name given in the SOFA scene
         self.type = None                       # Placeholder for datatype
-        self.recordSequence = recordSequence   # Use sequence module to record the node
-        self.inputMapping= inputMapping        # Function used to move data to SOFA
-        self.outputMapping= outputMapping      # Function used to move data to MRML
-        self.inputMapping_has_run = False      # Whether the mapper runs only one time
-        self.outputMapping_has_run = False     # Whether the mapper runs only one time
+        self.sofaMapping = sofaMapping         # Function used to move data to SOFA
+        self.mrmlMapping = mrmlMapping         # Function used to move data to MRML
+        self.recordSequence = recordSequence   # Flag indicating if the node should be recorded
+        self.sofaMapping_has_run = False       # Whether the mapper runs only one time
+        self.mrmlMapping_has_run = False       # Whether the mapper runs only one time
 
     def __get__(self, instance, owner):
         return self.value
@@ -72,7 +64,7 @@ class SofaNodeMapper:
 #
 
 def sofaParameterNodeWrapper(cls):
-    # Temporary dictionary to store SofaNodeMapper instances
+    # Temporary dictionary to store NodeMapper instances
     sofa_node_mappers = {}
 
     def __checkAndCreate__(cls, var, expectedType, defaultValue):
@@ -98,10 +90,10 @@ def sofaParameterNodeWrapper(cls):
 
     # Infer types for SofaNode parameters and store them
     for field_name, sofa_node in cls.__dict__.items():
-        if isinstance(sofa_node, SofaNodeMapper):
+        if isinstance(sofa_node, NodeMapper):
             # Infer the type dynamically
             sofa_node.infer_type(cls, field_name)
-            # Store the SofaNodeMapper instance
+            # Store the NodeMapper instance
             sofa_node_mappers[field_name] = sofa_node
 
     # Now, wrap the class using parameterNodeWrapper and dataclass
@@ -132,12 +124,11 @@ class SlicerSofa(ScriptedLoadableModule):
 This is a support module to enable simulations using the SOFA framework
 See more information in <a href="https://github.com/RafaelPalomar/Slicer-SOFA">module documentation</a>.
 """)
-        # TODO: replace with organization, grant and thanks
         self.parent.acknowledgementText = _("""
 This project has been funded by Oslo University Hospital
 """)
 
-        #Hide module, so that it only shows up in the Liver module, and not as a separate module
+        # Hide module, so that it only shows up in the Liver module, and not as a separate module
         parent.hidden = True
 
 #
@@ -188,10 +179,14 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self._parameterNode.currentStep = 0
         self._parameterNode.isSimulationRunning = True
 
+        # Automatically set up sequence recording
+        self.setupSequenceRecording()
+
     def stopSimulation(self) -> None:
         """Stop the simulation."""
         if self._sceneUp is True:
             self._parameterNode.isSimulationRunning = False
+            self.stopSequenceRecording()
 
     def simulationStep(self) -> None:
         """Perform a single simulation step."""
@@ -224,35 +219,69 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
     def rootNode(self):
         return self._rootNode
 
+    def setupSequenceRecording(self):
+        """Sets up sequence recording for nodes that have recordSequence=True."""
+        sofa_node_mappers = self._parameterNode.__class__.__sofa_node_mappers__
+
+        for field_name, sofa_node_mapper in sofa_node_mappers.items():
+            if sofa_node_mapper.recordSequence:
+                mrmlNode = getattr(self._parameterNode, field_name)
+                if mrmlNode is not None:
+                    # Create a sequence node for recording
+                    sequenceNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceNode', mrmlNode.GetName() + "_Sequence")
+                    # Store the sequence node in the mapper for future reference (optional)
+                    # sofa_node_mapper.sequenceNode = sequenceNode
+                    # Get or create a sequence browser node
+                    browserNode = self._getOrCreateSequenceBrowserNode()
+                    # Add the sequence node to the browser
+                    browserNode.AddSynchronizedSequenceNodeID(sequenceNode.GetID())
+                    # Add the proxy node
+                    browserNode.AddProxyNode(mrmlNode, sequenceNode, False)
+                    # Set recording
+                    browserNode.SetRecording(sequenceNode, True)
+        # Start recording
+        if hasattr(self, '_sequenceBrowserNode') and self._sequenceBrowserNode:
+            self._sequenceBrowserNode.SetRecordingActive(True)
+
+    def stopSequenceRecording(self):
+        if hasattr(self, '_sequenceBrowserNode') and self._sequenceBrowserNode is not None:
+            self._sequenceBrowserNode.SetRecordingActive(False)
+
+    def _getOrCreateSequenceBrowserNode(self):
+        if not hasattr(self, '_sequenceBrowserNode') or self._sequenceBrowserNode is None:
+            # Create a new sequence browser node
+            self._sequenceBrowserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation Browser")
+            self._sequenceBrowserNode.SetPlaybackActive(False)
+        return self._sequenceBrowserNode
 
     def __updateSofa__(self) -> None:
         sofa_node_mappers = self._parameterNode.__class__.__sofa_node_mappers__
 
         for field_name, sofa_node_mapper in sofa_node_mappers.items():
-            inputMapping = sofa_node_mapper.inputMapping
+            sofaMapping = sofa_node_mapper.sofaMapping
             name = sofa_node_mapper.nodeName
 
-            if inputMapping is not None:
-                run_once = getattr(inputMapping, 'run_once', False)
-                if run_once and sofa_node_mapper.inputMapping_has_run:
+            if sofaMapping is not None:
+                run_once = getattr(sofaMapping, 'run_once', False)
+                if run_once and sofa_node_mapper.sofaMapping_has_run:
                     continue  # Skip execution
                 node = self._rootNode[name] if name else self._rootNode
-                inputMapping(self._parameterNode, node)
+                sofaMapping(self._parameterNode, node)
                 if run_once:
-                    sofa_node_mapper.inputMapping_has_run = True
+                    sofa_node_mapper.sofaMapping_has_run = True
 
     def __updateMRML__(self) -> None:
         sofa_node_mappers = self._parameterNode.__class__.__sofa_node_mappers__
 
         for field_name, sofa_node_mapper in sofa_node_mappers.items():
-            outputMapping = sofa_node_mapper.outputMapping
+            mrmlMapping = sofa_node_mapper.mrmlMapping
             name = sofa_node_mapper.nodeName
 
-            if outputMapping is not None:
-                run_once = getattr(outputMapping, 'run_once', False)
-                if run_once and sofa_node_mapper.outputMapping_has_run:
+            if mrmlMapping is not None:
+                run_once = getattr(mrmlMapping, 'run_once', False)
+                if run_once and sofa_node_mapper.mrmlMapping_has_run:
                     continue  # Skip execution
                 node = self._rootNode[name] if name else self._rootNode
-                outputMapping(self._parameterNode, node)
+                mrmlMapping(self._parameterNode, node)
                 if run_once:
-                    sofa_node_mapper.outputMapping_has_run = True
+                    sofa_node_mapper.mrmlMapping_has_run = True
