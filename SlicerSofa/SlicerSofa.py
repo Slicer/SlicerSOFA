@@ -52,20 +52,37 @@ from slicer import vtkMRMLScalarVolumeNode
 
 from SofaEnvironment import *
 
-# Decorator that allows a function to be marked as "run once"
+# -----------------------------------------------------------------------------
+# Decorator: RunOnce
+# -----------------------------------------------------------------------------
 def RunOnce(func):
+    """
+    Decorator that marks a function to be executed only once.
+
+    Attributes:
+        runOnce (bool): Flag indicating the function should run only once.
+    """
     func.runOnce = True
     return func
 
+# -----------------------------------------------------------------------------
+# Utility Functions
+# -----------------------------------------------------------------------------
 def arrayFromMarkupsROIPoints(roiNode):
     """
-    Utility function to return RAS (min,max) boundaries from a vtkMRMLMarkupsROINode
+    Utility function to return RAS (Right-Anterior-Superior) boundaries from a vtkMRMLMarkupsROINode.
+
+    Args:
+        roiNode (vtkMRMLMarkupsROINode): The ROI node from which to extract boundaries.
+
+    Returns:
+        list: A list containing [R_min, A_min, S_min, R_max, A_max, S_max].
+              Returns [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] if roiNode is None.
     """
-
     if roiNode is None:
-        return [0.0]*6
+        return [0.0] * 6
 
-    center = [0]*3
+    center = [0] * 3
     roiNode.GetCenter(center)
     size = roiNode.GetSize()
 
@@ -81,20 +98,26 @@ def arrayFromMarkupsROIPoints(roiNode):
 
 def arrayVectorFromMarkupsLinePoints(lineNode):
     """
-    Utility function to return RAS (min,max) boundaries from a vtkMRMLMarkupsROINode
-    """
+    Utility function to return the vector from a vtkMRMLMarkupsLineNode.
 
+    Args:
+        lineNode (vtkMRMLMarkupsLineNode): The line node from which to extract the vector.
+
+    Returns:
+        list: A list containing the vector components [x, y, z].
+              Returns [0.0, 0.0, 0.0] if lineNode is None.
+    """
     if lineNode is None:
-        return [0.0]*3
+        return [0.0] * 3
 
     # Calculate vector direction and normalize
     p1 = lineNode.GetNthControlPointPosition(0)
     p2 = lineNode.GetNthControlPointPosition(1)
-    return [p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]]
+    return [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]]
 
-#
-# NodeMapper class
-#
+# -----------------------------------------------------------------------------
+# Class: NodeMapper
+# -----------------------------------------------------------------------------
 class NodeMapper:
     """
     Class responsible for defining a mapping between a node in the MRML scene and a node in SOFA.
@@ -102,6 +125,18 @@ class NodeMapper:
     """
 
     def __init__(self, nodeName=None, sofaMapping=None, mrmlMapping=None, recordSequence=False):
+        """
+        Initializes the NodeMapper with optional SOFA and MRML mapping functions.
+
+        Args:
+            nodeName (str, optional): The name of the node in the SOFA scene. Defaults to None.
+            sofaMapping (callable, optional): Function to map data to SOFA. Defaults to None.
+            mrmlMapping (callable, optional): Function to map data to MRML. Defaults to None.
+            recordSequence (bool, optional): Whether to record this node in a sequence. Defaults to False.
+
+        Raises:
+            ValueError: If sofaMapping or mrmlMapping is provided but not callable.
+        """
         # Validate that mappings are callable, or raise an error
         if sofaMapping is not None and not callable(sofaMapping):
             raise ValueError("sofaMapping is not callable")
@@ -118,11 +153,29 @@ class NodeMapper:
         self.mrmlMappingHasRun = False         # Status if mrmlMapping has already been executed
 
     def __get__(self, instance, owner):
-        # Descriptor method for accessing the value of the node
+        """
+        Descriptor method for accessing the value of the node.
+
+        Args:
+            instance: The instance accessing the descriptor.
+            owner: The owner class.
+
+        Returns:
+            The current value of the node.
+        """
         return self.value
 
     def __set__(self, instance, value):
-        # Sets the value if it is a string, otherwise raises an error
+        """
+        Sets the value of the node if it is a string.
+
+        Args:
+            instance: The instance setting the value.
+            value (str): The value to set.
+
+        Raises:
+            ValueError: If the value is not a string.
+        """
         if not isinstance(value, str):
             raise ValueError(f"Expected type {str}, got {type(value)}")
         self.value = value
@@ -130,23 +183,43 @@ class NodeMapper:
     def infer_type(self, ownerClass, fieldName):
         """
         Infers the data type of the field based on the annotations in the owner class.
+
+        Args:
+            ownerClass (class): The class owning this NodeMapper.
+            fieldName (str): The name of the field.
         """
         type_hints = get_type_hints(ownerClass)
         self.type = type_hints.get(fieldName)
 
-#
-# SofaParameterNodeWrapper decorator
-#
+# -----------------------------------------------------------------------------
+# Decorator: SofaParameterNodeWrapper
+# -----------------------------------------------------------------------------
 def SofaParameterNodeWrapper(cls):
     """
     Decorator function that wraps a class with additional SOFA-specific attributes and type checking,
     using `parameterNodeWrapper` and dataclasses.
-    """
 
+    Args:
+        cls (class): The class to wrap.
+
+    Returns:
+        class: The wrapped class with additional SOFA-specific functionality.
+    """
     sofaNodeMappers = {}  # Store instances of NodeMapper for the class
 
-    # Internal function to check if a variable is of the expected type; if not, it sets a default value
     def __checkAndCreate__(cls, var, expectedType, defaultValue):
+        """
+        Internal function to check if a variable is of the expected type; if not, it sets a default value.
+
+        Args:
+            cls (class): The class being checked.
+            var (str): The variable name.
+            expectedType (type): The expected type of the variable.
+            defaultValue: The default value to set if the variable is not present.
+
+        Raises:
+            TypeError: If the existing variable is not of the expected type.
+        """
         if hasattr(cls, var):
             current_value = getattr(cls, var)
             if not isinstance(current_value, expectedType):
@@ -181,22 +254,30 @@ def SofaParameterNodeWrapper(cls):
 
     return wrapped_cls
 
-#
-# SlicerSofa
-#
-
+# -----------------------------------------------------------------------------
+# Class: SlicerSofa
+# -----------------------------------------------------------------------------
 class SlicerSofa(ScriptedLoadableModule):
     """
     Base class for the Slicer module using ScriptedLoadableModule, configuring metadata.
     """
     def __init__(self, parent):
+        """
+        Initialize the module with metadata.
+
+        Args:
+            parent (ScriptedLoadableModuleWidget): The parent object.
+        """
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("Slicer Sofa")
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "")]
-        self.parent.dependencies = []
+        self.parent.title = _("Slicer Sofa")  # Module title
+        self.parent.categories = [translate("qSlicerAbstractCoreModule", "")]  # Module category
+        self.parent.dependencies = []  # Module dependencies
         self.parent.contributors = [
-            "Rafael Palomar (Oslo University Hospital / NTNU, Norway), Paul Baksic (INRIA, France), "
-            "Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada), Sam Horvath (Kitware, Inc., USA), "
+            "Rafael Palomar (Oslo University Hospital / NTNU, Norway)",
+            "Paul Baksic (INRIA, France)",
+            "Steve Pieper (Isomics, Inc., USA)",
+            "Andras Lasso (Queen's University, Canada)",
+            "Sam Horvath (Kitware, Inc., USA)",
             "Jean Christophe Fillion-Robin (Kitware, Inc., USA)"
         ]
         self.parent.helpText = _("""
@@ -207,31 +288,52 @@ Funded by Oslo University Hospital
 """)
         parent.hidden = True  # Hides this module from the Slicer module list
 
-#
-# SlicerSofaLogic
-#
-
+# -----------------------------------------------------------------------------
+# Class: SlicerSofaLogic
+# -----------------------------------------------------------------------------
 class SlicerSofaLogic(ScriptedLoadableModuleLogic):
     """
     Implements the computation logic for the Slicer SOFA module, handling the simulation lifecycle.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, createSceneFunction=None) -> None:
+        """
+        Initialize the logic with an optional scene creation function.
+
+        Args:
+            createSceneFunction (callable, optional): Function to create the SOFA scene. Defaults to None.
+        """
         super().__init__()
+        self._createSceneFunction = createSceneFunction
         self._sceneUp = False
         self._rootNode = None
         self._parameterNode = None
 
-    # Ensures the provided parameterNode has the expected SOFA wrapping
     def __checkParameterNode__(self, parameterNode):
+        """
+        Ensures the provided parameterNode has the expected SOFA wrapping.
+
+        Args:
+            parameterNode: The parameter node to check.
+
+        Raises:
+            ValueError: If parameterNode is None or not properly wrapped.
+        """
         if parameterNode is None:
             raise ValueError("parameterNode can't be None")
-        if not getattr(parameterNode, 'sofaParameterNodeWrapped') or parameterNode.sofaParameterNodeWrapped is not True:
+        if not getattr(parameterNode, 'sofaParameterNodeWrapped', False):
             raise ValueError("parameterNode is not a valid parameterNode wrapped by the sofaParameterNodeWrapper")
 
     def setupScene(self, parameterNode, rootNode):
         """
         Initializes the SOFA simulation scene with parameter and root nodes.
+
+        Args:
+            parameterNode: The parameter node containing simulation parameters.
+            rootNode (Sofa.Core.Node): The root node of the SOFA scene.
+
+        Raises:
+            ValueError: If rootNode is not a valid Sofa.Core.Node.
         """
         if self._sceneUp:
             return
@@ -247,11 +349,22 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
     def startSimulation(self) -> None:
         """
-        Starts the SOFA simulation, including sequence recording if specified.
+        Starts the simulation by setting up the scene, resetting run-once flags,
+        initializing sequence recording, and marking the simulation as running.
         """
+        if self._parameterNode is None:
+            raise ValueError("Parameter node has not been initialized.")
+        if self._rootNode is None:
+            if self._createSceneFunction is None:
+                raise ValueError("No scene creation function provided.")
+            self._rootNode = self._createSceneFunction()
+        self.resetRunOnceFlags()
+        self.setupScene(self._parameterNode, self._rootNode)
         self._parameterNode.currentStep = 0
         self._parameterNode.isSimulationRunning = True
-        self.setupSequenceRecording()  # Set up recording if applicable
+        self.setupSequenceRecording()
+        self._parameterNode.Modified()
+        self.onSimulationStarted()
 
     def stopSimulation(self) -> None:
         """
@@ -260,26 +373,74 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         if self._sceneUp:
             self._parameterNode.isSimulationRunning = False
             self.stopSequenceRecording()
+            self.onSimulationStopped()
+
+    def onSimulationStarted(self):
+        """
+        Hook for module-specific logic when the simulation starts.
+        Can be overridden in subclasses.
+        """
+        pass
+
+    def onSimulationStopped(self):
+        """
+        Hook for module-specific logic when the simulation stops.
+        Can be overridden in subclasses.
+        """
+        pass
 
     def simulationStep(self) -> None:
         """
         Executes a single simulation step, updating the simulation and MRML scenes.
         """
         if not self._sceneUp or not self._parameterNode.isSimulationRunning:
-            slicer.util.errorDisplay("Can't advance the simulation forward. Simulation is not running.")
             return
 
         self.__updateSofa__()
 
-        if self._parameterNode.currentStep < self._parameterNode.totalSteps:
+        if self._parameterNode.currentStep < self._parameterNode.totalSteps or self._parameterNode.totalSteps < 0:
             Sofa.Simulation.animate(self._rootNode, self._parameterNode.dt)
             self._parameterNode.currentStep += 1
-        elif self._parameterNode.totalSteps < 0:
-            Sofa.Simulation.animate(self._rootNode, self._parameterNode.dt)
         else:
             self._parameterNode.isSimulationRunning = False
 
         self.__updateMRML__()
+
+    def resetRunOnceFlags(self):
+        """
+        Resets the 'runOnce' flags for all NodeMappers to allow their mapping functions to execute again.
+        """
+        if self._parameterNode is None:
+            raise ValueError("Parameter node has not been initialized.")
+        sofaNodeMappers = self._parameterNode.__class__.__sofaNodeMappers__
+        for sofaNodeMapper in sofaNodeMappers.values():
+            sofaNodeMapper.sofaMappingHasRun = False
+            sofaNodeMapper.mrmlMappingHasRun = False
+
+    def initializeParameterNode(self):
+        """
+        Initializes the parameter node by retrieving it and resetting its parameters.
+        """
+        if self._parameterNode is None:
+            self._parameterNode = self.getParameterNode()
+        self.resetParameterNode()
+
+    def resetParameterNode(self):
+        """
+        Resets simulation parameters in the parameter node to default values.
+        """
+        if self._parameterNode:
+            self._parameterNode.currentStep = 0
+            self._parameterNode.isSimulationRunning = False
+            # Reset other parameters as needed
+            self.onParameterNodeReset()
+
+    def onParameterNodeReset(self):
+        """
+        Hook for module-specific parameter node reset logic.
+        Can be overridden in subclasses.
+        """
+        pass
 
     def clean(self) -> None:
         """
@@ -293,6 +454,12 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
     @property
     def rootNode(self):
+        """
+        Property to access the SOFA root node.
+
+        Returns:
+            Sofa.Core.Node: The root node of the SOFA scene.
+        """
         return self._rootNode
 
     def setupSequenceRecording(self):
@@ -324,6 +491,9 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
     def _getOrCreateSequenceBrowserNode(self):
         """
         Retrieves or creates a sequence browser node, used for managing node recording.
+
+        Returns:
+            vtkMRMLSequenceBrowserNode: The sequence browser node.
         """
         if not hasattr(self, '_sequenceBrowserNode') or self._sequenceBrowserNode is None:
             self._sequenceBrowserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation Browser")
