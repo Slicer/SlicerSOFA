@@ -57,6 +57,41 @@ def RunOnce(func):
     func.runOnce = True
     return func
 
+def arrayFromMarkupsROIPoints(roiNode):
+    """
+    Utility function to return RAS (min,max) boundaries from a vtkMRMLMarkupsROINode
+    """
+
+    if roiNode is None:
+        return [0.0]*6
+
+    center = [0]*3
+    roiNode.GetCenter(center)
+    size = roiNode.GetSize()
+
+    # Calculate min and max RAS bounds
+    R_min = center[0] - size[0] / 2
+    R_max = center[0] + size[0] / 2
+    A_min = center[1] - size[1] / 2
+    A_max = center[1] + size[1] / 2
+    S_min = center[2] - size[2] / 2
+    S_max = center[2] + size[2] / 2
+
+    return [R_min, A_min, S_min, R_max, A_max, S_max]
+
+def arrayVectorFromMarkupsLinePoints(lineNode):
+    """
+    Utility function to return RAS (min,max) boundaries from a vtkMRMLMarkupsROINode
+    """
+
+    if lineNode is None:
+        return [0.0]*3
+
+    # Calculate vector direction and normalize
+    p1 = lineNode.GetNthControlPointPosition(0)
+    p2 = lineNode.GetNthControlPointPosition(1)
+    return [p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]]
+
 #
 # NodeMapper class
 #

@@ -57,7 +57,9 @@ from SlicerSofa import (
     SlicerSofaLogic,
     SofaParameterNodeWrapper,
     NodeMapper,
-    RunOnce
+    RunOnce,
+    arrayFromMarkupsROIPoints,
+    arrayVectorFromMarkupsLinePoints
 )
 
 # Creates the main SOFA scene with required components for simulation
@@ -193,41 +195,31 @@ class SoftTissueSimulationParameterNode:
 
     # Mapping ROI bounds from MRML node to SOFA node box
     def markupsROIToSofaROI(self, sofaNode):
+
         if self.boundaryROI is None:
-            return [0.0]*6
-
-        center = [0]*3
-        self.boundaryROI.GetCenter(center)
-        size = self.boundaryROI.GetSize()
-
-        # Calculate min and max RAS bounds
-        R_min = center[0] - size[0] / 2
-        R_max = center[0] + size[0] / 2
-        A_min = center[1] - size[1] / 2
-        A_max = center[1] + size[1] / 2
-        S_min = center[2] - size[2] / 2
-        S_max = center[2] + size[2] / 2
+            return
 
         # Define SOFA node box with calculated bounds
-        sofaNode.box=[[R_min, A_min, S_min, R_max, A_max, S_max]]
+        sofaNode.box=[arrayFromMarkupsROIPoints(self.boundaryROI)]
 
     # Mapping a line node as a gravity vector in the SOFA node
     def markupsLineToGravityVector(self, sofaNode):
+
         if self.gravityVector is None:
-            return [0.0]*3
+            return
 
-        # Calculate vector direction and normalize
-        p1 = self.gravityVector.GetNthControlPointPosition(0)
-        p2 = self.gravityVector.GetNthControlPointPosition(1)
-        gravity_vector = np.array([p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]])
-        magnitude = np.linalg.norm(gravity_vector)
-        normalized_gravity_vector = gravity_vector / magnitude if magnitude != 0 else gravity_vector
-
-        sofaNode.gravity = normalized_gravity_vector*self.gravityMagnitude
+        gravityVector =  arrayVectorFromMarkupsLinePoints(self.gravityVector)
+        magnitude = np.linalg.norm(np.array(gravityVector))
+        normalizedGravityVector = gravityVector / magnitude if magnitude != 0 else gravityVector
+        sofaNode.gravity = normalizedGravityVector*self.gravityMagnitude
 
     # Maps VTK model node to SOFA node data
     @RunOnce
     def modelNodetoSofaNode(self, sofaNode):
+
+        if self.modelNode is None:
+            return
+
         unstructuredGrid = self.modelNode.GetUnstructuredGrid()
         points = unstructuredGrid.GetPoints()
         numPoints = points.GetNumberOfPoints()
@@ -259,6 +251,9 @@ class SoftTissueSimulationParameterNode:
 
     # Maps MRML fiducial node to SOFA node point position
     def markupsFiducialNodeToSofaPoint(self, sofaNode):
+        if self.movingPointNode is None:
+            return
+
         sofaNode.position = [list(self.movingPointNode.GetNthControlPointPosition(0))*3]
 
 # Main module definition for Slicer UI and metadata setup
@@ -510,3 +505,179 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
             displayNode.SetSelectedColor(1, 0, 0)
 
         return fiducialNode
+
+class SoftTissueSimulationTest(ScriptedLoadableModuleTest):
+    """Test case for SoftTissueSimulation module."""
+
+    def setUp(self):
+        """Reset the state by clearing the MRML scene."""
+        slicer.mrmlScene.Clear()
+
+    def runTest(self):
+        """Run the tests for the SoftTissueSimulation module."""
+        self.delayDisplay("Starting SoftTissueSimulation test")
+        self.testGravitySimulation()
+        self.testMovingPointSimulation()
+        self.delayDisplay("SoftTissueSimulation tests passed")
+
+    def testGravitySimulation(self):
+        """Test the soft tissue simulation with gravity only."""
+
+        import SampleData
+
+        self.setUp()
+        logic = SoftTissueSimulationLogic()
+
+        self.delayDisplay("Loading registered sample data")
+        sampleDataLogic = SampleData.SampleDataLogic()
+
+        deformedModelDataSource = SampleData.SampleDataSource(
+            sampleName='RightLungLowTetra_deformed',
+            uris='https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+            fileNames='RightLungLowTetra_deformed.vtk',
+            checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+            nodeNames='RightLungLowTetra_deformed',
+            loadFileType='ModelFile'
+        )
+
+        simulationModelNode = sampleDataLogic.downloadFromSource(deformedModelDataSource)[0]
+
+        layoutManager = slicer.app.layoutManager()
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
+
+        self.delayDisplay("Creating ROI box for lower third of the model")
+        modelBounds = [0.0] * 6
+        simulationModelNode.GetBounds(modelBounds)
+
+        lowerThirdSize = [
+            (modelBounds[1] - modelBounds[0]) * 0.5,
+            (modelBounds[3] - modelBounds[2]) * 0.5,
+            (modelBounds[5] - modelBounds[4]) / 3
+        ]
+        lowerThirdCenter = [
+            (modelBounds[1] + modelBounds[0]) / 2,
+            (modelBounds[3] + modelBounds[2]) / 2,
+            modelBounds[4] + lowerThirdSize[2] / 2
+        ]
+
+        fixedROINode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", "FixedROI")
+        fixedROINode.SetXYZ(lowerThirdCenter)
+        fixedROINode.SetRadiusXYZ(*lowerThirdSize)
+
+        self.delayDisplay("Creating gravity vector")
+        gravityVectorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsLineNode", "Gravity")
+        gravityVectorNode.AddControlPoint([0, modelBounds[2], 0])
+        gravityVectorNode.AddControlPoint([0, modelBounds[3], 0])
+
+        self.delayDisplay("Setting up simulation parameters")
+        parameterNode = logic.getParameterNode()
+        parameterNode.modelNode = simulationModelNode
+        parameterNode.boundaryROI = fixedROINode
+        parameterNode.gravityVector = gravityVectorNode
+        parameterNode.gravityMagnitude = 10000
+        parameterNode.dt = 0.01
+        parameterNode.currentStep = 0
+        parameterNode.totalSteps = 100
+
+        self.delayDisplay("Starting gravity-only simulation")
+        logic.startSimulation()
+        view = slicer.app.layoutManager().threeDWidget(0).threeDView()
+
+        for _ in range(parameterNode.totalSteps):
+            logic.simulationStep()
+            view.forceRender()
+
+        logic.stopSimulation()
+        logic.clean()
+
+    def testMovingPointSimulation(self):
+        """Test the soft tissue simulation with a moving point and no gravity."""
+
+        import SampleData
+
+        self.setUp()
+        logic = SoftTissueSimulationLogic()
+
+        self.delayDisplay("Loading registered sample data")
+        sampleDataLogic = SampleData.SampleDataLogic()
+
+        deformedModelDataSource = SampleData.SampleDataSource(
+            sampleName='RightLungLowTetra_deformed',
+            uris='https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+            fileNames='RightLungLowTetra_deformed.vtk',
+            checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+            nodeNames='RightLungLowTetra_deformed',
+            loadFileType='ModelFile'
+        )
+
+        simulationModelNode = sampleDataLogic.downloadFromSource(deformedModelDataSource)[0]
+
+        layoutManager = slicer.app.layoutManager()
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
+
+        self.delayDisplay("Creating ROI box for lower tenth of the model")
+        modelBounds = [0.0] * 6
+        simulationModelNode.GetBounds(modelBounds)
+
+        lowerTenthSize = [
+            (modelBounds[1] - modelBounds[0]) / 2,
+            (modelBounds[3] - modelBounds[2]) / 2,
+            (modelBounds[5] - modelBounds[4]) / 10
+        ]
+        lowerTenthCenter = [
+            (modelBounds[1] + modelBounds[0])  / 2,
+            (modelBounds[3] + modelBounds[2])  / 2,
+            modelBounds[4] + lowerTenthSize[2] / 2
+        ]
+
+        fixedROINode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", "FixedROI")
+        fixedROINode.SetXYZ(lowerTenthCenter)
+        fixedROINode.SetRadiusXYZ(*lowerTenthSize)
+
+        self.delayDisplay("Creating initial moving point")
+        # Set initial position of the moving point using logic
+        parameterNode = logic.getParameterNode()
+        parameterNode.modelNode = simulationModelNode
+        logic.addMovingPoint()
+        movingPointNode = logic.getParameterNode().movingPointNode
+
+        # Define start and end positions for the moving point
+        startPosition = list(movingPointNode.GetNthControlPointPosition(0))
+        endPosition = [
+            lowerTenthCenter[0] - lowerTenthSize[0],  # X-axis boundary
+            lowerTenthCenter[1] + lowerTenthSize[1]/2,
+            lowerTenthCenter[2] + lowerTenthSize[2]*2
+        ]
+
+        # Calculate step size for linear interpolation
+        totalSteps = 100
+        interpolationStep = [(end - start) / totalSteps for start, end in zip(startPosition, endPosition)]
+
+        self.delayDisplay("Setting up simulation parameters")
+        parameterNode.boundaryROI = fixedROINode
+        parameterNode.movingPointNode = movingPointNode
+        parameterNode.gravityMagnitude = 0  # Disabling gravity
+        parameterNode.dt = 0.01
+        parameterNode.currentStep = 0
+        parameterNode.totalSteps = totalSteps
+
+        self.delayDisplay("Starting moving point-only simulation")
+        logic.startSimulation()
+        view = slicer.app.layoutManager().threeDWidget(0).threeDView()
+
+        # Run simulation steps with gradual movement of the point
+        for step in range(parameterNode.totalSteps):
+            # Update the point's position by adding the interpolation step to the current position
+            new_position = [
+                startPosition[0] + step * interpolationStep[0],
+                startPosition[1] + step * interpolationStep[1],
+                startPosition[2] + step * interpolationStep[2]
+            ]
+            movingPointNode.SetNthControlPointPosition(0, *new_position)
+
+            # Advance simulation and render
+            logic.simulationStep()
+            view.forceRender()
+
+        logic.stopSimulation()
+        logic.clean()
