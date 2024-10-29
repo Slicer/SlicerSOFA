@@ -65,20 +65,33 @@
         </widget>
        </item>
        <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+        <widget class="QPushButton" name="addBoundaryROIPushButton_2">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Fixed</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
+         <property name="maximumSize">
           <size>
            <width>31</width>
-           <height>20</height>
+           <height>23</height>
           </size>
          </property>
-        </spacer>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="icon">
+          <iconset resource="../SoftTissueSimulationModule.qrc">
+           <normaloff>:/Icons/VcrRecord16.png</normaloff>:/Icons/VcrRecord16.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="SlicerParameterName" stdset="0">
+          <string>recordSequence</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -411,7 +424,9 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../SoftTissueSimulationModule.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>SoftTissueSimulation</sender>

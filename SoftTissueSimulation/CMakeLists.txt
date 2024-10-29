@@ -10,6 +10,7 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
   Resources/Icons/RightLungLowTetra.png
+  Resources/${MODULE_NAME}Module.qrc
   )
 
 #-----------------------------------------------------------------------------

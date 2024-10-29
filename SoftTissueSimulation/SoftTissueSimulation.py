@@ -185,7 +185,7 @@ class SoftTissueSimulationParameterNode:
             nodeName="FEM",
             sofaMapping=lambda self, sofaNode: self.modelNodetoSofaNode(sofaNode),
             mrmlMapping=lambda self, sofaNode: self.sofaNodeToModelNode(sofaNode),
-            recordSequence=lambda self: True
+            recordSequence=lambda self: self.recordSequence
         )
 
     # Fiducial node for tracking a moving point, with sequence recording
@@ -193,7 +193,7 @@ class SoftTissueSimulationParameterNode:
         NodeMapper(
             nodeName="AttachPoint.mouseInteractor",
             sofaMapping=lambda self, sofaNode: self.markupsFiducialNodeToSofaPoint(sofaNode),
-            recordSequence=lambda self: True
+            recordSequence=lambda self: self.recordSequence
         )
 
     # Boundary ROI node with sequence recording
@@ -201,7 +201,7 @@ class SoftTissueSimulationParameterNode:
         NodeMapper(
             nodeName="FEM.FixedROI.BoxROI",
             sofaMapping=lambda self, sofaNode: self.markupsROIToSofaROI(sofaNode),
-            recordSequence=lambda self: True
+            recordSequence=lambda self: self.recordSequence
         )
 
     # Gravity vector node with sequence recording
@@ -209,10 +209,11 @@ class SoftTissueSimulationParameterNode:
         NodeMapper(
             nodeName="",
             sofaMapping=lambda self, sofaNode: self.markupsLineToGravityVector(sofaNode),
-            recordSequence=lambda self: True
+            recordSequence=lambda self: self.recordSequence
         )
 
-    gravityMagnitude: int = 1  # Additional parameter for gravity strength
+    gravityMagnitude: int = 1    # Additional parameter for gravity strength
+    recordSequence: bool = False # Record sequence?
 
     def markupsROIToSofaROI(self, sofaNode):
         """
