@@ -78,6 +78,14 @@ def CreateScene() -> Sofa.Core.Node:
     from stlib3.physics.rigid import Floor
     from splib3.numerics import Vec3
 
+
+    vonMisesMode = {
+        "none": 0,
+        "corotational": 1,
+        "fullGreen": 2
+    }
+
+
     # Initialize the root node of the SOFA scene
     rootNode = Sofa.Core.Node("Root")
 
@@ -130,7 +138,7 @@ def CreateScene() -> Sofa.Core.Node:
     femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=None, tetrahedra=None)
     femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
     femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
-    femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large")
+    femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large", computeVonMisesStress=vonMisesMode['fullGreen'])
     femNode.addObject('MeshMatrixMass', totalMass=1)
 
     # Add a region of interest (ROI) with fixed constraints in the FEM node
@@ -263,6 +271,13 @@ class SoftTissueSimulationParameterNode:
             cellConnectivity.append(cellArray[idx + 1:idx + 1 + numPoints].tolist())
             idx += numPoints + 1
 
+        # Create a stress array (this is an initialization)
+        labelsArray = slicer.util.arrayFromModelCellData(self.modelNode, "labels")
+        stressVTKArray = vtk.vtkFloatArray()
+        stressVTKArray.SetNumberOfValues(labelsArray.shape[0])
+        stressVTKArray.SetName("VonMisesStress")
+        self.modelNode.GetUnstructuredGrid().GetCellData().AddArray(stressVTKArray)
+
         # Update SOFA node with tetrahedra and positions
         sofaNode["Container"].tetrahedra = cellConnectivity
         sofaNode["Container"].position = pointCoords
@@ -278,6 +293,10 @@ class SoftTissueSimulationParameterNode:
         convertedPoints = numpy_to_vtk(num_array=sofaNode["Collision.dofs"].position.array(), deep=True, array_type=vtk.VTK_FLOAT)
         points = vtk.vtkPoints()
         points.SetData(convertedPoints)
+
+        stressArray = slicer.util.arrayFromModelCellData(self.modelNode, "VonMisesStress")
+        stressArray[:] = sofaNode["FEM"].vonMisesPerElement.array()
+        slicer.util.arrayFromModelCellDataModified(self.modelNode, "VonMisesStress")
 
         # Update the VTK model node's points and mark it as modified
         self.modelNode.GetUnstructuredGrid().SetPoints(points)
