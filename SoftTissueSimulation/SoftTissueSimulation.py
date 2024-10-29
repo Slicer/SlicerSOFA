@@ -185,7 +185,7 @@ class SoftTissueSimulationParameterNode:
             nodeName="FEM",
             sofaMapping=lambda self, sofaNode: self.modelNodetoSofaNode(sofaNode),
             mrmlMapping=lambda self, sofaNode: self.sofaNodeToModelNode(sofaNode),
-            recordSequence=True
+            recordSequence=lambda self: True
         )
 
     # Fiducial node for tracking a moving point, with sequence recording
@@ -193,7 +193,7 @@ class SoftTissueSimulationParameterNode:
         NodeMapper(
             nodeName="AttachPoint.mouseInteractor",
             sofaMapping=lambda self, sofaNode: self.markupsFiducialNodeToSofaPoint(sofaNode),
-            recordSequence=True
+            recordSequence=lambda self: True
         )
 
     # Boundary ROI node with sequence recording
@@ -201,7 +201,7 @@ class SoftTissueSimulationParameterNode:
         NodeMapper(
             nodeName="FEM.FixedROI.BoxROI",
             sofaMapping=lambda self, sofaNode: self.markupsROIToSofaROI(sofaNode),
-            recordSequence=True
+            recordSequence=lambda self: True
         )
 
     # Gravity vector node with sequence recording
@@ -209,7 +209,7 @@ class SoftTissueSimulationParameterNode:
         NodeMapper(
             nodeName="",
             sofaMapping=lambda self, sofaNode: self.markupsLineToGravityVector(sofaNode),
-            recordSequence=True
+            recordSequence=lambda self: True
         )
 
     gravityMagnitude: int = 1  # Additional parameter for gravity strength

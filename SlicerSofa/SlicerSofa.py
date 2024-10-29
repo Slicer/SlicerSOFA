@@ -30,7 +30,6 @@
 
 import logging
 import os
-from typing import Annotated, Optional
 from dataclasses import dataclass, field
 import inspect
 from typing import get_type_hints
@@ -124,7 +123,7 @@ class NodeMapper:
     It supports mappings for data flow between SOFA and MRML, including optional sequence recording.
     """
 
-    def __init__(self, nodeName=None, sofaMapping=None, mrmlMapping=None, recordSequence=False):
+    def __init__(self, nodeName=None, sofaMapping=None, mrmlMapping=None, recordSequence=None):
         """
         Initializes the NodeMapper with optional SOFA and MRML mapping functions.
 
@@ -142,6 +141,8 @@ class NodeMapper:
             raise ValueError("sofaMapping is not callable")
         if mrmlMapping is not None and not callable(mrmlMapping):
             raise ValueError("mrmlMapping is not callable")
+        if recordSequence is not None and not callable(recordSequence):
+            raise ValueError("recordSequence is not callable")
 
         # Initialization of attributes
         self.nodeName = nodeName               # Name of the node in the SOFA scene
@@ -469,7 +470,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         sofaNodeMappers = self._parameterNode.__class__.__sofaNodeMappers__
 
         for fieldName, sofaNodeMapper in sofaNodeMappers.items():
-            if sofaNodeMapper.recordSequence:
+            if sofaNodeMapper.recordSequence(self._parameterNode):
                 mrmlNode = getattr(self._parameterNode, fieldName)
                 if mrmlNode is not None:
                     sequenceNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceNode', mrmlNode.GetName() + "_Sequence")
