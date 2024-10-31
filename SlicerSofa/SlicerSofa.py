@@ -31,6 +31,7 @@
 import logging
 import os
 from dataclasses import dataclass, field
+from typing import Annotated, Optional
 import inspect
 from typing import get_type_hints
 from enum import Enum
@@ -192,6 +193,7 @@ class NodeMapper:
         type_hints = get_type_hints(ownerClass)
         self.type = type_hints.get(fieldName)
 
+
 # -----------------------------------------------------------------------------
 # Decorator: SofaParameterNodeWrapper
 # -----------------------------------------------------------------------------
@@ -247,8 +249,8 @@ def SofaParameterNodeWrapper(cls):
             sofaNodeMappers[fieldName] = sofa_node
 
     # Wrap the class using `parameterNodeWrapper` and `dataclass`
-    wrapped_cls = parameterNodeWrapper(cls)
-    wrapped_cls = dataclass(wrapped_cls)
+    wrapped_cls = dataclass(cls)
+    wrapped_cls = parameterNodeWrapper(wrapped_cls)
 
     # Attach the sofaNodeMappers dictionary to the final wrapped class
     setattr(wrapped_cls, '__sofaNodeMappers__', sofaNodeMappers)
@@ -269,7 +271,7 @@ class SlicerSofa(ScriptedLoadableModule):
         Args:
             parent (ScriptedLoadableModuleWidget): The parent object.
         """
-        ScriptedLoadableModule.__init__(self, parent)
+        super().__init__(parent)
         self.parent.title = _("Slicer Sofa")  # Module title
         self.parent.categories = [translate("qSlicerAbstractCoreModule", "")]  # Module category
         self.parent.dependencies = []  # Module dependencies
@@ -288,6 +290,58 @@ This module supports SOFA simulations. See documentation <a href="https://github
 Funded by Oslo University Hospital
 """)
         parent.hidden = True  # Hides this module from the Slicer module list
+
+# -----------------------------------------------------------------------------
+# Class: SlicerSofaWidget
+# -----------------------------------------------------------------------------
+class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._parameterNode = None
+        self._parameterNodeGuiTag = None
+        self.logic = None
+        VTKObservationMixin.__init__(self)  # Needed for parameter node observation
+
+    def exit(self) -> None:
+        """
+        Cleanup GUI connections when the module is exited.
+        """
+        if self._parameterNode:
+            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
+            self._parameterNodeGuiTag = None
+
+    def setParameterNode(self, parameterNode) -> None:
+        """
+        Sets the parameter node and connects GUI bindings.
+
+        Args:
+            parameterNode: The parameter node to set.
+        """
+        if self._parameterNode:
+            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
+        self._parameterNode = parameterNode
+        if self._parameterNode:
+            self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
+
+    def updateWidgetOnSimulation(self, parentWidget=None):
+        """
+        Goes through all child widgets of the specified parent widget and checks
+        for the 'SofaDisableOnSimulation' dynamic property. If found, prints a message.
+        """
+        if parentWidget is None:
+            parentWidget = self.parent  # Use the main widget if no parent is provided
+
+        def recursiveCheck(widget):
+            for child in widget.children():
+                if hasattr(child, 'property'):
+                    disable = child.property('SlicerDisableOnSimulation')
+                    child.setEnabled(not self._parameterNode.isSimulationRunning and disable)
+
+                # Recursively check each child widget
+                recursiveCheck(child)
+
+        recursiveCheck(parentWidget)
 
 # -----------------------------------------------------------------------------
 # Class: SlicerSofaLogic
@@ -309,6 +363,13 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self._sceneUp = False
         self._rootNode = None
         self._parameterNode = None
+        self._ui = None
+
+    def setUi(self, ui):
+        self._ui = ui
+
+    def getUi(self, ui):
+        return self._ui
 
     def __checkParameterNode__(self, parameterNode):
         """
@@ -381,14 +442,16 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         Hook for module-specific logic when the simulation starts.
         Can be overridden in subclasses.
         """
-        pass
+        if self._ui is not None:
+            self._ui.updateWidgetOnSimulation()
 
     def onSimulationStopped(self):
         """
         Hook for module-specific logic when the simulation stops.
         Can be overridden in subclasses.
         """
-        pass
+        if self._ui is not None:
+            self._ui.updateWidgetOnSimulation()
 
     def simulationStep(self) -> None:
         """
@@ -422,9 +485,10 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         """
         Initializes the parameter node by retrieving it and resetting its parameters.
         """
-        if self._parameterNode is None:
-            self._parameterNode = self.getParameterNode()
-        self.resetParameterNode()
+        pass
+        # if self._parameterNode is None:
+        #     self._parameterNode = self.getParameterNode()
+        # self.resetParameterNode()
 
     def resetParameterNode(self):
         """

@@ -62,6 +62,9 @@
          <property name="SlicerParameterName" stdset="0">
           <string>modelNode</string>
          </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item>
@@ -90,6 +93,9 @@
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>recordSequence</string>
+         </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -307,6 +313,9 @@
        <property name="text">
         <string>Stop Simulation</string>
        </property>
+       <property name="SlicerDisableOnSimulation" stdset="0">
+        <bool>false</bool>
+       </property>
       </widget>
      </item>
     </layout>
@@ -339,6 +348,9 @@
          <property name="SlicerParameterName" stdset="0">
           <string>dt</string>
          </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
       </layout>
@@ -362,6 +374,9 @@
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>currentStep</string>
+         </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -389,6 +404,9 @@
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>totalSteps</string>
+         </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -447,22 +465,6 @@
   <connection>
    <sender>SoftTissueSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>SOFAMRMLModelNodeComboBox</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>182</x>
-     <y>155</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>257</x>
-     <y>21</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>SoftTissueSimulation</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>boundaryROIComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
@@ -489,6 +491,22 @@
     <hint type="destinationlabel">
      <x>183</x>
      <y>86</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SoftTissueSimulation</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>SOFAMRMLModelNodeComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>182</x>
+     <y>155</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>257</x>
+     <y>21</y>
     </hint>
    </hints>
   </connection>
