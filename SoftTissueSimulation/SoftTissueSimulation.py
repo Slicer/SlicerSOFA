@@ -32,7 +32,6 @@ import logging
 import os
 import qt
 import vtk
-from vtk.util.numpy_support import numpy_to_vtk
 import random
 import time
 import uuid
@@ -42,7 +41,6 @@ import slicer
 from slicer.i18n import tr as _
 from slicer.i18n import translate
 from slicer.ScriptedLoadableModule import *
-from slicer import vtkMRMLIGTLConnectorNode
 from slicer import vtkMRMLMarkupsFiducialNode
 from slicer import vtkMRMLMarkupsLineNode
 from slicer import vtkMRMLMarkupsNode
@@ -55,11 +53,18 @@ from SlicerSofa import (
     SlicerSofaLogic,
     SofaParameterNodeWrapper,
     NodeMapper,
-    RunOnce,
-    arrayFromMarkupsROIPoints,
-    arrayVectorFromMarkupsLinePoints
 )
 
+from SlicerSofaUtils.Mappings import (
+    mrmlModelNodeGridToSofaTetrahedronTopologyContainer,
+    markupsFiducialNodeToSofaPointer,
+    markupsROINodeToSofaBoxROI,
+    sofaMechanicalObjectToMRMLModelNodeGrid,
+    sofaVonMisesStressToMRMLModelNodeGrid,
+    arrayFromMarkupsROIPoints,
+    arrayVectorFromMarkupsLinePoints,
+    RunOnce
+)
 
 # -----------------------------------------------------------------------------
 # Function: CreateScene
@@ -142,7 +147,7 @@ def CreateScene() -> Sofa.Core.Node:
 
     # Add a region of interest (ROI) with fixed constraints in the FEM node
     fixedROI = femNode.addChild('FixedROI')
-    fixedROI.addObject('BoxROI', template="Vec3", box=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], drawBoxes=False,
+    fixedROI.addObject('BoxROI', template="Vec3", box=[0.0]*6, drawBoxes=False,
                        position="@../mstate.rest_position", name="BoxROI",
                        computeTriangles=False, computeTetrahedra=False, computeEdges=False)
     fixedROI.addObject('FixedConstraint', indices="@BoxROI.indices")
@@ -181,53 +186,37 @@ class SoftTissueSimulationParameterNode:
     # Model node with SOFA mapping and sequence recording
     modelNode: vtkMRMLModelNode = \
         NodeMapper(
-            nodeName="FEM",
-            sofaMapping=lambda self, sofaNode: self.modelNodetoSofaNode(sofaNode),
-            mrmlMapping=lambda self, sofaNode: self.sofaNodeToModelNode(sofaNode),
+            sofaMapping =   lambda self: RunOnce(mrmlModelNodeGridToSofaTetrahedronTopologyContainer)(self, "FEM.Container"),
+            mrmlMapping = ( lambda self: sofaMechanicalObjectToMRMLModelNodeGrid(self, "FEM.Collision.dofs"),
+                            lambda self: sofaVonMisesStressToMRMLModelNodeGrid(self, "FEM.FEM") ),
             recordSequence=lambda self: self.recordSequence
         )
 
     # Fiducial node for tracking a moving point, with sequence recording
     movingPointNode: vtkMRMLMarkupsFiducialNode = \
         NodeMapper(
-            nodeName="AttachPoint.mouseInteractor",
-            sofaMapping=lambda self, sofaNode: self.markupsFiducialNodeToSofaPoint(sofaNode),
-            recordSequence=lambda self: self.recordSequence
+            sofaMapping = lambda self: markupsFiducialNodeToSofaPointer(self, "AttachPoint.mouseInteractor"),
+            recordSequence = lambda self: self.recordSequence
         )
 
     # Boundary ROI node with sequence recording
     boundaryROI: vtkMRMLMarkupsROINode = \
         NodeMapper(
-            nodeName="FEM.FixedROI.BoxROI",
-            sofaMapping=lambda self, sofaNode: self.markupsROIToSofaROI(sofaNode),
+            sofaMapping=lambda self: markupsROINodeToSofaBoxROI(self,"FEM.FixedROI.BoxROI"),
             recordSequence=lambda self: self.recordSequence
         )
 
     # Gravity vector node with sequence recording
     gravityVector: vtkMRMLMarkupsLineNode = \
         NodeMapper(
-            nodeName="",
-            sofaMapping=lambda self, sofaNode: self.markupsLineToGravityVector(sofaNode),
+            sofaMapping=lambda self: self.markupsLineToGravityVector(""),
             recordSequence=lambda self: self.recordSequence
         )
 
     gravityMagnitude: int = 1    # Additional parameter for gravity strength
     recordSequence: bool = False # Record sequence?
 
-    def markupsROIToSofaROI(self, sofaNode):
-        """
-        Maps ROI bounds from MRML node to SOFA node box.
-
-        Args:
-            sofaNode: The corresponding SOFA node to update.
-        """
-        if self.boundaryROI is None:
-            return
-
-        # Define SOFA node box with calculated bounds
-        sofaNode.box = [arrayFromMarkupsROIPoints(self.boundaryROI)]
-
-    def markupsLineToGravityVector(self, sofaNode):
+    def markupsLineToGravityVector(self, nodePath):
         """
         Maps a line node as a gravity vector in the SOFA node.
 
@@ -240,80 +229,7 @@ class SoftTissueSimulationParameterNode:
         gravityVector = arrayVectorFromMarkupsLinePoints(self.gravityVector)
         magnitude = np.linalg.norm(np.array(gravityVector))
         normalizedGravityVector = gravityVector / magnitude if magnitude != 0 else gravityVector
-        sofaNode.gravity = normalizedGravityVector * self.gravityMagnitude
-
-    @RunOnce
-    def modelNodetoSofaNode(self, sofaNode):
-        """
-        Maps VTK model node data to SOFA node.
-
-        Args:
-            sofaNode: The corresponding SOFA node to update.
-        """
-        if self.modelNode is None:
-            return
-
-        # Retrieve unstructured grid data from the model node
-        unstructuredGrid = self.modelNode.GetUnstructuredGrid()
-        points = unstructuredGrid.GetPoints()
-        numPoints = points.GetNumberOfPoints()
-
-        # Convert VTK points to a list for SOFA node
-        pointCoords = [points.GetPoint(i) for i in range(numPoints)]
-
-        # Parse cell data (tetrahedra connectivity)
-        cells = unstructuredGrid.GetCells()
-        cellArray = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
-        cellConnectivity = []
-        idx = 0
-        for i in range(unstructuredGrid.GetNumberOfCells()):
-            numPoints = cellArray[idx]
-            cellConnectivity.append(cellArray[idx + 1:idx + 1 + numPoints].tolist())
-            idx += numPoints + 1
-
-        # Create a stress array (this is an initialization)
-        labelsArray = slicer.util.arrayFromModelCellData(self.modelNode, "labels")
-        stressVTKArray = vtk.vtkFloatArray()
-        stressVTKArray.SetNumberOfValues(labelsArray.shape[0])
-        stressVTKArray.SetName("VonMisesStress")
-        self.modelNode.GetUnstructuredGrid().GetCellData().AddArray(stressVTKArray)
-
-        # Update SOFA node with tetrahedra and positions
-        sofaNode["Container"].tetrahedra = cellConnectivity
-        sofaNode["Container"].position = pointCoords
-
-    def sofaNodeToModelNode(self, sofaNode):
-        """
-        Maps SOFA node data back to the VTK model node.
-
-        Args:
-            sofaNode: The corresponding SOFA node providing data.
-        """
-        # Convert SOFA node positions to VTK points
-        convertedPoints = numpy_to_vtk(num_array=sofaNode["Collision.dofs"].position.array(), deep=True, array_type=vtk.VTK_FLOAT)
-        points = vtk.vtkPoints()
-        points.SetData(convertedPoints)
-
-        stressArray = slicer.util.arrayFromModelCellData(self.modelNode, "VonMisesStress")
-        stressArray[:] = sofaNode["FEM"].vonMisesPerElement.array()
-        slicer.util.arrayFromModelCellDataModified(self.modelNode, "VonMisesStress")
-
-        # Update the VTK model node's points and mark it as modified
-        self.modelNode.GetUnstructuredGrid().SetPoints(points)
-        self.modelNode.Modified()
-
-    def markupsFiducialNodeToSofaPoint(self, sofaNode):
-        """
-        Maps MRML fiducial node to SOFA node point position.
-
-        Args:
-            sofaNode: The corresponding SOFA node to update.
-        """
-        if self.movingPointNode is None:
-            return
-
-        # Set the SOFA node position based on the first control point of the fiducial node
-        sofaNode.position = [list(self.movingPointNode.GetNthControlPointPosition(0)) * 3]
+        self._rootNode.gravity = normalizedGravityVector * self.gravityMagnitude
 
 # -----------------------------------------------------------------------------
 # Class: SoftTissueSimulation
@@ -339,9 +255,12 @@ class SoftTissueSimulation(ScriptedLoadableModule):
             "Paul Baksic (INRIA)",
             "Steve Pieper (Isomics, Inc.)",
             "Andras Lasso (Queen's University)",
-            "Sam Horvath (Kitware, Inc.)"
+            "Sam Horvath (Kitware, Inc.)",
+            "Jean-Christophe Fillion-Robin (Kitware, Inc.)"
         ]
-        self.parent.helpText = _("""This module uses the SOFA framework to simulate soft tissue.""")
+        self.parent.helpText = _("""
+        This is a Slicer-SOFA example module. The module uses the SOFA framework to simulate soft tissue.
+        """)
         self.parent.acknowledgementText = _("""This project was funded by Oslo University Hospital.""")
 
         # Connect additional initialization after application startup
@@ -513,6 +432,9 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         self._rootNode = CreateScene()
         self._parameterNode = None
 
+    def CreateScene(self):
+        return CreateScene()
+
     def getParameterNode(self):
         """
         Retrieves or creates a wrapped parameter node.
@@ -541,7 +463,7 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         """
         Sets up the scene and starts the simulation.
         """
-        self.setupScene(self.getParameterNode(), self._rootNode)
+        self.setupScene(self.getParameterNode())
         super().startSimulation()
         self._simulationRunning = True
         self.getParameterNode().Modified()
@@ -718,8 +640,6 @@ class SoftTissueSimulationTest(ScriptedLoadableModuleTest):
 
         self.setUp()
         logic = SoftTissueSimulationLogic()
-        ui = slicer.modules.SoftTissueSimulation.GetWidgetRepresentation()
-        ui.setParameterNode(logic.getParameterNode())
 
         self.delayDisplay("Loading registered sample data")
         sampleDataLogic = SampleData.SampleDataLogic()
@@ -802,8 +722,6 @@ class SoftTissueSimulationTest(ScriptedLoadableModuleTest):
 
         self.setUp()
         logic = SoftTissueSimulationLogic()
-        ui = slicer.modules.SoftTissueSimulation.GetWidgetRepresentation()
-        ui.setParameterNode(logic.getParameterNode())
 
         self.delayDisplay("Loading registered sample data")
         sampleDataLogic = SampleData.SampleDataLogic()

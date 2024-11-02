@@ -35,8 +35,12 @@ from typing import Annotated, Optional
 import inspect
 from typing import get_type_hints
 from enum import Enum
+from collections.abc import Iterable
+from abc import abstractmethod
+import numpy as np
 
 import vtk
+from vtk.util.numpy_support import numpy_to_vtk
 
 import slicer
 from slicer.i18n import tr as _
@@ -52,68 +56,6 @@ from slicer import vtkMRMLScalarVolumeNode
 
 from SofaEnvironment import *
 
-# -----------------------------------------------------------------------------
-# Decorator: RunOnce
-# -----------------------------------------------------------------------------
-def RunOnce(func):
-    """
-    Decorator that marks a function to be executed only once.
-
-    Attributes:
-        runOnce (bool): Flag indicating the function should run only once.
-    """
-    func.runOnce = True
-    return func
-
-# -----------------------------------------------------------------------------
-# Utility Functions
-# -----------------------------------------------------------------------------
-def arrayFromMarkupsROIPoints(roiNode):
-    """
-    Utility function to return RAS (Right-Anterior-Superior) boundaries from a vtkMRMLMarkupsROINode.
-
-    Args:
-        roiNode (vtkMRMLMarkupsROINode): The ROI node from which to extract boundaries.
-
-    Returns:
-        list: A list containing [R_min, A_min, S_min, R_max, A_max, S_max].
-              Returns [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] if roiNode is None.
-    """
-    if roiNode is None:
-        return [0.0] * 6
-
-    center = [0] * 3
-    roiNode.GetCenter(center)
-    size = roiNode.GetSize()
-
-    # Calculate min and max RAS bounds
-    R_min = center[0] - size[0] / 2
-    R_max = center[0] + size[0] / 2
-    A_min = center[1] - size[1] / 2
-    A_max = center[1] + size[1] / 2
-    S_min = center[2] - size[2] / 2
-    S_max = center[2] + size[2] / 2
-
-    return [R_min, A_min, S_min, R_max, A_max, S_max]
-
-def arrayVectorFromMarkupsLinePoints(lineNode):
-    """
-    Utility function to return the vector from a vtkMRMLMarkupsLineNode.
-
-    Args:
-        lineNode (vtkMRMLMarkupsLineNode): The line node from which to extract the vector.
-
-    Returns:
-        list: A list containing the vector components [x, y, z].
-              Returns [0.0, 0.0, 0.0] if lineNode is None.
-    """
-    if lineNode is None:
-        return [0.0] * 3
-
-    # Calculate vector direction and normalize
-    p1 = lineNode.GetNthControlPointPosition(0)
-    p2 = lineNode.GetNthControlPointPosition(1)
-    return [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]]
 
 # -----------------------------------------------------------------------------
 # Class: NodeMapper
@@ -137,11 +79,10 @@ class NodeMapper:
         Raises:
             ValueError: If sofaMapping or mrmlMapping is provided but not callable.
         """
-        # Validate that mappings are callable, or raise an error
-        if sofaMapping is not None and not callable(sofaMapping):
-            raise ValueError("sofaMapping is not callable")
-        if mrmlMapping is not None and not callable(mrmlMapping):
-            raise ValueError("mrmlMapping is not callable")
+        # if not callable(mrmlMapping) and not (isinstance(mrmlMapping, Iterable) and not isinstance(mrmlMapping, (str, bytes))):
+        #     raise ValueError("mrmlMapping must be either a callable or a non-string iterable")
+        # if not callable(sofaMapping) and not (isinstance(sofaMapping, Iterable) and not isinstance(sofaMapping, (str, bytes))):
+        #     raise ValueError("sofaMapping must be either a callable or a non-string iterable")
         if recordSequence is not None and not callable(recordSequence):
             raise ValueError("recordSequence is not callable")
 
@@ -332,12 +273,14 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if parentWidget is None:
             parentWidget = self.parent  # Use the main widget if no parent is provided
 
+        # Recursively checks and enables/disables widgets depending on the simulation status
         def recursiveCheck(widget):
             for child in widget.children():
                 if hasattr(child, 'property'):
-                    disable = child.property('SlicerDisableOnSimulation')
-                    child.setEnabled(not self._parameterNode.isSimulationRunning and disable)
-
+                    meta_obj = child.metaObject()
+                    if meta_obj.indexOfProperty('SlicerDisableOnSimulation') != -1:
+                        disable = child.property('SlicerDisableOnSimulation')
+                        hasattr(child, 'setEnabled') and child.setEnabled(not self._parameterNode.isSimulationRunning and disable)
                 # Recursively check each child widget
                 recursiveCheck(child)
 
@@ -371,22 +314,15 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
     def getUi(self, ui):
         return self._ui
 
-    def __checkParameterNode__(self, parameterNode):
+
+    @abstractmethod
+    def CreateScene() -> Sofa.Core.Node:
         """
-        Ensures the provided parameterNode has the expected SOFA wrapping.
-
-        Args:
-            parameterNode: The parameter node to check.
-
-        Raises:
-            ValueError: If parameterNode is None or not properly wrapped.
+        Creates the SOFA scene and returns the root node. I needs to be implemented in derived classes
         """
-        if parameterNode is None:
-            raise ValueError("parameterNode can't be None")
-        if not getattr(parameterNode, 'sofaParameterNodeWrapped', False):
-            raise ValueError("parameterNode is not a valid parameterNode wrapped by the sofaParameterNodeWrapper")
+        return None
 
-    def setupScene(self, parameterNode, rootNode):
+    def setupScene(self, parameterNode):
         """
         Initializes the SOFA simulation scene with parameter and root nodes.
 
@@ -397,17 +333,22 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         Raises:
             ValueError: If rootNode is not a valid Sofa.Core.Node.
         """
-        if self._sceneUp:
-            return
-        self.__checkParameterNode__(parameterNode)
-        self._parameterNode = parameterNode
-        if not isinstance(rootNode, Sofa.Core.Node):
-            raise ValueError("rootNode is not a valid Sofa.Core.Node root node")
-        self._rootNode = rootNode
 
+        if parameterNode is None:
+            raise ValueError("parameterNode can't be None")
+        if not getattr(parameterNode, 'sofaParameterNodeWrapped', False):
+            raise ValueError("parameterNode is not a valid parameterNode wrapped by the sofaParameterNodeWrapper")
+
+        self._parameterNode = parameterNode
+
+        if not isinstance(self._rootNode, Sofa.Core.Node):
+            raise ValueError("rootNode is not a valid Sofa.Core.Node root node")
+        self._rootNode = self.CreateScene()
+        setattr(self._parameterNode, "_rootNode", self._rootNode)
         self.__updateSofa__()
         Sofa.Simulation.init(self._rootNode)
         self._sceneUp = True
+
 
     def startSimulation(self) -> None:
         """
@@ -421,7 +362,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
                 raise ValueError("No scene creation function provided.")
             self._rootNode = self._createSceneFunction()
         self.resetRunOnceFlags()
-        self.setupScene(self._parameterNode, self._rootNode)
+        self.setupScene(self._parameterNode)
         self._parameterNode.currentStep = 0
         self._parameterNode.isSimulationRunning = True
         self.setupSequenceRecording()
@@ -573,16 +514,29 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
         for fieldName, sofaNodeMapper in sofaNodeMappers.items():
             sofaMapping = sofaNodeMapper.sofaMapping
-            name = sofaNodeMapper.nodeName
 
-            if sofaMapping:
+            self._parameterNode._currentMappingMRMLNode = getattr(self._parameterNode, fieldName)
+
+            if callable(sofaMapping):
                 runOnce = getattr(sofaMapping, 'runOnce', False)
                 if runOnce and sofaNodeMapper.sofaMappingHasRun:
                     continue  # Skip if already run
-                node = self._rootNode[name] if name else self._rootNode
-                sofaMapping(self._parameterNode, node)
+                sofaMapping(self._parameterNode)
                 if runOnce:
                     sofaNodeMapper.sofaMappingHasRun = True
+
+            if isinstance(sofaMapping, Iterable) and not isinstance(sofaMapping, (str, bytes)):
+                for mapping in sofaMapping:
+                    runOnce = getattr(mapping, 'runOnce', False)
+                    if runOnce and sofaNodeMapper.mappingHasRun:
+                        continue  # Skip if already run
+
+                    # This is used internally in mapping functions to know what's the
+                    # target mrmlNode. With this we avoid the definition of more complex lambdas
+                    # where the current node must be passed to the conversion function.
+                    mapping(self._parameterNode)
+                    if runOnce:
+                        sofaNodeMapper.sofaMappingHasRun = True
 
     def __updateMRML__(self) -> None:
         """
@@ -592,13 +546,26 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
         for fieldName, sofaNodeMapper in sofaNodeMappers.items():
             mrmlMapping = sofaNodeMapper.mrmlMapping
-            name = sofaNodeMapper.nodeName
 
-            if mrmlMapping:
+            self._parameterNode._currentMappingMRMLNode = getattr(self._parameterNode, fieldName)
+
+            if callable(mrmlMapping):
                 runOnce = getattr(mrmlMapping, 'runOnce', False)
                 if runOnce and sofaNodeMapper.mrmlMappingHasRun:
                     continue  # Skip if already run
-                node = self._rootNode[name] if name else self._rootNode
-                mrmlMapping(self._parameterNode, node)
+                mrmlMapping(self._parameterNode)
                 if runOnce:
                     sofaNodeMapper.mrmlMappingHasRun = True
+
+            if isinstance(mrmlMapping, Iterable) and not isinstance(mrmlMapping, (str, bytes)):
+                for mapping in mrmlMapping:
+                    runOnce = getattr(mapping, 'runOnce', False)
+                    if runOnce and sofaNodeMapper.mappingHasRun:
+                        continue  # Skip if already run
+
+                    # This is used internally in mapping functions to know what's the
+                    # target mrmlNode. With this we avoid the definition of more complex lambdas
+                    # where the current node must be passed to the conversion function.
+                    mapping(self._parameterNode)
+                    if runOnce:
+                        sofaNodeMapper.mrmlMappingHasRun = True
