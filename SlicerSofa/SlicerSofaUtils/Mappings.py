@@ -2,12 +2,14 @@ import slicer
 import vtk
 import numpy as np
 from vtk.util.numpy_support import numpy_to_vtk
+from slicer.parameterNodeWrapper import parameterPack
+from slicer import vtkMRMLGridTransformNode
 
 # -----------------------------------------------------------------------------
 # Mapping functions MRML->Sofa
 # -----------------------------------------------------------------------------
 #
-def mrmlModelNodePolyToSofaTriangleTopologyContainer(obj, nodePath) -> None:
+def mrmlModelPolyToSofaTriangleTopologyContainer(obj, nodePath) -> None:
     """
     This is mapping function that will transfer geometry (points) and
     topology (cells) from a vtkPolyData stored in a vtkMRMLModel node
@@ -20,15 +22,15 @@ def mrmlModelNodePolyToSofaTriangleTopologyContainer(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
         TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
     # Update SOFA node with tetrahedra and positions
-    obj._rootNode[nodePath].triangle = slicer.util.arrayFromModelPolyIds(obj._currentMappingMRMLNode).reshape(-1,4)[:,1:]
-    obj._rootNode[nodePath].position = slicer.util.arrayFromModelPoints(obj._currentMappingMRMLNode)
+    obj._rootNode[nodePath].triangle = slicer.util.arrayFromModelPolyIds(obj._currentMappingObject).reshape(-1,4)[:,1:]
+    obj._rootNode[nodePath].position = slicer.util.arrayFromModelPoints(obj._currentMappingObject)
 
 
-def mrmlModelNodeGridToSofaTetrahedronTopologyContainer(obj, nodePath) -> None:
+def mrmlModelGridToSofaTetrahedronTopologyContainer(obj, nodePath) -> None:
     """
     This is mapping function that will transfer geometry (points) and
     topology (cells) from a vtkUnstructuredGrid stored in a vtkMRMLModel node
@@ -41,11 +43,11 @@ def mrmlModelNodeGridToSofaTetrahedronTopologyContainer(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
         TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
     # Retrieve unstructured grid data from the model node
-    unstructuredGrid = obj._currentMappingMRMLNode.GetUnstructuredGrid()
+    unstructuredGrid = obj._currentMappingObject.GetUnstructuredGrid()
     points = unstructuredGrid.GetPoints()
     numPoints = points.GetNumberOfPoints()
 
@@ -67,7 +69,7 @@ def mrmlModelNodeGridToSofaTetrahedronTopologyContainer(obj, nodePath) -> None:
     obj._rootNode[nodePath].position = pointCoords
 
 
-def markupsFiducialNodeToSofaPointer(obj, nodePath) -> None:
+def mrmlMarkupsFiducialToSofaPointer(obj, nodePath) -> None:
     """
     This is mapping function that will transfer a 3D fiducial point
     to a pointer interactor in Sofa
@@ -80,13 +82,13 @@ def markupsFiducialNodeToSofaPointer(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
        TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
     # Set the SOFA node position based on the first control point of the fiducial node
-    obj._rootNode[nodePath].position = [list(self._currentMappingMRMLNode.GetNthControlPointPosition(0)) * 3]
+    obj._rootNode[nodePath].position = [list(self._currentMappingObject.GetNthControlPointPosition(0)) * 3]
 
-def markupsROINodeToSofaBoxROI(obj, nodePath) -> None:
+def mrmlMarkupsROIToSofaBoxROI(obj, nodePath) -> None:
     """
     This is mapping function that will transfer a markups ROI
     to a Sofa ROI Box
@@ -99,16 +101,16 @@ def markupsROINodeToSofaBoxROI(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
        TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
-    obj._rootNode[nodePath].box = [arrayFromMarkupsROIPoints(obj._currentMappingMRMLNode)]
+    obj._rootNode[nodePath].box = [arrayFromMarkupsROIPoints(obj._currentMappingObject)]
 
 # -----------------------------------------------------------------------------
 # Mapping functions Sofa->MRML
 # -----------------------------------------------------------------------------
 
-def sofaMechanicalObjectToMRMLModelNodePoly(obj, nodePath) -> None:
+def sofaMechanicalObjectToMRMLModelPoly(obj, nodePath) -> None:
     """
     This is mapping function that will transfer geometry from a Sofa
     mechanical object to a vtkPolyData stored in a vtkMRMLModel node.
@@ -120,19 +122,19 @@ def sofaMechanicalObjectToMRMLModelNodePoly(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
        TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
-    if obj._currentMappingMRMLNode.GetPolyData() is None:
+    if obj._currentMappingObject.GetPolyData() is None:
         polyData = vtk.vtkPolyData()
-        obj._currentMappingMRMLNode.SetAndObservePolyData(polyData)
+        obj._currentMappingObject.SetAndObservePolyData(polyData)
 
     surfacePointsArray = obj._rootNode[nodePath].position.array()
-    surfaceModelPointsArray = slicer.util.arrayFromModelPoints(obj._currentMappingMRMLNode)
+    surfaceModelPointsArray = slicer.util.arrayFromModelPoints(obj._currentMappingObject)
     surfaceModelPointsArray[:] = surfacePointsArray
-    slicer.util.arrayFromModelPointsModified(obj._currentMappingMRMLNode)
+    slicer.util.arrayFromModelPointsModified(obj._currentMappingObject)
 
-def sofaMechanicalObjectToMRMLModelNodeGrid(obj, nodePath) -> None:
+def sofaMechanicalObjectToMRMLModelGrid(obj, nodePath) -> None:
     """
     This is mapping function that will transfer geometry from a Sofa
     mechanical object to a vtkUnstructuredGrid stored in a vtkMRMLModel node.
@@ -144,7 +146,7 @@ def sofaMechanicalObjectToMRMLModelNodeGrid(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
        TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
     # Convert SOFA node positions to VTK points
@@ -152,16 +154,16 @@ def sofaMechanicalObjectToMRMLModelNodeGrid(obj, nodePath) -> None:
     points = vtk.vtkPoints()
     points.SetData(convertedPoints)
 
-    if obj._currentMappingMRMLNode.GetUnstructuredGrid() is None:
+    if obj._currentMappingObject.GetUnstructuredGrid() is None:
        unstructuredGrid = vtk.vtkUnstructuredGrid()
-       obj._currentMappingMRMLNode.SetAndObserveMesh(unstructuredGrid)
+       obj._currentMappingObject.SetAndObserveMesh(unstructuredGrid)
 
     # Update the VTK model node's points and mark it as modified
-    obj._currentMappingMRMLNode.GetUnstructuredGrid().SetPoints(points)
-    obj._currentMappingMRMLNode.Modified()
+    obj._currentMappingObject.GetUnstructuredGrid().SetPoints(points)
+    obj._currentMappingObject.Modified()
 
 
-def sofaSparseGridTopologyToMRMLModelNodeGrid(obj, nodePath) -> None:
+def sofaSparseGridTopologyToMRMLModelGrid(obj, nodePath) -> None:
     """
     This is mapping function that will transfer topology from a Sofa
     SparseGridTopology to a vtkUnstructuredGrid stored in a vtkMRMLModel node.
@@ -174,7 +176,7 @@ def sofaSparseGridTopologyToMRMLModelNodeGrid(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
        TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
     # Create a vtkCellArray to store the cells
@@ -193,10 +195,10 @@ def sofaSparseGridTopologyToMRMLModelNodeGrid(obj, nodePath) -> None:
         cell_array.InsertNextCell(hexahedron)
 
     # Set the cells (hexahedrons) into the unstructured grid
-    obj._currentMappingMRMLNode.GetUnstructuredGrid().SetCells(vtk.VTK_HEXAHEDRON, cell_array)
+    obj._currentMappingObject.GetUnstructuredGrid().SetCells(vtk.VTK_HEXAHEDRON, cell_array)
 
 
-def sofaVonMisesStressToMRMLModelNodeGrid(obj, nodePath) -> None:
+def sofaVonMisesStressToMRMLModelGrid(obj, nodePath) -> None:
     """
     This is a mapping function that will transfer a von Mises stress array
     to an array in a vtkUnstructuredGrid stored in a vtkMRMLModel node.
@@ -208,20 +210,20 @@ def sofaVonMisesStressToMRMLModelNodeGrid(obj, nodePath) -> None:
     if not isinstance(nodePath, (str, bytes)):
        TypeError("nodePath must be a string")
 
-    if obj._currentMappingMRMLNode is None:
+    if obj._currentMappingObject is None:
         return
 
-    if obj._currentMappingMRMLNode.GetUnstructuredGrid().GetCellData().GetArray("VonMisesStress") is None:
+    if obj._currentMappingObject.GetUnstructuredGrid().GetCellData().GetArray("VonMisesStress") is None:
         # Create a stress array (this is an initialization)
-        labelsArray = slicer.util.arrayFromModelCellData(obj._currentMappingMRMLNode, "labels")
+        labelsArray = slicer.util.arrayFromModelCellData(obj._currentMappingObject, "labels")
         stressVTKArray = vtk.vtkFloatArray()
         stressVTKArray.SetNumberOfValues(labelsArray.shape[0])
         stressVTKArray.SetName("VonMisesStress")
-        obj._currentMappingMRMLNode.GetUnstructuredGrid().GetCellData().AddArray(stressVTKArray)
+        obj._currentMappingObject.GetUnstructuredGrid().GetCellData().AddArray(stressVTKArray)
 
-    stressArray = slicer.util.arrayFromModelCellData(obj._currentMappingMRMLNode, "VonMisesStress")
+    stressArray = slicer.util.arrayFromModelCellData(obj._currentMappingObject, "VonMisesStress")
     stressArray[:] = obj._rootNode[nodePath].vonMisesPerElement.array()
-    slicer.util.arrayFromModelCellDataModified(obj._currentMappingMRMLNode, "VonMisesStress")
+    slicer.util.arrayFromModelCellDataModified(obj._currentMappingObject, "VonMisesStress")
 
 # -----------------------------------------------------------------------------
 # Decorator: RunOnce
@@ -288,3 +290,6 @@ def arrayVectorFromMarkupsLinePoints(lineNode):
     if norm == 0:
        return vector  # Return the original vector if norm is zero to avoid division by zero
     return vector / norm
+
+
+

@@ -515,7 +515,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         for fieldName, sofaNodeMapper in sofaNodeMappers.items():
             sofaMapping = sofaNodeMapper.sofaMapping
 
-            self._parameterNode._currentMappingMRMLNode = getattr(self._parameterNode, fieldName)
+            self._parameterNode._currentMappingObject = getattr(self._parameterNode, fieldName)
 
             if callable(sofaMapping):
                 runOnce = getattr(sofaMapping, 'runOnce', False)
@@ -547,7 +547,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         for fieldName, sofaNodeMapper in sofaNodeMappers.items():
             mrmlMapping = sofaNodeMapper.mrmlMapping
 
-            self._parameterNode._currentMappingMRMLNode = getattr(self._parameterNode, fieldName)
+            self._parameterNode._currentMappingObject = getattr(self._parameterNode, fieldName)
 
             if callable(mrmlMapping):
                 runOnce = getattr(mrmlMapping, 'runOnce', False)

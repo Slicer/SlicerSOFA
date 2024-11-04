@@ -74,7 +74,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
         # Create a mock parameter node
         class MockParameterNode:
             def __init__(self):
-                self._currentMappingMRMLNode = None
+                self._currentMappingObject = None
                 self._rootNode = {'FEM.Container': MockSofaNode()}
 
         class MockSofaNode:
@@ -107,7 +107,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
 
         # Set up the mock parameter node
         obj = MockParameterNode()
-        obj._currentMappingMRMLNode = modelNode
+        obj._currentMappingObject = modelNode
 
         # Call the function
         mrmlModelNodeGridToSofaTetrahedronTopologyContainer(obj, 'FEM.Container')
@@ -124,7 +124,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
         # Create a mock parameter node
         class MockParameterNode:
             def __init__(self):
-                self._currentMappingMRMLNode = None
+                self._currentMappingObject = None
                 self._rootNode = {'AttachPoint.mouseInteractor': MockSofaNode()}
 
         class MockSofaNode:
@@ -137,7 +137,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
 
         # Set up the mock parameter node
         obj = MockParameterNode()
-        obj._currentMappingMRMLNode = fiducialNode
+        obj._currentMappingObject = fiducialNode
 
         # Call the function
         markupsFiducialNodeToSofaPointer(obj, 'AttachPoint.mouseInteractor')
@@ -153,7 +153,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
         # Create a mock parameter node
         class MockParameterNode:
             def __init__(self):
-                self._currentMappingMRMLNode = None
+                self._currentMappingObject = None
                 self._rootNode = {'FEM.FixedROI.BoxROI': MockSofaNode()}
 
         class MockSofaNode:
@@ -167,7 +167,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
 
         # Set up the mock parameter node
         obj = MockParameterNode()
-        obj._currentMappingMRMLNode = roiNode
+        obj._currentMappingObject = roiNode
 
         # Call the function
         markupsROINodeToSofaBoxROI(obj, 'FEM.FixedROI.BoxROI')
@@ -183,7 +183,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
         # Create a mock parameter node
         class MockParameterNode:
             def __init__(self):
-                self._currentMappingMRMLNode = None
+                self._currentMappingObject = None
                 self._rootNode = {'FEM.Collision.dofs': MockSofaNode()}
 
         class MockSofaNode:
@@ -206,13 +206,13 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
 
         # Set up the mock parameter node
         obj = MockParameterNode()
-        obj._currentMappingMRMLNode = modelNode
+        obj._currentMappingObject = modelNode
 
         # Call the function
         sofaMechanicalObjectToMRMLModelNodeGrid(obj, 'FEM.Collision.dofs')
 
         # Retrieve the updated points from the MRML node
-        updatedPoints = obj._currentMappingMRMLNode.GetUnstructuredGrid().GetPoints()
+        updatedPoints = obj._currentMappingObject.GetUnstructuredGrid().GetPoints()
 
         # Convert VTK points to numpy array
         vtk_array = updatedPoints.GetData()
@@ -231,7 +231,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
         # Create a mock parameter node
         class MockParameterNode:
             def __init__(self):
-                self._currentMappingMRMLNode = None
+                self._currentMappingObject = None
                 self._rootNode = {'FEM.FEM': MockSofaNode()}
 
         class MockSofaNode:
@@ -257,7 +257,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
 
         # Set up the mock parameter node
         obj = MockParameterNode()
-        obj._currentMappingMRMLNode = modelNode
+        obj._currentMappingObject = modelNode
 
         # Call the function
         sofaVonMisesStressToMRMLModelNodeGrid(obj, 'FEM.FEM')

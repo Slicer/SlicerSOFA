@@ -56,11 +56,11 @@ from SlicerSofa import (
 )
 
 from SlicerSofaUtils.Mappings import (
-    mrmlModelNodeGridToSofaTetrahedronTopologyContainer,
-    markupsFiducialNodeToSofaPointer,
-    markupsROINodeToSofaBoxROI,
-    sofaMechanicalObjectToMRMLModelNodeGrid,
-    sofaVonMisesStressToMRMLModelNodeGrid,
+    mrmlModelGridToSofaTetrahedronTopologyContainer,
+    mrmlMarkupsFiducialToSofaPointer,
+    mrmlMarkupsROIToSofaBoxROI,
+    sofaMechanicalObjectToMRMLModelGrid,
+    sofaVonMisesStressToMRMLModelGrid,
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
     RunOnce
@@ -186,37 +186,37 @@ class SoftTissueSimulationParameterNode:
     # Model node with SOFA mapping and sequence recording
     modelNode: vtkMRMLModelNode = \
         NodeMapper(
-            sofaMapping =   lambda self: RunOnce(mrmlModelNodeGridToSofaTetrahedronTopologyContainer)(self, "FEM.Container"),
-            mrmlMapping = ( lambda self: sofaMechanicalObjectToMRMLModelNodeGrid(self, "FEM.Collision.dofs"),
-                            lambda self: sofaVonMisesStressToMRMLModelNodeGrid(self, "FEM.FEM") ),
+            sofaMapping =   lambda self: RunOnce(mrmlModelGridToSofaTetrahedronTopologyContainer)(self, "FEM.Container"),
+            mrmlMapping = ( lambda self: sofaMechanicalObjectToMRMLModelGrid(self, "FEM.Collision.dofs"),
+                            lambda self: sofaVonMisesStressToMRMLModelGrid(self, "FEM.FEM") ),
             recordSequence=lambda self: self.recordSequence
         )
 
     # Fiducial node for tracking a moving point, with sequence recording
     movingPointNode: vtkMRMLMarkupsFiducialNode = \
         NodeMapper(
-            sofaMapping = lambda self: markupsFiducialNodeToSofaPointer(self, "AttachPoint.mouseInteractor"),
+            sofaMapping = lambda self: mrmlMarkupsFiducialToSofaPointer(self, "AttachPoint.mouseInteractor"),
             recordSequence = lambda self: self.recordSequence
         )
 
     # Boundary ROI node with sequence recording
     boundaryROI: vtkMRMLMarkupsROINode = \
         NodeMapper(
-            sofaMapping=lambda self: markupsROINodeToSofaBoxROI(self,"FEM.FixedROI.BoxROI"),
+            sofaMapping=lambda self: mrmlMarkupsROIToSofaBoxROI(self,"FEM.FixedROI.BoxROI"),
             recordSequence=lambda self: self.recordSequence
         )
 
     # Gravity vector node with sequence recording
     gravityVector: vtkMRMLMarkupsLineNode = \
         NodeMapper(
-            sofaMapping=lambda self: self.markupsLineToGravityVector(""),
+            sofaMapping=lambda self: self.mrmlMarkupsLineToGravityVector(""),
             recordSequence=lambda self: self.recordSequence
         )
 
     gravityMagnitude: int = 1    # Additional parameter for gravity strength
     recordSequence: bool = False # Record sequence?
 
-    def markupsLineToGravityVector(self, nodePath):
+    def mrmlMarkupsLineToGravityVector(self, nodePath):
         """
         Maps a line node as a gravity vector in the SOFA node.
 
