@@ -86,7 +86,7 @@ def mrmlMarkupsFiducialToSofaPointer(obj, nodePath) -> None:
         return
 
     # Set the SOFA node position based on the first control point of the fiducial node
-    obj._rootNode[nodePath].position = [list(self._currentMappingObject.GetNthControlPointPosition(0)) * 3]
+    obj._rootNode[nodePath].position = [list(obj._currentMappingObject.GetNthControlPointPosition(0)) * 3]
 
 def mrmlMarkupsROIToSofaBoxROI(obj, nodePath) -> None:
     """

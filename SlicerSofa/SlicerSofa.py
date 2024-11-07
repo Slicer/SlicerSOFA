@@ -182,6 +182,7 @@ def SofaParameterNodeWrapper(cls):
     __checkAndCreate__(cls, 'currentStep', int, 0)
     __checkAndCreate__(cls, 'isSimulationRunning', bool, False)
     __checkAndCreate__(cls, 'sofaParameterNodeWrapped', bool, True)
+    __checkAndCreate__(cls, 'simulationProgress', str, '')
 
     # Infers types for SOFA node parameters based on NodeMapper instances and stores them
     for fieldName, sofa_node in cls.__dict__.items():
@@ -225,11 +226,11 @@ class SlicerSofa(ScriptedLoadableModule):
             "Jean Christophe Fillion-Robin (Kitware, Inc., USA)"
         ]
         self.parent.helpText = _("""
-This module supports SOFA simulations. See documentation <a href="https://github.com/RafaelPalomar/Slicer-SOFA">here</a>.
-""")
+        This module supports SOFA simulations. See documentation <a href="https://github.com/RafaelPalomar/Slicer-SOFA">here</a>.
+        """)
         self.parent.acknowledgementText = _("""
-Funded by Oslo University Hospital
-""")
+        Funded by Oslo University Hospital
+        """)
         parent.hidden = True  # Hides this module from the Slicer module list
 
 # -----------------------------------------------------------------------------
@@ -406,6 +407,10 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         if self._parameterNode.currentStep < self._parameterNode.totalSteps or self._parameterNode.totalSteps < 0:
             Sofa.Simulation.animate(self._rootNode, self._parameterNode.dt)
             self._parameterNode.currentStep += 1
+            if self._parameterNode.totalSteps < 0:
+                self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/\u221E"
+            else:
+                self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/{self._parameterNode.totalSteps}"
         else:
             self._parameterNode.isSimulationRunning = False
 
