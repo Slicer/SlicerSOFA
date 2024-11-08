@@ -82,13 +82,11 @@ def CreateScene() -> Sofa.Core.Node:
     from stlib3.physics.rigid import Floor
     from splib3.numerics import Vec3
 
-
     vonMisesMode = {
         "none": 0,
         "corotational": 1,
         "fullGreen": 2
     }
-
 
     # Initialize the root node of the SOFA scene
     rootNode = Sofa.Core.Node("Root")
@@ -335,13 +333,13 @@ class SoftTissueSimulationWidget(SlicerSofaWidget):
         self.ui.addBoundaryROIPushButton.connect("clicked()", self.logic.addBoundaryROI)
         self.ui.addGravityVectorPushButton.connect("clicked()", self.logic.addGravityVector)
         self.ui.addMovingPointPushButton.connect("clicked()", self.logic.addMovingPoint)
+        self.ui.resetSimulationPushButton.connect("clicked()", self.logic.resetSimulation)
 
         # Initialize parameter node and GUI bindings
         self.setParameterNode(self.logic.getParameterNode())
         self.initializeParameterNode()
         self.logic.getParameterNode().AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationGUI)
         self.logic.setUi(self)
-
 
     def cleanup(self) -> None:
         """
@@ -396,25 +394,32 @@ class SoftTissueSimulationWidget(SlicerSofaWidget):
         if self.parent.isEntered:
             self.initializeParameterNode()
 
-    def startSimulation(self):
+    def startSimulation(self) -> None:
         """
         Starts the simulation and begins the timer for simulation steps.
         """
         self.logic.startSimulation()
         self.timer.start(0)
 
-    def stopSimulation(self):
+    def stopSimulation(self) -> None:
         """
         Stops the simulation and the timer.
         """
         self.timer.stop()
         self.logic.stopSimulation()
 
-    def simulationStep(self):
+    def simulationStep(self) -> None:
         """
         Executes a single simulation step.
         """
         self.logic.simulationStep()
+
+    def _saveState(self) -> None:
+        self._originalModelGrid = vtk.vtkUnstructuredGrid()
+        self._originalModelGrid.DeepCopy(self._parameterNode.modelNode.GetUnstructuredGrid())
+
+    def _restoreState(self) -> None:
+        self._parameterNode.modelNode.SetAndObserveMesh(self._originalModelGrid)
 
 # -----------------------------------------------------------------------------
 # Class: SoftTissueSimulationLogic

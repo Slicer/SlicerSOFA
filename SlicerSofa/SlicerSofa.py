@@ -38,6 +38,7 @@ from enum import Enum
 from collections.abc import Iterable
 from abc import abstractmethod
 import numpy as np
+import qt
 
 import vtk
 from vtk.util.numpy_support import numpy_to_vtk
@@ -269,23 +270,22 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def updateWidgetOnSimulation(self, parentWidget=None):
         """
         Goes through all child widgets of the specified parent widget and checks
-        for the 'SofaDisableOnSimulation' dynamic property. If found, prints a message.
+        for the 'SofaDisableOnSimulation' dynamic property. If found, prints message a.
         """
+
+        slicer.modules.widget = parentWidget
         if parentWidget is None:
             parentWidget = self.parent  # Use the main widget if no parent is provided
 
         # Recursively checks and enables/disables widgets depending on the simulation status
-        def recursiveCheck(widget):
-            for child in widget.children():
-                if hasattr(child, 'property'):
-                    meta_obj = child.metaObject()
-                    if meta_obj.indexOfProperty('SlicerDisableOnSimulation') != -1:
-                        disable = child.property('SlicerDisableOnSimulation')
-                        hasattr(child, 'setEnabled') and child.setEnabled(not self._parameterNode.isSimulationRunning and disable)
-                # Recursively check each child widget
-                recursiveCheck(child)
-
-        recursiveCheck(parentWidget)
+        for child in parentWidget.findChildren(qt.QWidget):
+            if child.property('SlicerDisableOnSimulation') is not None:
+                if child.name == 'resetSimulationPushButton':
+                disable = child.property('SlicerDisableOnSimulation')
+                child.setEnabled(
+                    (self._parameterNode.isSimulationRunning and not disable) or
+                    (not self._parameterNode.isSimulationRunning and disable)
+                )
 
 # -----------------------------------------------------------------------------
 # Class: SlicerSofaLogic
@@ -307,13 +307,13 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self._sceneUp = False
         self._rootNode = None
         self._parameterNode = None
-        self._ui = None
+        self.ui = None
 
     def setUi(self, ui):
-        self._ui = ui
+        self.ui = ui
 
     def getUi(self, ui):
-        return self._ui
+        return self.ui
 
 
     @abstractmethod
@@ -350,7 +350,6 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         Sofa.Simulation.init(self._rootNode)
         self._sceneUp = True
 
-
     def startSimulation(self) -> None:
         """
         Starts the simulation by setting up the scene, resetting run-once flags,
@@ -362,6 +361,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
             if self._createSceneFunction is None:
                 raise ValueError("No scene creation function provided.")
             self._rootNode = self._createSceneFunction()
+        self._saveState()
         self.resetRunOnceFlags()
         self.setupScene(self._parameterNode)
         self._parameterNode.currentStep = 0
@@ -369,6 +369,9 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self.setupSequenceRecording()
         self._parameterNode.Modified()
         self.onSimulationStarted()
+
+    def resetSimulation(self) -> None:
+        self._restoreState()
 
     def stopSimulation(self) -> None:
         """
@@ -384,16 +387,16 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         Hook for module-specific logic when the simulation starts.
         Can be overridden in subclasses.
         """
-        if self._ui is not None:
-            self._ui.updateWidgetOnSimulation()
+        if self.ui is not None:
+            self.ui.updateWidgetOnSimulation()
 
     def onSimulationStopped(self):
         """
         Hook for module-specific logic when the simulation stops.
         Can be overridden in subclasses.
         """
-        if self._ui is not None:
-            self._ui.updateWidgetOnSimulation()
+        if self.ui is not None:
+            self.ui.updateWidgetOnSimulation()
 
     def simulationStep(self) -> None:
         """
@@ -574,3 +577,19 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
                     mapping(self._parameterNode)
                     if runOnce:
                         sofaNodeMapper.mrmlMappingHasRun = True
+
+    def _saveState(self) -> None:
+        """
+        This function will be called on start simulation and it should be implemented
+        on derived classes. The purpose of this function is to let the user save relevant
+        objects for the reset of the simulation
+        """
+        pass
+
+    def _restoreState(self) -> None:
+        """
+        This functio nwill be called on simulation reset and it should be implemented on derive classes.
+        The purpose of this function is to let the user restore a previously saved state of relevant
+        objects during simulation reset.
+        """
+        pass
