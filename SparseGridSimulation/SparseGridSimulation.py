@@ -281,6 +281,8 @@ class SparseGridSimulationParameterNode:
 
     gridTransformNode: vtkMRMLGridTransformNode
 
+    sparseGridModelNode: vtkMRMLModelNode
+
     gravityMagnitude: int = 1    # Additional parameter for gravity strength
     recordSequence: bool = False # Record sequence?
 
@@ -361,6 +363,7 @@ class SparseGridSimulationWidget(SlicerSofaWidget):
         self.ui.addGravityVectorPushButton.connect("clicked()", self.logic.addGravityVector)
         self.ui.addSparseGridModelNodePushButton.connect("clicked()", self.logic.addSparseGridModelNode)
         self.ui.addGridTransformNodePushButton.connect("clicked()", self.logic.addGridTransformNode)
+        self.ui.resetSimulationPushButton.connect("clicked()", self.logic.resetSimulation)
 
         # Initialize parameter node and GUI bindings
         self.setParameterNode(self.logic.getParameterNode())
@@ -506,18 +509,33 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
         self._simulationRunning = False
         self.getParameterNode().Modified()
 
-    def onModelNodeModified(self, caller, event) -> None:
-        """
-        Updates the model node from SOFA to MRML when modified.
+    def _saveState(self) -> None:
+        self._originalModelPolyData = vtk.vtkPolyData()
+        self._originalModelPolyData.DeepCopy(self._parameterNode.modelNode.GetPolyData())
 
-        Args:
-            caller: The caller object.
-            event: The event triggered.
-        """
-        if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-            self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-        elif self.getParameterNode().modelNode.GetPolyData() is not None:
-            self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+    def _restoreState(self) -> None:
+        self._parameterNode.modelNode.SetAndObservePolyData(self._originalModelPolyData)
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        points = vtk.vtkPoints()
+        unstructuredGrid.SetPoints(points)
+        displacementVTKArray = vtk.vtkFloatArray()
+        displacementVTKArray.SetNumberOfComponents(3)
+        displacementVTKArray.SetName('Displacement')
+        unstructuredGrid.GetPointData().AddArray(displacementVTKArray)
+        self._parameterNode.sparseGridModelNode.SetAndObserveMesh(unstructuredGrid)
+
+    # def onModelNodeModified(self, caller, event) -> None:
+    #     """
+    #     Updates the model node from SOFA to MRML when modified.
+
+    #     Args:
+    #         caller: The caller object.
+    #         event: The event triggered.
+    #     """
+    #     if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+    #         self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
+    #     elif self.getParameterNode().modelNode.GetPolyData() is not None:
+    #         self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addBoundaryROI(self) -> None:
         """

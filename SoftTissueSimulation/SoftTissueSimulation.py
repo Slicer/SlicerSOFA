@@ -414,13 +414,6 @@ class SoftTissueSimulationWidget(SlicerSofaWidget):
         """
         self.logic.simulationStep()
 
-    def _saveState(self) -> None:
-        self._originalModelGrid = vtk.vtkUnstructuredGrid()
-        self._originalModelGrid.DeepCopy(self._parameterNode.modelNode.GetUnstructuredGrid())
-
-    def _restoreState(self) -> None:
-        self._parameterNode.modelNode.SetAndObserveMesh(self._originalModelGrid)
-
 # -----------------------------------------------------------------------------
 # Class: SoftTissueSimulationLogic
 # -----------------------------------------------------------------------------
@@ -481,18 +474,25 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         self._simulationRunning = False
         self.getParameterNode().Modified()
 
-    def onModelNodeModified(self, caller, event) -> None:
-        """
-        Updates the model node from SOFA to MRML when modified.
+    def _saveState(self) -> None:
+        self._originalModelGrid = vtk.vtkUnstructuredGrid()
+        self._originalModelGrid.DeepCopy(self._parameterNode.modelNode.GetUnstructuredGrid())
 
-        Args:
-            caller: The caller object.
-            event: The event triggered.
-        """
-        if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-            self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-        elif self.getParameterNode().modelNode.GetPolyData() is not None:
-            self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
+    def _restoreState(self) -> None:
+        self._parameterNode.modelNode.SetAndObserveMesh(self._originalModelGrid)
+
+    # def onModelNodeModified(self, caller, event) -> None:
+    #     """
+    #     Updates the model node from SOFA to MRML when modified.
+
+    #     Args:
+    #         caller: The caller object.
+    #         event: The event triggered.
+    #     """
+    #     if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
+    #         self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
+    #     elif self.getParameterNode().modelNode.GetPolyData() is not None:
+    #         self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addBoundaryROI(self) -> None:
         """

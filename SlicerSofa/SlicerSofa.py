@@ -280,7 +280,6 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Recursively checks and enables/disables widgets depending on the simulation status
         for child in parentWidget.findChildren(qt.QWidget):
             if child.property('SlicerDisableOnSimulation') is not None:
-                if child.name == 'resetSimulationPushButton':
                 disable = child.property('SlicerDisableOnSimulation')
                 child.setEnabled(
                     (self._parameterNode.isSimulationRunning and not disable) or

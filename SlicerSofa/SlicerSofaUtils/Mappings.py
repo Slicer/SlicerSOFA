@@ -224,6 +224,7 @@ def sofaVonMisesStressToMRMLModelGrid(obj, nodePath) -> None:
     stressArray = slicer.util.arrayFromModelCellData(obj._currentMappingObject, "VonMisesStress")
     stressArray[:] = obj._rootNode[nodePath].vonMisesPerElement.array()
     slicer.util.arrayFromModelCellDataModified(obj._currentMappingObject, "VonMisesStress")
+    obj._currentMappingObject.GetDisplayNode().UpdateScalarRange()
 
 # -----------------------------------------------------------------------------
 # Decorator: RunOnce
