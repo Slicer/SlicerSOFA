@@ -53,7 +53,10 @@ from slicer.parameterNodeWrapper import (
     WithinRange,
 )
 
-from slicer import vtkMRMLScalarVolumeNode
+from slicer import(
+    vtkMRMLNode,
+    vtkMRMLScalarVolumeNode
+)
 
 from SofaEnvironment import *
 
@@ -481,15 +484,21 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         """
         sofaNodeMappers = self._parameterNode.__class__.__sofaNodeMappers__
 
+        #Create a sequence browser node if there is anything to record
+        for fieldName, sofaNodeMapper in sofaNodeMappers.items():
+            if sofaNodeMapper.recordSequence(self._parameterNode):
+                self._sequenceBrowserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation Browser")
+                break
+
         for fieldName, sofaNodeMapper in sofaNodeMappers.items():
             if sofaNodeMapper.recordSequence(self._parameterNode):
                 mrmlNode = getattr(self._parameterNode, fieldName)
-                if mrmlNode is not None:
+                if isinstance(mrmlNode, vtkMRMLNode):
                     sequenceNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceNode', mrmlNode.GetName() + "_Sequence")
-                    browserNode = self._getOrCreateSequenceBrowserNode()
-                    browserNode.AddSynchronizedSequenceNodeID(sequenceNode.GetID())
-                    browserNode.AddProxyNode(mrmlNode, sequenceNode, False)
-                    browserNode.SetRecording(sequenceNode, True)
+                    self._sequenceBrowserNode.SetPlaybackActive(False)
+                    self._sequenceBrowserNode.AddSynchronizedSequenceNodeID(sequenceNode.GetID())
+                    self._sequenceBrowserNode.AddProxyNode(mrmlNode, sequenceNode, False)
+                    self._sequenceBrowserNode.SetRecording(sequenceNode, True)
 
         if hasattr(self, '_sequenceBrowserNode') and self._sequenceBrowserNode:
             self._sequenceBrowserNode.SetRecordingActive(True)
@@ -500,18 +509,6 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         """
         if hasattr(self, '_sequenceBrowserNode') and self._sequenceBrowserNode is not None:
             self._sequenceBrowserNode.SetRecordingActive(False)
-
-    def _getOrCreateSequenceBrowserNode(self):
-        """
-        Retrieves or creates a sequence browser node, used for managing node recording.
-
-        Returns:
-            vtkMRMLSequenceBrowserNode: The sequence browser node.
-        """
-        if not hasattr(self, '_sequenceBrowserNode') or self._sequenceBrowserNode is None:
-            self._sequenceBrowserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation Browser")
-            self._sequenceBrowserNode.SetPlaybackActive(False)
-        return self._sequenceBrowserNode
 
     def __updateSofa__(self) -> None:
         """
