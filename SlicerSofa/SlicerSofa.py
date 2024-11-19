@@ -249,9 +249,44 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic = None
         VTKObservationMixin.__init__(self)  # Needed for parameter node observation
 
+    def setup(self) -> None:
+        """
+        Set up the module widget events when closing scenes and calls parent's setup
+        """
+
+        ScriptedLoadableModuleWidget.setup(self)
+
+        # Setup event connections for scene close events
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
+
+    def onSceneStartClose(self, caller, event) -> None:
+        """
+        Handles the event when the scene starts to close.
+
+        Args:
+            caller: The caller object.
+            event: The event triggered.
+        """
+        if self.logic:
+            self.logic.stopSimulation()
+        self.setParameterNode(None)
+
+    def onSceneEndClose(self, caller, event) -> None:
+        """
+        Handles the event when the scene has closed.
+
+        Args:
+            caller: The caller object.
+            event: The event triggered.
+        """
+        if self.parent.isEntered:
+            self.initializeParameterNode()
+
     def exit(self) -> None:
         """
-        Cleanup GUI connections when the module is exited.
+w
+        iCleanup GUI connections when the module is exited.
         """
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
@@ -316,7 +351,6 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
     def getUi(self, ui):
         return self.ui
-
 
     @abstractmethod
     def CreateScene() -> Sofa.Core.Node:
@@ -584,7 +618,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
 
     def _restoreState(self) -> None:
         """
-        This functio nwill be called on simulation reset and it should be implemented on derive classes.
+        This function will be called on simulation reset and it should be implemented on derive classes.
         The purpose of this function is to let the user restore a previously saved state of relevant
         objects during simulation reset.
         """

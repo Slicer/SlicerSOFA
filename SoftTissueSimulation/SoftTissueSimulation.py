@@ -312,7 +312,8 @@ class SoftTissueSimulationWidget(SlicerSofaWidget):
         """
         Sets up the user interface, logic, and connections.
         """
-        ScriptedLoadableModuleWidget.setup(self)
+
+        super().setup()
 
         # Load the widget interface from a .ui file
         uiWidget = slicer.util.loadUI(self.resourcePath("UI/SoftTissueSimulation.ui"))
@@ -322,10 +323,6 @@ class SoftTissueSimulationWidget(SlicerSofaWidget):
         # Initialize logic for simulation computations
         self.logic = SoftTissueSimulationLogic()
         uiWidget.setMRMLScene(slicer.mrmlScene)
-
-        # Setup event connections for scene close events
-        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
-        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
         # Connect UI buttons to their respective methods
         self.ui.startSimulationPushButton.connect("clicked()", self.startSimulation)
@@ -372,27 +369,6 @@ class SoftTissueSimulationWidget(SlicerSofaWidget):
         parameterNode = self.logic.getParameterNode()
         self.ui.startSimulationPushButton.setEnabled(not parameterNode.isSimulationRunning and parameterNode.modelNode is not None)
         self.ui.stopSimulationPushButton.setEnabled(parameterNode.isSimulationRunning)
-
-    def onSceneStartClose(self, caller, event) -> None:
-        """
-        Handles the event when the scene starts to close.
-
-        Args:
-            caller: The caller object.
-            event: The event triggered.
-        """
-        self.setParameterNode(None)
-
-    def onSceneEndClose(self, caller, event) -> None:
-        """
-        Handles the event when the scene has closed.
-
-        Args:
-            caller: The caller object.
-            event: The event triggered.
-        """
-        if self.parent.isEntered:
-            self.initializeParameterNode()
 
     def startSimulation(self) -> None:
         """
