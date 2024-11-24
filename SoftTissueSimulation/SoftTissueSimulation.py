@@ -52,7 +52,6 @@ from SlicerSofa import (
     SlicerSofaWidget,
     SlicerSofaLogic,
     SofaParameterNodeWrapper,
-    NodeMapper,
 )
 
 from SlicerSofaUtils.Mappings import (
@@ -63,7 +62,6 @@ from SlicerSofaUtils.Mappings import (
     sofaVonMisesStressToMRMLModelGrid,
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
-    RunOnce
 )
 
 # -----------------------------------------------------------------------------
@@ -180,54 +178,12 @@ class SoftTissueSimulationParameterNode:
     Parameter class for the soft tissue simulation.
     Defines nodes to map between SOFA and MRML scenes with recording options.
     """
-
-    # Model node with SOFA mapping and sequence recording
-    modelNode: vtkMRMLModelNode = \
-        NodeMapper(
-            sofaMapping =   lambda self: RunOnce(mrmlModelGridToSofaTetrahedronTopologyContainer)(self, "FEM.Container"),
-            mrmlMapping = ( lambda self: sofaMechanicalObjectToMRMLModelGrid(self, "FEM.Collision.dofs"),
-                            lambda self: sofaVonMisesStressToMRMLModelGrid(self, "FEM.FEM") ),
-            recordSequence=lambda self: self.recordSequence
-        )
-
-    # Fiducial node for tracking a moving point, with sequence recording
-    movingPointNode: vtkMRMLMarkupsFiducialNode = \
-        NodeMapper(
-            sofaMapping = lambda self: mrmlMarkupsFiducialToSofaPointer(self, "AttachPoint.mouseInteractor"),
-            recordSequence = lambda self: self.recordSequence
-        )
-
-    # Boundary ROI node with sequence recording
-    boundaryROI: vtkMRMLMarkupsROINode = \
-        NodeMapper(
-            sofaMapping=lambda self: mrmlMarkupsROIToSofaBoxROI(self,"FEM.FixedROI.BoxROI"),
-            recordSequence=lambda self: self.recordSequence
-        )
-
-    # Gravity vector node with sequence recording
-    gravityVector: vtkMRMLMarkupsLineNode = \
-        NodeMapper(
-            sofaMapping=lambda self: self.mrmlMarkupsLineToGravityVector(""),
-            recordSequence=lambda self: self.recordSequence
-        )
-
-    gravityMagnitude: int = 1    # Additional parameter for gravity strength
-    recordSequence: bool = False # Record sequence?
-
-    def mrmlMarkupsLineToGravityVector(self, nodePath):
-        """
-        Maps a line node as a gravity vector in the SOFA node.
-
-        Args:
-            sofaNode: The corresponding SOFA node to update.
-        """
-        if self.gravityVector is None:
-            return
-
-        gravityVector = arrayVectorFromMarkupsLinePoints(self.gravityVector)
-        magnitude = np.linalg.norm(np.array(gravityVector))
-        normalizedGravityVector = gravityVector / magnitude if magnitude != 0 else gravityVector
-        self._rootNode.gravity = normalizedGravityVector * self.gravityMagnitude
+    modelNode: vtkMRMLModelNode                    # Model node with SOFA mapping and sequence recording
+    movingPointNode: vtkMRMLMarkupsFiducialNode    # Fiducial node for tracking a moving point, with sequence recording
+    boundaryROI: vtkMRMLMarkupsROINode             # Boundary ROI node with sequence recording
+    gravityVector: vtkMRMLMarkupsLineNode          # Gravity vector node with sequence recording
+    gravityMagnitude: int = 1                      # Additional parameter for gravity strength
+    recordSequence: bool = False                   # Record sequence?
 
 # -----------------------------------------------------------------------------
 # Class: SoftTissueSimulation
@@ -262,31 +218,31 @@ class SoftTissueSimulation(ScriptedLoadableModule):
         self.parent.acknowledgementText = _("""This project was funded by Oslo University Hospital.""")
 
         # Connect additional initialization after application startup
-        slicer.app.connect("startupCompleted()", registerSampleData)
+        slicer.app.connect("startupCompleted()", self.registerSampleData)
 
-# -----------------------------------------------------------------------------
-# Function: registerSampleData
-# -----------------------------------------------------------------------------
-def registerSampleData():
-    """
-    Registers sample data for the module, allowing users to load predefined datasets.
-    """
-    import SampleData
+    # -----------------------------------------------------------------------------
+    # Function: registerSampleData
+    # -----------------------------------------------------------------------------
+    def registerSampleData(self):
+        """
+        Registers sample data for the module, allowing users to load predefined datasets.
+        """
+        import SampleData
 
-    iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
-    sofaDataURL = 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
+        iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
+        sofaDataURL = 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
 
-    # Registers a sample lung model data set for the module
-    SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        category='SOFA',
-        sampleName='RightLungLowTetra',
-        thumbnailFileName=os.path.join(iconsPath, 'RightLungLowTetra.png'),
-        uris=sofaDataURL + 'SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
-        fileNames='RightLungLowTetra.vtk',
-        checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
-        nodeNames='RightLung',
-        loadFileType='ModelFile'
-    )
+        # Registers a sample lung model data set for the module
+        SampleData.SampleDataLogic.registerCustomSampleDataSource(
+            category='SOFA',
+            sampleName='RightLungLowTetra',
+            thumbnailFileName=os.path.join(iconsPath, 'RightLungLowTetra.png'),
+            uris=sofaDataURL + 'SHA256/a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+            fileNames='RightLungLowTetra.vtk',
+            checksums='SHA256:a35ce6ca2ae565fe039010eca3bb23f5ef5f5de518b1c10257f12cb7ead05c5d',
+            nodeNames='RightLung',
+            loadFileType='ModelFile'
+        )
 
 # -----------------------------------------------------------------------------
 # Class: SoftTissueSimulationWidget
@@ -437,6 +393,8 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         """
         Sets up the scene and starts the simulation.
         """
+        # TODO: The order here is important. Maybe move part to SlicerSOFA to enforce correct order
+        self.setupMappings()
         self.setupScene(self.getParameterNode())
         super().startSimulation()
         self._simulationRunning = True
@@ -450,25 +408,48 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         self._simulationRunning = False
         self.getParameterNode().Modified()
 
+    def setupMappings(self):
+        """
+        Registers mappings between MRML and SOFA nodes.
+        """
+        pn = self.getParameterNode()
+
+        if pn is not None:
+            # Register MRML-to-SOFA mappings
+            self.registerMRMLToSOFAMapping('modelNode', 'FEM.Container', mrmlModelGridToSofaTetrahedronTopologyContainer, runOnce=True)
+            self.registerMRMLToSOFAMapping('movingPointNode', 'AttachPoint.mouseInteractor', mrmlMarkupsFiducialToSofaPointer)
+            self.registerMRMLToSOFAMapping('boundaryROI', 'FEM.FixedROI.BoxROI', mrmlMarkupsROIToSofaBoxROI)
+            self.registerMRMLToSOFAMapping('gravityVector', '', self.mrmlMarkupsLineToGravityVector)
+
+            # Register SOFA-to-MRML mappings
+            self.registerSOFAToMRMLMapping('modelNode', 'FEM.Collision.dofs', sofaMechanicalObjectToMRMLModelGrid)
+            self.registerSOFAToMRMLMapping('modelNode', 'FEM.FEM', sofaVonMisesStressToMRMLModelGrid)
+
+            # Set sequence recording flags
+            self.setRecordSequenceFlag('modelNode', lambda: pn.recordSequence)
+            self.setRecordSequenceFlag('movingPointNode', lambda: pn.recordSequence)
+            self.setRecordSequenceFlag('boundaryROI', lambda: pn.recordSequence)
+            self.setRecordSequenceFlag('gravityVector', lambda: pn.recordSequence)
+
+    def mrmlMarkupsLineToGravityVector(self, gravityVectorNode, sofaRootNode):
+        """
+        Maps the gravity vector from MRML to the SOFA root node.
+        """
+        if gravityVectorNode is None:
+            return
+        gravityVector = arrayVectorFromMarkupsLinePoints(gravityVectorNode)
+        magnitude = np.linalg.norm(np.array(gravityVector))
+        normalizedGravityVector = gravityVector / magnitude if magnitude != 0 else gravityVector
+        sofaRootNode.gravity = normalizedGravityVector * self.getParameterNode().gravityMagnitude
+
+
+
     def _saveState(self) -> None:
         self._originalModelGrid = vtk.vtkUnstructuredGrid()
         self._originalModelGrid.DeepCopy(self._parameterNode.modelNode.GetUnstructuredGrid())
 
     def _restoreState(self) -> None:
         self._parameterNode.modelNode.SetAndObserveMesh(self._originalModelGrid)
-
-    # def onModelNodeModified(self, caller, event) -> None:
-    #     """
-    #     Updates the model node from SOFA to MRML when modified.
-
-    #     Args:
-    #         caller: The caller object.
-    #         event: The event triggered.
-    #     """
-    #     if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-    #         self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-    #     elif self.getParameterNode().modelNode.GetPolyData() is not None:
-    #         self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
 
     def addBoundaryROI(self) -> None:
         """

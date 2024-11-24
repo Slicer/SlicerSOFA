@@ -122,18 +122,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="gravityMagnitudeSpinBox">
-         <property name="minimum">
-          <number>0</number>
-         </property>
+        <widget class="QDoubleSpinBox" name="gravityMagnitudeDoubleSpinBox">
          <property name="maximum">
-          <number>9999</number>
-         </property>
-         <property name="stepType">
-          <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
-         </property>
-         <property name="value">
-          <number>0</number>
+          <double>1000000.000000000000000</double>
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>gravityMagnitude</string>
@@ -567,14 +558,14 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_4">
        <item>
-        <widget class="QLabel" name="currentStepLabel">
+        <widget class="QLabel" name="totalStepsLabel">
          <property name="text">
-          <string>Current Step:</string>
+          <string>Steps</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="currentStepSpinBox">
+        <widget class="QSpinBox" name="totalStepsSpinBox">
          <property name="maximum">
           <number>999999999</number>
          </property>
@@ -582,7 +573,7 @@
           <number>0</number>
          </property>
          <property name="SlicerParameterName" stdset="0">
-          <string>currentStep</string>
+          <string>totalSteps</string>
          </property>
          <property name="SlicerDisableOnSimulation" stdset="0">
           <bool>true</bool>

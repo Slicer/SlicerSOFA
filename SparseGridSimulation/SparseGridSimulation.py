@@ -33,60 +33,40 @@ import logging
 import os
 import qt
 import vtk
-import random
-import time
-import uuid
 import numpy as np
 
 import slicer
-from slicer.i18n import tr as _
-from slicer.i18n import translate
 from slicer.ScriptedLoadableModule import *
-from slicer import (
-    vtkMRMLGridTransformNode,
-    vtkMRMLMarkupsFiducialNode,
-    vtkMRMLMarkupsLineNode,
-    vtkMRMLMarkupsNode,
-    vtkMRMLMarkupsROINode,
-    vtkMRMLModelNode,
-)
+from slicer.parameterNodeWrapper import parameterPack
 
-from SofaEnvironment import Sofa
+import Sofa
+
 from SlicerSofa import (
     SlicerSofaWidget,
     SlicerSofaLogic,
     SofaParameterNodeWrapper,
-    NodeMapper,
 )
-
-from slicer.parameterNodeWrapper import parameterPack
 
 from SlicerSofaUtils.Mappings import (
     mrmlModelPolyToSofaTriangleTopologyContainer,
-    mrmlMarkupsFiducialToSofaPointer,
     mrmlMarkupsROIToSofaBoxROI,
-    sofaMechanicalObjectToMRMLModelPoly,
     sofaMechanicalObjectToMRMLModelGrid,
+    sofaMechanicalObjectToMRMLModelPoly,
     sofaSparseGridTopologyToMRMLModelGrid,
-    sofaVonMisesStressToMRMLModelGrid,
-    arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
-    RunOnce
 )
 
-# -----------------------------------------------------------------------------
-# Class: SparseGridSimulation
-# -----------------------------------------------------------------------------
+#
+# SparseGridSimulation
+#
 
 class SparseGridSimulation(ScriptedLoadableModule):
-    """Uses ScriptedLoadableModule base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
-    """
+    """Uses ScriptedLoadableModule base class."""
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("Sparse Grid Simulation")
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "Examples")]
+        self.parent.title = "Sparse Grid Simulation"
+        self.parent.categories = ["Examples"]
         self.parent.dependencies = []
         self.parent.contributors = [
             "Rafael Palomar (Oslo University Hospital)",
@@ -97,64 +77,54 @@ class SparseGridSimulation(ScriptedLoadableModule):
             "Jean-Christophe Fillion-Robin (Kitware, Inc.)",
             "Nazim Haouchine (Harvard Medical School / Brigham and Women's Hospital)"
         ]
-        self.parent.helpText = _("""
-        This is a Slicer-SOFA example module. The module allows to create a simulation based on sparse grid topology (which does not require tetrahedral meshes). In addition the module allows the application of grid transforms derived from the simulation, to medical images (e.g., segmentations and volumes).
-        """)
-        self.parent.acknowledgementText = _("""This project was funded by Oslo University Hospital.""")
+        self.parent.helpText = """
+        This is a Slicer-SOFA example module. The module allows creating a simulation based on sparse grid topology (which does not require tetrahedral meshes). In addition, the module allows the application of grid transforms derived from the simulation to medical images (e.g., segmentations and volumes).
+        """
+        self.parent.acknowledgementText = """
+        This project was funded by Oslo University Hospital.
+        """
 
-        # Additional initialization step after application startup is complete
-        slicer.app.connect("startupCompleted()", registerSampleData)
+        # Connect additional initialization after application startup
+        slicer.app.connect("startupCompleted()", self.registerSampleData)
 
+    def registerSampleData(self):
+        """Register sample data sets in the Sample Data module."""
+
+        import SampleData
+
+        iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
+
+        sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
+
+        # To ensure that the source code repository remains small (can be downloaded and installed quickly)
+        # it is recommended to store data sets that are larger than a few MB in a Github release.
+
+        # Right lung low poly tetrahedral mesh dataset
+        SampleData.SampleDataLogic.registerCustomSampleDataSource(
+            category='SOFA',
+            sampleName='LiverSimulationScene',
+            thumbnailFileName=os.path.join(iconsPath, 'LiverSimulationScene.png'),
+            uris=sofaDataURL+ 'SHA256/19b38403d6ef301f2b049e3f32134962461b74dbccf31278938c2f7986371e89',
+            fileNames='LiverSimulationScene.mrb',
+            checksums='SHA256:19b38403d6ef301f2b049e3f32134962461b74dbccf31278938c2f7986371e89',
+            nodeNames='LiverSimulationScene',
+            loadFileType='SceneFile',
+            loadFiles=True
+        )
 
 #
-# Register sample data sets in Sample Data module
+# CreateScene Function
 #
 
-SOFA_DATA_URL = 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
-
-def registerSampleData():
-    """Register sample data sets in the Sample Data module."""
-
-    import SampleData
-
-    iconsPath = os.path.join(os.path.dirname(__file__), "Resources/Icons")
-
-    sofaDataURL= 'https://github.com/rafaelpalomar/SlicerSofaTestingData/releases/download/'
-
-    # To ensure that the source code repository remains small (can be downloaded and installed quickly)
-    # it is recommended to store data sets that are larger than a few MB in a Github release.
-
-    # Right lung low poly tetrahedral mesh dataset
-    SampleData.SampleDataLogic.registerCustomSampleDataSource(
-        category='SOFA',
-        sampleName='LiverSimulationScene',
-        thumbnailFileName=os.path.join(iconsPath, 'LiverSimulationScene.png'),
-        uris=sofaDataURL+ 'SHA256/19b38403d6ef301f2b049e3f32134962461b74dbccf31278938c2f7986371e89',
-        fileNames='LiverSimulationScene.mrb',
-        checksums='SHA256:19b38403d6ef301f2b049e3f32134962461b74dbccf31278938c2f7986371e89',
-        nodeNames='LiverSimulationScene',
-        loadFileType='SceneFile',
-        loadFiles=True
-    )
-
-
-# -----------------------------------------------------------------------------
-# Function: CreateScene
-# -----------------------------------------------------------------------------
 def CreateScene() -> Sofa.Core.Node:
     """
     Creates the main SOFA scene with required components for simulation.
-
-    Returns:
-        Sofa.Core.Node: The root node of the SOFA simulation scene.
     """
-    from stlib3.scene import MainHeader, ContactHeader
-    from stlib3.solver import DefaultSolver
+    import Sofa.Core
+    from stlib3.scene import MainHeader
     from stlib3.physics.deformable import ElasticMaterialObject
-    from stlib3.physics.rigid import Floor
-    from splib3.numerics import Vec3
 
-    rootNode = Sofa.Core.Node()
+    rootNode = Sofa.Core.Node("root")
     MainHeader(rootNode, plugins=[
         "Sofa.Component.IO.Mesh",
         "Sofa.Component.LinearSolver.Direct",
@@ -196,10 +166,10 @@ def CreateScene() -> Sofa.Core.Node:
     rootNode.addObject('MinProximityIntersection', name="Proximity", alarmDistance=0.005, contactDistance=0.003)
     rootNode.addObject('DefaultContactManager', name="Response", response="PenalityContactForceField")
 
-    inputNode = rootNode.addChild('InputSurfaceNode', name='InputSurfaceNode')
-    container = inputNode.addObject('TriangleSetTopologyContainer', name='Container')
+    inputNode = rootNode.addChild('InputSurfaceNode')
+    inputNode.addObject('TriangleSetTopologyContainer', name='Container')
 
-    fem = rootNode.addChild('FEM', name='FEM')
+    fem = rootNode.addChild('FEM')
     fem.addObject('SparseGridTopology', name='SparseGridTopology', n=[20, 20, 20], position="@../InputSurfaceNode/Container.position")
     fem.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
     fem.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
@@ -207,7 +177,7 @@ def CreateScene() -> Sofa.Core.Node:
     fem.addObject('UniformMass', totalMass=0.5)
     fem.addObject('ParallelHexahedronFEMForceField', name="FEMForce", youngModulus=5, poissonRatio=0.40, method="large")
 
-    surf = fem.addChild('Surf', name='Surf')
+    surf = fem.addChild('Surf')
     surf.addObject('MeshTopology', position="@../../InputSurfaceNode/Container.position")
     surf.addObject('MechanicalObject', name='MechanicalObject', position="@../../InputSurfaceNode/Container.position")
     surf.addObject('TriangleCollisionModel', selfCollision=True)
@@ -223,151 +193,84 @@ def CreateScene() -> Sofa.Core.Node:
 
     return rootNode
 
-# -----------------------------------------------------------------------------
-# ParameterPack Class: Grid dimensions
-# -----------------------------------------------------------------------------
+#
+# ParameterPack Class: GridDimensions
+#
+
 @parameterPack
 class GridDimensions:
-  x: int
-  y: int
-  z: int
+    x: int
+    y: int
+    z: int
 
-# -----------------------------------------------------------------------------
-# Class: SparseGridSimulationParameterNode
-# -----------------------------------------------------------------------------
+#
+# SparseGridSimulationParameterNode
+#
+
 @SofaParameterNodeWrapper
 class SparseGridSimulationParameterNode:
     """
     Parameter class for the sparse grid simulation.
-    Defines nodes to map between SOFA and MRML scenes with recording options.
+    Holds parameters but not mappings.
     """
+    # MRML nodes
+    modelNode: slicer.vtkMRMLModelNode
+    boundaryROI: slicer.vtkMRMLMarkupsROINode
+    gravityVector: slicer.vtkMRMLMarkupsLineNode
+    sparseGridModelNode: slicer.vtkMRMLModelNode
+    gridTransformNode: slicer.vtkMRMLGridTransformNode
 
-    # Model node with SOFA mapping and sequence recording
-    modelNode: vtkMRMLModelNode = \
-        NodeMapper(
-            sofaMapping = lambda self: RunOnce(mrmlModelPolyToSofaTriangleTopologyContainer)(self, "InputSurfaceNode.Container"),
-            mrmlMapping = lambda self: sofaMechanicalObjectToMRMLModelPoly(self, "FEM.Surf.MechanicalObject"),
-            recordSequence=lambda self: self.recordSequence
-        )
+    # Simulation parameters
+    gravityMagnitude: float = 1.0  # Gravity strength
+    recordSequence: bool = False   # Record sequence flag
+    sparseGridDimensions: GridDimensions = GridDimensions(x=20, y=20, z=20)
 
-    # SparseGrid Model node with SOFA mapping and sequence recording
-    sparseGridModelNode: vtkMRMLModelNode = \
-        NodeMapper(
-            mrmlMapping = ( lambda self: sofaMechanicalObjectToMRMLModelGrid(self, "FEM.MO"),
-                            lambda self: RunOnce(sofaSparseGridTopologyToMRMLModelGrid)(self, "FEM.SparseGridTopology"),
-                            lambda self: self.sofaDisplacementToModelGridArray("FEM.MO")),
-            recordSequence=lambda self: self.recordSequence
-        )
+#
+# SparseGridSimulationWidget
+#
 
-    # Boundary ROI node with sequence recording
-    boundaryROI: vtkMRMLMarkupsROINode = \
-        NodeMapper(
-            sofaMapping=lambda self: mrmlMarkupsROIToSofaBoxROI(self,"FEM.FixedROI"),
-            recordSequence=lambda self: self.recordSequence
-        )
-
-    # Gravity vector node with sequence recording
-    gravityVector: vtkMRMLMarkupsLineNode = \
-        NodeMapper(
-            sofaMapping=lambda self: self.mrmlMarkupsLineToSofaGravityVector(""),
-            recordSequence=lambda self: self.recordSequence
-        )
-
-    sparseGridDimensions: GridDimensions = \
-        NodeMapper(
-            sofaMapping=lambda self: self.gridDimensionsToSofaSparseGridTopology("FEM.SparseGridTopology"),
-            recordSequence=lambda self: self.recordSequence
-        )
-
-    gridTransformNode: vtkMRMLGridTransformNode
-
-    sparseGridModelNode: vtkMRMLModelNode
-
-    gravityMagnitude: int = 1    # Additional parameter for gravity strength
-    recordSequence: bool = False # Record sequence?
-
-    def mrmlMarkupsLineToSofaGravityVector(self, nodePath):
-        """
-        Maps a line node as a gravity vector in the SOFA node.
-
-        Args:
-            sofaNode: The corresponding SOFA node to update.
-        """
-        if self.gravityVector is None:
-            return
-
-        gravityVector = arrayVectorFromMarkupsLinePoints(self.gravityVector)
-        magnitude = np.linalg.norm(np.array(gravityVector))
-        normalizedGravityVector = gravityVector / magnitude if magnitude != 0 else gravityVector
-        self._rootNode.gravity = normalizedGravityVector * self.gravityMagnitude
-
-    def gridDimensionsToSofaSparseGridTopology(self, nodePath):
-        """
-        Maps thee individual components packed in GridDimensions to an array
-        of dimensions
-
-        Args:
-            sofaNode: The corresponding SOFA node to update.
-        """
-        self._rootNode[nodePath].n = [self.sparseGridDimensions.x, self.sparseGridDimensions.y, self.sparseGridDimensions.z]
-
-    def sofaDisplacementToModelGridArray(self, nodePath) -> None:
-        self._currentMappingObject.GetUnstructuredGrid().GetPointData().GetArray("Displacement").SetNumberOfTuples(int(self._rootNode[nodePath].position.size/3))
-        displacementArray = slicer.util.arrayFromModelPointData(self._currentMappingObject, "Displacement")
-        displacementArray[:] = (self._rootNode[nodePath].position - self._rootNode[nodePath].rest_position)
-        slicer.util.arrayFromModelPointsModified(self._currentMappingObject)
-
-# -----------------------------------------------------------------------------
-# Class: SparseGridSimulationWidget
-# -----------------------------------------------------------------------------
 class SparseGridSimulationWidget(SlicerSofaWidget):
     """
-    UI widget for the Soft Tissue Simulation module.
+    UI widget for the Sparse Grid Simulation module.
     Manages user interactions and GUI elements.
     """
-    def __init__(self, parent=None) -> None:
-        """
-        Initialize the widget and set up observation mixin.
 
-        Args:
-            parent: The parent widget.
-        """
+    def __init__(self, parent=None):
         SlicerSofaWidget.__init__(self, parent)
-        self.logic = None
-        self.timer = qt.QTimer(parent)
+        self.logic = SparseGridSimulationLogic()
+        self.timer = qt.QTimer()
         self.timer.timeout.connect(self.simulationStep)
 
-    def setup(self) -> None:
+    def setup(self):
         """
         Sets up the user interface, logic, and connections.
         """
         super().setup()
 
-        # Load the widget interface from a .ui file
+        # Load the UI from .ui file
         uiWidget = slicer.util.loadUI(self.resourcePath("UI/SparseGridSimulation.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
-
-        # Initialize logic for simulation computations
-        self.logic = SparseGridSimulationLogic()
         uiWidget.setMRMLScene(slicer.mrmlScene)
 
-        # Connect UI buttons to their respective methods
-        self.ui.startSimulationPushButton.connect("clicked()", self.startSimulation)
-        self.ui.stopSimulationPushButton.connect("clicked()", self.stopSimulation)
-        self.ui.addBoundaryROIPushButton.connect("clicked()", self.logic.addBoundaryROI)
-        self.ui.addGravityVectorPushButton.connect("clicked()", self.logic.addGravityVector)
-        self.ui.addSparseGridModelNodePushButton.connect("clicked()", self.logic.addSparseGridModelNode)
-        self.ui.addGridTransformNodePushButton.connect("clicked()", self.logic.addGridTransformNode)
-        self.ui.resetSimulationPushButton.connect("clicked()", self.logic.resetSimulation)
+        # Set logic's UI reference
+        self.logic.setUi(self)
+
+        # connect UI buttons to logic functions
+        self.ui.startSimulationPushButton.clicked.connect(self.startSimulation)
+        self.ui.stopSimulationPushButton.clicked.connect(self.stopSimulation)
+        self.ui.addBoundaryROIPushButton.clicked.connect(self.logic.addBoundaryROI)
+        self.ui.addGravityVectorPushButton.clicked.connect(self.logic.addGravityVector)
+        self.ui.addSparseGridModelNodePushButton.clicked.connect(self.logic.addSparseGridModelNode)
+        self.ui.addGridTransformNodePushButton.clicked.connect(self.logic.addGridTransformNode)
+        self.ui.resetSimulationPushButton.clicked.connect(self.logic.resetSimulation)
 
         # Initialize parameter node and GUI bindings
         self.setParameterNode(self.logic.getParameterNode())
         self.initializeParameterNode()
         self.logic.getParameterNode().AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationGUI)
-        self.logic.setUi(self)
 
-    def cleanup(self) -> None:
+    def cleanup(self):
         """
         Cleanup when the module widget is destroyed.
         Stops timers, simulation, and removes observers.
@@ -377,27 +280,21 @@ class SparseGridSimulationWidget(SlicerSofaWidget):
         self.logic.clean()
         self.removeObservers()
 
-    def initializeParameterNode(self) -> None:
+    def initializeParameterNode(self):
         """
         Initializes and sets the parameter node in logic.
         """
-        if self.logic:
-            self.setParameterNode(self.logic.getParameterNode())
-            self.logic.resetParameterNode()
-        else:
-            logging.debug("Could not initialize the parameter node. No logic found")
+        self.setParameterNode(self.logic.getParameterNode())
+        self.logic.resetParameterNode()
 
     def updateSimulationGUI(self, caller, event):
         """
         Updates the GUI based on the simulation state.
-
-        Args:
-            caller: The caller object.
-            event: The event triggered.
         """
         parameterNode = self.logic.getParameterNode()
-        self.ui.startSimulationPushButton.setEnabled(not parameterNode.isSimulationRunning and parameterNode.modelNode is not None)
-        self.ui.stopSimulationPushButton.setEnabled(parameterNode.isSimulationRunning)
+        isRunning = self.logic.isSimulationRunning()
+        self.ui.startSimulationPushButton.setEnabled(not isRunning and parameterNode.modelNode is not None)
+        self.ui.stopSimulationPushButton.setEnabled(isRunning)
 
     def startSimulation(self):
         """
@@ -419,21 +316,21 @@ class SparseGridSimulationWidget(SlicerSofaWidget):
         """
         self.logic.simulationStep()
 
-# -----------------------------------------------------------------------------
-# Class: SparseGridSimulationLogic
-# -----------------------------------------------------------------------------
+#
+# SparseGridSimulationLogic
+#
+
 class SparseGridSimulationLogic(SlicerSofaLogic):
     """
-    Logic class for the Soft Tissue Simulation.
+    Logic class for the Sparse Grid Simulation.
     Handles scene setup, parameter node management, and simulation steps.
     """
-    def __init__(self) -> None:
-        """
-        Initialize the logic with the SOFA scene.
-        """
+
+    def __init__(self):
         super().__init__()
         self._rootNode = CreateScene()
         self._parameterNode = None
+        self._simulationRunning = False
 
     def CreateScene(self):
         return CreateScene()
@@ -441,9 +338,6 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
     def getParameterNode(self):
         """
         Retrieves or creates a wrapped parameter node.
-
-        Returns:
-            SparseGridSimulationParameterNode: The parameter node for the simulation.
         """
         if self._parameterNode is None:
             self._parameterNode = SparseGridSimulationParameterNode(super().getParameterNode())
@@ -453,30 +347,35 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
         """
         Resets simulation parameters in the parameter node to default values.
         """
-        if self.getParameterNode() is not None:
-            self.getParameterNode().modelNode = None
-            self.getParameterNode().boundaryROI = None
-            self.getParameterNode().gravityVector = None
-            self.getParameterNode().movingPointNode = None
-            self.getParameterNode().dt = 0.01
-            self.getParameterNode().currentStep = 0
-            self.getParameterNode().totalSteps = -1
+        if self._parameterNode:
+            self._parameterNode.modelNode = None
+            self._parameterNode.boundaryROI = None
+            self._parameterNode.gravityVector = None
+            self._parameterNode.sparseGridModelNode = None
+            self._parameterNode.gridTransformNode = None
+            self._parameterNode.sparseGridDimensions = GridDimensions(x=10, y=10, z=10)
+            self._parameterNode.gravityMagnitude = 1.0
+            self._parameterNode.recordSequence = False
 
-    def startSimulation(self) -> None:
+    def startSimulation(self):
         """
         Sets up the scene and starts the simulation.
         """
+        self.setupMappings()
         self.setupScene(self.getParameterNode())
         super().startSimulation()
         self._simulationRunning = True
         self.getParameterNode().Modified()
         self._createGridTransformPipeline()
 
-    def simulationStep(self) -> None:
+    def simulationStep(self):
+        """
+        Performs a simulation step and updates the MRML nodes.
+        """
         super().simulationStep()
         self._updateProbingImage()
 
-    def stopSimulation(self) -> None:
+    def stopSimulation(self):
         """
         Stops the simulation.
         """
@@ -484,122 +383,138 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
         self._simulationRunning = False
         self.getParameterNode().Modified()
 
-    def _saveState(self) -> None:
-        self._originalModelPolyData = vtk.vtkPolyData()
-        self._originalModelPolyData.DeepCopy(self._parameterNode.modelNode.GetPolyData())
+    def isSimulationRunning(self):
+        """
+        Returns whether the simulation is currently running.
+        """
+        return self._simulationRunning
 
-    def _restoreState(self) -> None:
-        self._parameterNode.modelNode.SetAndObservePolyData(self._originalModelPolyData)
-        unstructuredGrid = vtk.vtkUnstructuredGrid()
-        points = vtk.vtkPoints()
-        unstructuredGrid.SetPoints(points)
-        displacementVTKArray = vtk.vtkFloatArray()
-        displacementVTKArray.SetNumberOfComponents(3)
-        displacementVTKArray.SetName('Displacement')
-        unstructuredGrid.GetPointData().AddArray(displacementVTKArray)
-        self._parameterNode.sparseGridModelNode.SetAndObserveMesh(unstructuredGrid)
-
-    # def onModelNodeModified(self, caller, event) -> None:
-    #     """
-    #     Updates the model node from SOFA to MRML when modified.
-
-    #     Args:
-    #         caller: The caller object.
-    #         event: The event triggered.
-    #     """
-    #     if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-    #         self.getParameterNode().modelNode.GetUnstructuredGrid().SetPoints(caller.GetPolyData().GetPoints())
-    #     elif self.getParameterNode().modelNode.GetPolyData() is not None:
-    #         self.getParameterNode().modelNode.GetPolyData().SetPoints(caller.GetPolyData().GetPoints())
-
-    def addBoundaryROI(self) -> None:
+    def addBoundaryROI(self):
         """
         Adds a boundary Region of Interest (ROI) based on the model's bounds.
         """
         roiNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
-        mesh = None
-        bounds = None
+        modelNode = self.getParameterNode().modelNode
 
-        # Determine the mesh type and retrieve bounds
-        if self.getParameterNode().modelNode is not None:
-            if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-                mesh = self.getParameterNode().modelNode.GetUnstructuredGrid()
-            elif self.getParameterNode().modelNode.GetPolyData() is not None:
-                mesh = self.getParameterNode().modelNode.GetPolyData()
+        if modelNode and modelNode.GetPolyData():
+            bounds = modelNode.GetPolyData().GetBounds()
+            center = [(bounds[0] + bounds[1]) / 2.0,
+                      (bounds[2] + bounds[3]) / 2.0,
+                      (bounds[4] + bounds[5]) / 2.0]
+            size = [abs(bounds[1] - bounds[0]) / 2.0,
+                    abs(bounds[3] - bounds[2]) / 2.0,
+                    abs(bounds[5] - bounds[4]) / 2.0]
+            roiNode.SetCenter(center)
+            roiNode.SetSize([s * 2 for s in size])
 
-        # If mesh is available, calculate the bounds and set ROI
-        if mesh is not None:
-            bounds = mesh.GetBounds()
-            center = [
-                (bounds[0] + bounds[1]) / 2.0,
-                (bounds[2] + bounds[3]) / 2.0,
-                (bounds[4] + bounds[5]) / 2.0
-            ]
-            size = [
-                abs(bounds[1] - bounds[0]) / 2.0,
-                abs(bounds[3] - bounds[2]) / 2.0,
-                abs(bounds[5] - bounds[4]) / 2.0
-            ]
-            roiNode.SetXYZ(center)
-            roiNode.SetRadiusXYZ(size[0], size[1], size[2])
-
-        # Assign the ROI node to the parameter node
         self.getParameterNode().boundaryROI = roiNode
 
-    def addSparseGridModelNode(self) -> None:
+    def addSparseGridModelNode(self):
         """
-        Adds a model node to hold the sparse grid from SOFA
+        Adds a model node to hold the sparse grid from SOFA.
         """
-        sparseGridModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode')
-        sparseGridModelNode.SetName("Sparse Grid Model")
+        sparseGridModelNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLModelNode', "Sparse Grid Model")
         sparseGridModelNode.CreateDefaultDisplayNodes()
+        sparseGridModelNode.GetDisplayNode().SetVisibility(True)
+
+        # Initialize the unstructured grid with displacement array
         unstructuredGrid = vtk.vtkUnstructuredGrid()
         points = vtk.vtkPoints()
         unstructuredGrid.SetPoints(points)
-        displacementVTKArray = vtk.vtkFloatArray()
-        displacementVTKArray.SetNumberOfComponents(3)
-        displacementVTKArray.SetName('Displacement')
-        unstructuredGrid.GetPointData().AddArray(displacementVTKArray)
+        displacementArray = vtk.vtkFloatArray()
+        displacementArray.SetNumberOfComponents(3)
+        displacementArray.SetName('Displacement')
+        unstructuredGrid.GetPointData().AddArray(displacementArray)
         sparseGridModelNode.SetAndObserveMesh(unstructuredGrid)
-        self._parameterNode.sparseGridModelNode = sparseGridModelNode
 
-    def addGravityVector(self) -> None:
+        self.getParameterNode().sparseGridModelNode = sparseGridModelNode
+
+    def addGravityVector(self):
         """
         Adds a gravity vector as a line in the scene.
         """
-        gravityVector = slicer.vtkMRMLMarkupsLineNode()
-        gravityVector.SetName("Gravity")
-        mesh = None
+        gravityVector = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', "Gravity")
+        gravityVector.CreateDefaultDisplayNodes()
+        modelNode = self.getParameterNode().modelNode
 
-        # Determine the mesh type and retrieve bounds
-        if self.getParameterNode().modelNode is not None:
-            if self.getParameterNode().modelNode.GetUnstructuredGrid() is not None:
-                mesh = self.getParameterNode().modelNode.GetUnstructuredGrid()
-            elif self.getParameterNode().modelNode.GetPolyData() is not None:
-                mesh = self.getParameterNode().modelNode.GetPolyData()
+        if modelNode and modelNode.GetPolyData():
+            bounds = modelNode.GetPolyData().GetBounds()
+            center = [(bounds[0] + bounds[1]) / 2.0,
+                      (bounds[2] + bounds[3]) / 2.0,
+                      (bounds[4] + bounds[5]) / 2.0]
+            startPoint = [center[0], center[1], center[2]]
+            endPoint = [center[0], center[1] - 10, center[2]]  # Example gravity vector
 
-        # If mesh is available, calculate the gravity vector based on bounds
-        if mesh is not None:
-            bounds = mesh.GetBounds()
-            center = [
-                (bounds[0] + bounds[1]) / 2.0,
-                (bounds[2] + bounds[3]) / 2.0,
-                (bounds[4] + bounds[5]) / 2.0
-            ]
-            startPoint = [center[0], bounds[2], center[2]]
-            endPoint = [center[0], bounds[3], center[2]]
-            gravityVector.AddControlPointWorld(vtk.vtkVector3d(startPoint))
-            gravityVector.AddControlPointWorld(vtk.vtkVector3d(endPoint))
+            gravityVector.AddControlPoint(startPoint)
+            gravityVector.AddControlPoint(endPoint)
 
-        # Add the gravity vector node to the scene and create display nodes
-        gravityVector = slicer.mrmlScene.AddNode(gravityVector)
-        if gravityVector is not None:
-            gravityVector.CreateDefaultDisplayNodes()
-
-        # Assign the gravity vector node to the parameter node
         self.getParameterNode().gravityVector = gravityVector
 
+    def addGridTransformNode(self):
+        """
+        Adds a grid transform node to the scene.
+        """
+        gridTransformNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLGridTransformNode', "Grid Transform")
+        gridTransformNode.CreateDefaultDisplayNodes()
+        self.getParameterNode().gridTransformNode = gridTransformNode
+
+    # Mappings in Logic
+
+    def setupMappings(self):
+        """
+        Registers mappings between MRML and SOFA nodes.
+        """
+        parameterNode = self.getParameterNode()
+
+        if parameterNode is not None:
+            # Register MRML-to-SOFA mappings
+            self.registerMRMLToSOFAMapping('modelNode', 'InputSurfaceNode.Container', mrmlModelPolyToSofaTriangleTopologyContainer, runOnce=True)
+            self.registerMRMLToSOFAMapping('boundaryROI', 'FEM.FixedROI', mrmlMarkupsROIToSofaBoxROI)
+            self.registerMRMLToSOFAMapping('gravityVector', '', self.mrmlMarkupsLineToSofaGravityVector)
+            self.registerMRMLToSOFAMapping('sparseGridDimensions', 'FEM.SparseGridTopology', self.gridDimensionsToSofaSparseGridTopology)
+
+            # Register SOFA-to-MRML mappings
+            self.registerSOFAToMRMLMapping('modelNode', 'FEM.Surf.MechanicalObject', sofaMechanicalObjectToMRMLModelPoly)
+            self.registerSOFAToMRMLMapping('sparseGridModelNode', 'FEM.SparseGridTopology', sofaSparseGridTopologyToMRMLModelGrid, runOnce=True)
+            self.registerSOFAToMRMLMapping('sparseGridModelNode', 'FEM.MO', self.sofaDisplacementToModelGridArray)
+            self.registerSOFAToMRMLMapping('sparseGridModelNode', 'FEM.MO', sofaMechanicalObjectToMRMLModelGrid)
+
+            # Set sequence recording flags
+            self.setRecordSequenceFlag('modelNode', lambda: parameterNode.recordSequence)
+            self.setRecordSequenceFlag('sparseGridModelNode', lambda: parameterNode.recordSequence)
+            self.setRecordSequenceFlag('boundaryROI', lambda: parameterNode.recordSequence)
+            self.setRecordSequenceFlag('gravityVector', lambda: parameterNode.recordSequence)
+            self.setRecordSequenceFlag('gridTransformNode', lambda: parameterNode.recordSequence)
+
+    def mrmlMarkupsLineToSofaGravityVector(self, gravityVectorNode, sofaRootNode):
+        """
+        Maps the gravity vector from MRML to the SOFA root node.
+        """
+        if gravityVectorNode is None:
+            return
+        gravityVector = arrayVectorFromMarkupsLinePoints(gravityVectorNode)
+        magnitude = np.linalg.norm(np.array(gravityVector))
+        normalizedGravityVector = gravityVector / magnitude if magnitude != 0 else gravityVector
+        sofaRootNode.gravity = normalizedGravityVector * self.getParameterNode().gravityMagnitude
+
+    def gridDimensionsToSofaSparseGridTopology(self, sparseGridDimensions, sofaNode):
+        """
+        Maps GridDimensions to SOFA's SparseGridTopology node.
+        """
+        if sparseGridDimensions:
+            sofaNode.n = [sparseGridDimensions.x, sparseGridDimensions.y, sparseGridDimensions.z]
+
+    def sofaDisplacementToModelGridArray(self, mrmlModelNode, sofaNode):
+        """
+        Updates the displacement array in the MRML model node from SOFA data.
+        """
+        mrmlModelNode.GetUnstructuredGrid().GetPointData().GetArray("Displacement").SetNumberOfTuples(int(sofaNode.position.size/3))
+        displacementArray = slicer.util.arrayFromModelPointData(mrmlModelNode, "Displacement")
+        displacementArray[:] = (sofaNode.position - sofaNode.rest_position)
+        slicer.util.arrayFromModelPointsModified(mrmlModelNode)
+
     def _createGridTransformPipeline(self) -> None:
+
         self.probeGrid = vtk.vtkImageData()
         # NOTE: For now, the probe dimension is equal to the sparse grid dimension
         self.probeGrid.SetDimensions(self._parameterNode.sparseGridDimensions.x,
@@ -660,78 +575,41 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
         self.displacementGrid.SetOrigin(probeGrid.GetOrigin())
         self.displacementGrid.SetSpacing(probeGrid.GetSpacing())
 
-    def addGridTransformNode(self) -> None:
-        """
-        Adds a grid transform node to the scene
-        """
-        gridTransformNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLGridTransformNode')
-        gridTransformNode.CreateDefaultDisplayNodes()
-        self._parameterNode.gridTransformNode = gridTransformNode
-
 #
 # SparseGridSimulationTest
 #
 
-
 class SparseGridSimulationTest(ScriptedLoadableModuleTest):
     """
-    This is the test case for your scripted module.
-    Uses ScriptedLoadableModuleTest base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
+    This is the test case for the SparseGridSimulation module.
     """
 
     def setUp(self):
-        """Do whatever is needed to reset the state - typically a scene clear will be enough."""
+        """Reset the state - typically a scene clear will be enough."""
         slicer.mrmlScene.Clear()
 
     def runTest(self):
-        """Run as few or as many tests as needed here."""
+        """Run the test case."""
         self.setUp()
         self.test_SparseGridSimulation1()
 
     def test_SparseGridSimulation1(self):
-        """Ideally you should have several levels of tests.  At the lowest level
-        tests should exercise the functionality of the logic with different inputs
-        (both valid and invalid).  At higher levels your tests should emulate the
-        way the user would interact with your code and confirm that it still works
-        the way you intended.
-        One of the most important features of the tests is that it should alert other
-        developers when their changes will have an impact on the behavior of your
-        module.  For example, if a developer removes a feature that you depend on,
-        your test should break so they know that the feature is needed.
-        """
-
+        """Basic test of the SparseGridSimulation module."""
         self.delayDisplay("Starting the test")
 
-        # Get/create input data
-
-        import SampleData
-
-        registerSampleData()
-        inputVolume = SampleData.downloadSample("SparseGridSimulation1")
-        self.delayDisplay("Loaded test data set")
-
-        inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(inputScalarRange[0], 0)
-        self.assertEqual(inputScalarRange[1], 695)
-
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-        threshold = 100
-
-        # Test the module logic
-
+        # Create logic and widget
         logic = SparseGridSimulationLogic()
+        logic.resetParameterNode()
+        logic.addSparseGridModelNode()
+        logic.addBoundaryROI()
+        logic.addGravityVector()
+        logic.addGridTransformNode()
 
-        # Test algorithm with non-inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, True)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], threshold)
-
-        # Test algorithm with inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, False)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], inputScalarRange[1])
+        # Start simulation
+        logic.startSimulation()
+        for _ in range(10):
+            logic.simulationStep()
+            slicer.app.processEvents()
+        logic.stopSimulation()
 
         self.delayDisplay("Test passed")
