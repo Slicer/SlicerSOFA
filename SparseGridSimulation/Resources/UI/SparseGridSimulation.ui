@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>SoftTissueSimulation</class>
- <widget class="qMRMLWidget" name="SoftTissueSimulation">
+ <class>SparseGridSimulation</class>
+ <widget class="qMRMLWidget" name="SparseGridSimulation">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>480</width>
-    <height>335</height>
+    <width>486</width>
+    <height>314</height>
    </rect>
   </property>
   <property name="SlicerParameterName" stdset="0">
@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QFormLayout" name="formLayout_2">
+    <layout class="QFormLayout" name="formLayout_6">
      <item row="0" column="0">
       <widget class="QLabel" name="simulationModelNodeLabel">
        <property name="text">
@@ -77,8 +77,8 @@
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>31</width>
-           <height>20</height>
+           <width>30</width>
+           <height>21</height>
           </size>
          </property>
         </spacer>
@@ -86,13 +86,80 @@
       </layout>
      </item>
      <item row="1" column="0">
+      <widget class="QLabel" name="gravityVectorLabel">
+       <property name="text">
+        <string>Gravity Vector:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="qMRMLNodeComboBox" name="gravityVectorComboBox">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="nodeTypes">
+          <stringlist notr="true">
+           <string>vtkMRMLMarkupsLineNode</string>
+          </stringlist>
+         </property>
+         <property name="hideChildNodeTypes">
+          <stringlist notr="true"/>
+         </property>
+         <property name="noneEnabled">
+          <bool>true</bool>
+         </property>
+         <property name="addEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="interactionNodeSingletonTag">
+          <string notr="true"/>
+         </property>
+         <property name="SlicerParameterName" stdset="0">
+          <string>gravityVector</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="gravityMagnitudeDoubleSpinBox">
+         <property name="maximum">
+          <double>1000000.000000000000000</double>
+         </property>
+         <property name="SlicerParameterName" stdset="0">
+          <string>gravityMagnitude</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="addGravityVectorPushButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>31</width>
+           <height>23</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>+</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="0">
       <widget class="QLabel" name="boundaryROILabel">
        <property name="text">
         <string>Boundary ROI:</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="1">
+     <item row="2" column="1">
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
         <widget class="qMRMLNodeComboBox" name="boundaryROIComboBox">
@@ -145,24 +212,27 @@
        </item>
       </layout>
      </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="gravityVectorLabel">
+     <item row="3" column="0">
+      <widget class="QLabel" name="sparseGridModelNode">
        <property name="text">
-        <string>Gravity Vector:</string>
+        <string>Sparse Grid Model Node:</string>
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item row="3" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
        <item>
-        <widget class="qMRMLNodeComboBox" name="gravityVectorComboBox">
+        <widget class="qMRMLNodeComboBox" name="SOFAMRMLSparseGridModelNodeComboBox">
          <property name="enabled">
           <bool>true</bool>
          </property>
          <property name="nodeTypes">
           <stringlist notr="true">
-           <string>vtkMRMLMarkupsLineNode</string>
+           <string>vtkMRMLModelNode</string>
           </stringlist>
+         </property>
+         <property name="showHidden">
+          <bool>false</bool>
          </property>
          <property name="hideChildNodeTypes">
           <stringlist notr="true"/>
@@ -173,35 +243,31 @@
          <property name="addEnabled">
           <bool>false</bool>
          </property>
+         <property name="removeEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="editEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="renameEnabled">
+          <bool>false</bool>
+         </property>
          <property name="interactionNodeSingletonTag">
           <string notr="true"/>
          </property>
+         <property name="selectNodeUponCreation">
+          <bool>true</bool>
+         </property>
          <property name="SlicerParameterName" stdset="0">
-          <string>gravityVector</string>
+          <string>sparseGridModelNode</string>
+         </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="gravityMagnitudeSpinBox">
-         <property name="minimum">
-          <number>0</number>
-         </property>
-         <property name="maximum">
-          <number>9999</number>
-         </property>
-         <property name="stepType">
-          <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
-         </property>
-         <property name="value">
-          <number>0</number>
-         </property>
-         <property name="SlicerParameterName" stdset="0">
-          <string>gravityMagnitude</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="addGravityVectorPushButton">
+        <widget class="QPushButton" name="addSparseGridModelNodePushButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -221,41 +287,146 @@
        </item>
       </layout>
      </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="movingPointLabel">
+     <item row="4" column="0">
+      <widget class="QLabel" name="boundaryROILabel_2">
        <property name="text">
-        <string>Moving Point:</string>
+        <string>Sparse Grid Dimensions:</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
-      <layout class="QHBoxLayout" name="horizontalLayout_8">
+     <item row="4" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
        <item>
-        <widget class="qMRMLNodeComboBox" name="movingPointComboBox">
+        <layout class="QFormLayout" name="formLayout_2">
+         <item row="0" column="0">
+          <widget class="QLabel" name="simulationModelNodeLabel_3">
+           <property name="text">
+            <string>X:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="sparseGridDimensionsX">
+           <property name="SlicerParameterName" stdset="0">
+            <string>sparseGridDimensions.x</string>
+           </property>
+           <property name="SlicerDisableOnSimulation" stdset="0">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout_4">
+         <item row="0" column="0">
+          <widget class="QLabel" name="simulationModelNodeLabel_4">
+           <property name="text">
+            <string>Y:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="sparseGridDimensionsY">
+           <property name="SlicerParameterName" stdset="0">
+            <string>sparseGridDimensions.y</string>
+           </property>
+           <property name="SlicerDisableOnSimulation" stdset="0">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout_5">
+         <item row="0" column="0">
+          <widget class="QLabel" name="simulationModelNodeLabel_5">
+           <property name="text">
+            <string>Z:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="sparseGridDimensionsZ">
+           <property name="SlicerParameterName" stdset="0">
+            <string>sparseGridDimensions.z</string>
+           </property>
+           <property name="SlicerDisableOnSimulation" stdset="0">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="gridTransformNodeLabel">
+       <property name="text">
+        <string>Grid Transform Node:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_9">
+       <item>
+        <widget class="qMRMLNodeComboBox" name="gridTransformNodeComboBox">
          <property name="enabled">
           <bool>true</bool>
          </property>
          <property name="nodeTypes">
           <stringlist notr="true">
-           <string>vtkMRMLMarkupsFiducialNode</string>
+           <string>vtkMRMLGridTransformNode</string>
           </stringlist>
+         </property>
+         <property name="showHidden">
+          <bool>false</bool>
          </property>
          <property name="hideChildNodeTypes">
           <stringlist notr="true"/>
          </property>
+         <property name="noneEnabled">
+          <bool>true</bool>
+         </property>
          <property name="addEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="removeEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="editEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="renameEnabled">
           <bool>false</bool>
          </property>
          <property name="interactionNodeSingletonTag">
           <string notr="true"/>
          </property>
          <property name="SlicerParameterName" stdset="0">
-          <string>movingPointNode</string>
+          <string>gridTransformNode</string>
+         </property>
+         <property name="SlicerDisableOnSimulation" stdset="0">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="addMovingPointPushButton">
+        <widget class="QPushButton" name="addGridTransformNodePushButton">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -297,7 +468,7 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="../SoftTissueSimulationModule.qrc">
+        <iconset resource="../SparseGridSimulationModule.qrc">
          <normaloff>:/Icons/VcrRecord16.png</normaloff>:/Icons/VcrRecord16.png</iconset>
        </property>
        <property name="checkable">
@@ -350,7 +521,7 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
      <item>
       <layout class="QFormLayout" name="formLayout">
        <item row="0" column="0">
@@ -385,17 +556,21 @@
       </layout>
      </item>
      <item>
-      <layout class="QFormLayout" name="formLayout_3">
-       <item row="0" column="1">
-        <widget class="QSpinBox" name="totalStepsSpinBox">
-         <property name="minimum">
-          <number>-1</number>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <widget class="QLabel" name="totalStepsLabel">
+         <property name="text">
+          <string>Steps</string>
          </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="totalStepsSpinBox">
          <property name="maximum">
           <number>999999999</number>
          </property>
          <property name="value">
-          <number>-1</number>
+          <number>0</number>
          </property>
          <property name="SlicerParameterName" stdset="0">
           <string>totalSteps</string>
@@ -405,48 +580,28 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="totalStepsLabel">
-         <property name="text">
-          <string>Total Steps:</string>
-         </property>
-        </widget>
+       <item>
+        <layout class="QFormLayout" name="formLayout_7">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Progress:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="simulationProgressLineEdit">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="SlicerParameterName" stdset="0">
+            <string>simulationProgress</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
-     </item>
-     <item>
-      <layout class="QFormLayout" name="formLayout_4">
-       <item row="0" column="0">
-        <widget class="QLabel" name="label">
-         <property name="text">
-          <string>Progress:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLineEdit" name="simulationPogressLineEdit">
-         <property name="readOnly">
-          <bool>true</bool>
-         </property>
-         <property name="SlicerParameterName" stdset="0">
-          <string>simulationProgress</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>
@@ -458,7 +613,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>40</height>
+       <height>504</height>
       </size>
      </property>
     </spacer>
@@ -479,43 +634,11 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../SoftTissueSimulationModule.qrc"/>
+  <include location="../SparseGridSimulationModule.qrc"/>
  </resources>
  <connections>
   <connection>
-   <sender>SoftTissueSimulation</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>movingPointComboBox</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>264</x>
-     <y>277</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>198</x>
-     <y>148</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>SoftTissueSimulation</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>boundaryROIComboBox</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>264</x>
-     <y>277</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>215</x>
-     <y>51</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>SoftTissueSimulation</sender>
+   <sender>SparseGridSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>gravityVectorComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -531,7 +654,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>SoftTissueSimulation</sender>
+   <sender>SparseGridSimulation</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>SOFAMRMLModelNodeComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
@@ -543,6 +666,54 @@
     <hint type="destinationlabel">
      <x>257</x>
      <y>21</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SparseGridSimulation</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>boundaryROIComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>264</x>
+     <y>277</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>215</x>
+     <y>51</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SparseGridSimulation</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>SOFAMRMLSparseGridModelNodeComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>304</x>
+     <y>389</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>363</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SparseGridSimulation</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>gridTransformNodeComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>242</x>
+     <y>387</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>301</x>
+     <y>181</y>
     </hint>
    </hints>
   </connection>

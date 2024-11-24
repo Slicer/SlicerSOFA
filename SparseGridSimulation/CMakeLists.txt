@@ -1,16 +1,15 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME SlicerSofa)
-
+set(MODULE_NAME SparseGridSimulation)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
-  SofaEnvironment/__init__.py
-  SlicerSofaUtils/__init__.py
-  SlicerSofaUtils/Mappings.py
   )
 
 set(MODULE_PYTHON_RESOURCES
+  Resources/Icons/${MODULE_NAME}.png
+  Resources/UI/${MODULE_NAME}.ui
+  Resources/${MODULE_NAME}Module.qrc
   )
 
 #-----------------------------------------------------------------------------

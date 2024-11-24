@@ -1,9 +1,47 @@
+###################################################################################
+# MIT License
+#
+# Copyright (c) 2024 Oslo University Hospital, Norway. All Rights Reserved.
+# Copyright (c) 2024 NTNU, Norway. All Rights Reserved.
+# Copyright (c) 2024 INRIA, France. All Rights Reserved.
+# Copyright (c) 2004 Brigham and Women's Hospital (BWH). All Rights Reserved.
+# Copyright (c) 2024 Isomics, Inc., USA. All Rights Reserved.
+# Copyright (c) 2024 Queen's University, Canada. All Rights Reserved.
+# Copyright (c) 2024 Kitware Inc. All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###################################################################################
+
 import logging
 import os
-from typing import Annotated, Optional
+from dataclasses import dataclass, field
+from typing import Callable, Optional, List, Tuple
+
+import inspect
+from enum import Enum
+from collections.abc import Iterable
 from abc import abstractmethod
+import numpy as np
+import qt
 
 import vtk
+from vtk.util.numpy_support import numpy_to_vtk
 
 import slicer
 from slicer.i18n import tr as _
@@ -15,152 +53,519 @@ from slicer.parameterNodeWrapper import (
     WithinRange,
 )
 
-from slicer import vtkMRMLScalarVolumeNode
+from slicer import(
+    vtkMRMLNode,
+    vtkMRMLScalarVolumeNode,
+    vtkMRMLSequenceBrowserNode
+)
 
 from SofaEnvironment import *
 
-#
-# SlicerSofa
-#
 
+# -----------------------------------------------------------------------------
+# Decorator: SofaParameterNodeWrapper
+# -----------------------------------------------------------------------------
+def SofaParameterNodeWrapper(cls):
+    """
+    Decorator function that wraps a class with additional SOFA-specific attributes and type checking,
+    using `parameterNodeWrapper` and dataclasses.
 
+    Args:
+        cls (class): The class to wrap.
+
+    Returns:
+        class: The wrapped class with additional SOFA-specific functionality.
+    """
+    def __checkAndCreate__(cls, var, expectedType, defaultValue):
+        """
+        Internal function to check if a variable is of the expected type; if not, it sets a default value.
+
+        Args:
+            cls (class): The class being checked.
+            var (str): The variable name.
+            expectedType (type): The expected type of the variable.
+            defaultValue: The default value to set if the variable is not present.
+
+        Raises:
+            TypeError: If the existing variable is not of the expected type.
+        """
+        if hasattr(cls, var):
+            current_value = getattr(cls, var)
+            if not isinstance(current_value, expectedType):
+                raise TypeError(f"sofaParameterNodeWrapper: {var} should be of type {expectedType.__name__}, "
+                                f"got {type(current_value).__name__}")
+        else:
+            # Sets attribute and creates a type annotation if not present
+            setattr(cls, var, defaultValue)
+            if not hasattr(cls, '__annotations__'):
+                cls.__annotations__ = {}
+            cls.__annotations__[var] = expectedType
+
+    # Sets default simulation control parameters in the class
+    __checkAndCreate__(cls, 'dt', float, 0.01)
+    __checkAndCreate__(cls, 'totalSteps', int, -1)
+    __checkAndCreate__(cls, 'currentStep', int, 0)
+    __checkAndCreate__(cls, 'isSimulationRunning', bool, False)
+    __checkAndCreate__(cls, 'sofaParameterNodeWrapped', bool, True)
+    __checkAndCreate__(cls, 'simulationProgress', str, '')
+
+    # Wrap the class using `parameterNodeWrapper` and `dataclass`
+    wrapped_cls = dataclass(cls)
+    wrapped_cls = parameterNodeWrapper(wrapped_cls)
+
+    return wrapped_cls
+
+# -----------------------------------------------------------------------------
+# Class: SlicerSofa
+# -----------------------------------------------------------------------------
 class SlicerSofa(ScriptedLoadableModule):
-    """Uses ScriptedLoadableModule base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
     """
-
+    Base class for the Slicer module using ScriptedLoadableModule, configuring metadata.
+    """
     def __init__(self, parent):
-        ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = _("Slicer Sofa")
-        self.parent.categories = [translate("qSlicerAbstractCoreModule", "")]
-        self.parent.dependencies = []
-        self.parent.contributors = [ "Rafael Palomar (Oslo University Hospital, Norway), Paul Baksic (INRIA, France), Steve Pieper (Isomics, Inc., USA), Andras Lasso (Queen's University, Canada), Sam Horvath (Kitware, Inc., USA), Jean Christophe Fillion-Robin (Kitware, Inc., USA)"]
+        """
+        Initialize the module with metadata.
+
+        Args:
+            parent (ScriptedLoadableModuleWidget): The parent object.
+        """
+        super().__init__(parent)
+        self.parent.title = _("Slicer Sofa")  # Module title
+        self.parent.categories = [translate("qSlicerAbstractCoreModule", "")]  # Module category
+        self.parent.dependencies = []  # Module dependencies
+        self.parent.contributors = [
+            "Rafael Palomar (Oslo University Hospital / NTNU, Norway)",
+            "Paul Baksic (INRIA, France)",
+            "Steve Pieper (Isomics, Inc., USA)",
+            "Andras Lasso (Queen's University, Canada)",
+            "Sam Horvath (Kitware, Inc., USA)",
+            "Jean Christophe Fillion-Robin (Kitware, Inc., USA)"
+        ]
         self.parent.helpText = _("""
-This is a support module to enable simulations using the SOFA framework
-See more information in <a href="https://github.com/RafaelPalomar/Slicer-SOFA">module documentation</a>.
-""")
-        # TODO: replace with organization, grant and thanks
+        This module supports SOFA simulations. See documentation <a href="https://github.com/RafaelPalomar/Slicer-SOFA">here</a>.
+        """)
         self.parent.acknowledgementText = _("""
-This project has been funded by Oslo University Hospital
-""")
+        Funded by Oslo University Hospital
+        """)
+        parent.hidden = True  # Hides this module from the Slicer module list
 
-        #Hide module, so that it only shows up in the Liver module, and not as a separate module
-        parent.hidden = True
+# -----------------------------------------------------------------------------
+# Class: SlicerSofaWidget
+# -----------------------------------------------------------------------------
+class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
-#
-# SofaLogic
-#
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._parameterNode = None
+        self._parameterNodeGuiTag = None
+        self.logic = None
+        VTKObservationMixin.__init__(self)  # Needed for parameter node observation
 
+    def setup(self) -> None:
+        """
+        Set up the module widget events when closing scenes and calls parent's setup
+        """
 
+        ScriptedLoadableModuleWidget.setup(self)
+
+        # Setup event connections for scene close events
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
+
+    def onSceneStartClose(self, caller, event) -> None:
+        """
+        Handles the event when the scene starts to close.
+
+        Args:
+            caller: The caller object.
+            event: The event triggered.
+        """
+        if self.logic:
+            self.logic.stopSimulation()
+        self.setParameterNode(None)
+
+    def onSceneEndClose(self, caller, event) -> None:
+        """
+        Handles the event when the scene has closed.
+
+        Args:
+            caller: The caller object.
+            event: The event triggered.
+        """
+        if self.parent.isEntered:
+            self.initializeParameterNode()
+
+    def exit(self) -> None:
+        """
+w
+        iCleanup GUI connections when the module is exited.
+        """
+        if self._parameterNode:
+            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
+            self._parameterNodeGuiTag = None
+
+    def setParameterNode(self, parameterNode) -> None:
+        """
+        Sets the parameter node and connects GUI bindings.
+
+        Args:
+            parameterNode: The parameter node to set.
+        """
+        if self._parameterNode:
+            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
+        self._parameterNode = parameterNode
+        if self._parameterNode:
+            self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
+
+    def updateWidgetOnSimulation(self, parentWidget=None):
+        """
+        Goes through all child widgets of the specified parent widget and checks
+        for the 'SofaDisableOnSimulation' dynamic property. If found, prints message a.
+        """
+
+        slicer.modules.widget = parentWidget
+        if parentWidget is None:
+            parentWidget = self.parent  # Use the main widget if no parent is provided
+
+        # Recursively checks and enables/disables widgets depending on the simulation status
+        for child in parentWidget.findChildren(qt.QWidget):
+            if child.property('SlicerDisableOnSimulation') is not None:
+                disable = child.property('SlicerDisableOnSimulation')
+                child.setEnabled(
+                    (self._parameterNode.isSimulationRunning and not disable) or
+                    (not self._parameterNode.isSimulationRunning and disable)
+                )
+
+# -----------------------------------------------------------------------------
+# Class: SlicerSofaLogic
+# -----------------------------------------------------------------------------
 class SlicerSofaLogic(ScriptedLoadableModuleLogic):
-    """This class should implement all the actual
-    computation done by your module.  The interface
-    should be such that other python code can import
-    this class and make use of the functionality without
-    requiring an instance of the Widget.
-    Uses ScriptedLoadableModuleLogic base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
+    """
+    Implements the computation logic for the Slicer SOFA module, handling the simulation lifecycle.
     """
 
-    def __init__(self) -> None:
-        """Called when the logic class is instantiated. Can be used for initializing member variables."""
-        super().__init__()
+    def __init__(self, createSceneFunction=None) -> None:
+        """
+        Initialize the logic with an optional scene creation function.
 
+        Args:
+            createSceneFunction (callable, optional): Function to create the SOFA scene. Defaults to None.
+        """
+        super().__init__()
+        self._createSceneFunction = createSceneFunction
+        self.sofaMappings: List[Tuple[str, str, Callable, bool]] = []
+        self.mrmlMappings: List[Tuple[str, str, Callable, bool]] = []
+        self.recordSequenceFlags = {}
+        self.runOnceFlags = {}
         self._sceneUp = False
         self._rootNode = None
-        self._simulationRunning = False
-        self._currentStep = 0
-        self._totaSteps = 0
-        self._dt = 0
+        self._parameterNode = None
+        self.ui = None
+
+    def registerSOFAToMRMLMapping(self, fieldName: str, sofaPath: str, mappingFunction: Callable, runOnce: bool = False):
+        """
+        Register a mapping from MRML to SOFA.
+        """
+        self.sofaMappings.append((fieldName, sofaPath, mappingFunction, runOnce))
+        if runOnce:
+            self.runOnceFlags[mappingFunction] = False
+
+    def registerMRMLToSOFAMapping(self, fieldName: str, sofaPath: str, mappingFunction: Callable, runOnce: bool = False):
+        """
+        Register a mapping from SOFA to MRML.
+        """
+        self.mrmlMappings.append((fieldName, sofaPath, mappingFunction, runOnce))
+        if runOnce:
+            self.runOnceFlags[mappingFunction] = False
+
+    def setRecordSequenceFlag(self, fieldName: str, flagFunction: Callable):
+        """
+        Set a flag function for determining if a field should be recorded as a sequence.
+        """
+        self.recordSequenceFlags[fieldName] = flagFunction
+
+    def _getSofaObjectByPath(self, path: str):
+        """
+        Helper method to retrieve a SOFA object by its path.
+        """
+        if not path:
+            return self._rootNode
+        parts = path.split('.')
+        obj = self._rootNode
+        for part in parts:
+            if hasattr(obj, 'getChild') and obj.getChild(part):
+                obj = obj.getChild(part)
+            elif hasattr(obj, 'getObject') and obj.getObject(part):
+                obj = obj.getObject(part)
+            else:
+                logging.warning(f"SOFA object '{part}' not found in path '{path}'.")
+                return None
+        return obj
+
+    def setUi(self, ui):
+        self.ui = ui
+
+    def getUi(self, ui):
+        return self.ui
+
+    # @abstractmethod
+    # def CreateScene() -> Sofa.Core.Node:
+    #     """
+    #     Creates the SOFA scene and returns the root node. I needs to be implemented in derived classes
+    #     """
+    #     return None
 
     def setupScene(self, parameterNode):
-        """Setup the simulation scene."""
-        if not self._sceneUp:
-            self._rootNode = self.createScene(parameterNode)
-            Sofa.Simulation.init(self._rootNode)
-            self._sceneUp = True
+        """
+        Initializes the SOFA simulation scene with parameter and root nodes.
 
-    def startSimulation(self, parameterNode=None) -> None:
-        """Start the simulation."""
-        self.setupScene(parameterNode)
-        self._currentStep = 0
-        self._simulationRunning = True
+        Args:
+            parameterNode: The parameter node containing simulation parameters.
+            rootNode (Sofa.Core.Node): The root node of the SOFA scene.
+
+        Raises:
+            ValueError: If rootNode is not a valid Sofa.Core.Node.
+        """
+
+        if parameterNode is None:
+            raise ValueError("parameterNode can't be None")
+        if not getattr(parameterNode, 'sofaParameterNodeWrapped', False):
+            raise ValueError("parameterNode is not a valid parameterNode wrapped by the sofaParameterNodeWrapper")
+
+        self._parameterNode = parameterNode
+
+        if not isinstance(self._rootNode, Sofa.Core.Node):
+            raise ValueError("rootNode is not a valid Sofa.Core.Node root node")
+        self._rootNode = self.CreateScene()
+        setattr(self._parameterNode, "_rootNode", self._rootNode)
+        self.__updateSofa__()
+        Sofa.Simulation.init(self._rootNode)
+        self._sceneUp = True
+
+    def startSimulation(self) -> None:
+        """
+        Starts the simulation by setting up the scene, resetting run-once flags,
+        initializing sequence recording, and marking the simulation as running.
+        """
+        if self._parameterNode is None:
+            raise ValueError("Parameter node has not been initialized.")
+        if self._rootNode is None:
+            if self._createSceneFunction is None:
+                raise ValueError("No scene creation function provided.")
+            self._rootNode = self._createSceneFunction()
+        self._saveState()
+        self.resetRunOnceFlags()
+        self.setupScene(self._parameterNode)
+        self._parameterNode.currentStep = 0
+        self._parameterNode.isSimulationRunning = True
+        self.setupSequenceRecording()
+        self._parameterNode.Modified()
+        self.onSimulationStarted()
+
+    def resetSimulation(self) -> None:
+        self._restoreState()
 
     def stopSimulation(self) -> None:
-        """Stop the simulation."""
-        if self._sceneUp is True:
-            self._simulationRunning = False
+        """
+        Stops the simulation and halts sequence recording.
+        """
+        if self._sceneUp:
+            self._parameterNode.isSimulationRunning = False
+            self.stopSequenceRecording()
+            self.onSimulationStopped()
 
-    def simulationStep(self, parameterNode=None) -> None:
-        """Perform a single simulation step."""
+    def onSimulationStarted(self):
+        """
+        Hook for module-specific logic when the simulation starts.
+        Can be overridden in subclasses.
+        """
+        if self.ui is not None:
+            self.ui.updateWidgetOnSimulation()
 
-        if self._sceneUp is False or self._simulationRunning is False:
-           slicer.util.errorDisplay("Can't advance the simulation forward. Simulation is not running.")
-           return
+    def onSimulationStopped(self):
+        """
+        Hook for module-specific logic when the simulation stops.
+        Can be overridden in subclasses.
+        """
+        if self.ui is not None:
+            self.ui.updateWidgetOnSimulation()
 
-        self.updateSofa(parameterNode)
+    def simulationStep(self) -> None:
+        """
+        Executes a single simulation step, updating the simulation and MRML scenes.
+        """
+        if not self._sceneUp or not self._parameterNode.isSimulationRunning:
+            return
 
-        if self._currentStep < self._totalSteps:
-            Sofa.Simulation.animate(self._rootNode, self._dt)
-            self._currentStep += 1
-        elif self._totalSteps < 0:
-            Sofa.Simulation.animate(self._rootNode, self._dt)
+        self.__updateSofa__()
+
+        if self._parameterNode.currentStep < self._parameterNode.totalSteps or self._parameterNode.totalSteps < 0:
+            Sofa.Simulation.animate(self._rootNode, self._parameterNode.dt)
+            self._parameterNode.currentStep += 1
+            if self._parameterNode.totalSteps < 0:
+                self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/\u221E"
+            else:
+                self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/{self._parameterNode.totalSteps}"
         else:
-            self._simulationRunning = False
+            self._parameterNode.isSimulationRunning = False
 
-        self.updateMRML(parameterNode)
+        self.__updateMRML__()
+
+    def resetRunOnceFlags(self):
+        """
+        Resets all `runOnce` flags for sofaMappings and mrmlMappings.
+        """
+        for mappingFunction in self.runOnceFlags:
+            self.runOnceFlags[mappingFunction] = False
+
+    def initializeParameterNode(self):
+        """
+        Initializes the parameter node by retrieving it and resetting its parameters.
+        """
+        pass
+        # if self._parameterNode is None:
+        #     self._parameterNode = self.getParameterNode()
+        # self.resetParameterNode()
+
+    def resetParameterNode(self):
+        """
+        Resets simulation parameters in the parameter node to default values.
+        """
+        if self._parameterNode:
+            self._parameterNode.currentStep = 0
+            self._parameterNode.isSimulationRunning = False
+            # Reset other parameters as needed
+            self.onParameterNodeReset()
+
+    def onParameterNodeReset(self):
+        """
+        Hook for module-specific parameter node reset logic.
+        Can be overridden in subclasses.
+        """
+        pass
 
     def clean(self) -> None:
-        """Cleans up the simulation"""
-        if self._sceneUp is True and self._rootNode:
+        """
+        Cleans up the simulation resources by unloading the SOFA root node.
+        """
+        if self._sceneUp and self._rootNode:
             Sofa.Simulation.unload(self._rootNode)
             self._rootNode = None
             self._sceneUp = False
-            self._simulationRunning = False
+            self._parameterNode.isSimulationRunning = False
 
     @property
     def rootNode(self):
+        """
+        Property to access the SOFA root node.
+
+        Returns:
+            Sofa.Core.Node: The root node of the SOFA scene.
+        """
         return self._rootNode
 
-    @property
-    def isSimulationRunning(self):
-        return self._simulationRunning
+    def setupSequenceRecording(self):
+        """
+        Sets up sequence recording for any nodes specified with recordSequence=True.
+        """
+        parameterNode = self.getParameterNode()
+        if not parameterNode:
+            raise ValueError("Parameter node is not initialized")
 
-    @property
-    def currentStep(self):
-        return self._currentStep
+        # List to keep track of nodes that require recording
+        recordableNodes = []
 
-    @property
-    def totalSteps(self):
-        return self._totalSteps
+        # Check if any MRML-to-SOFA mappings have recordSequence=True
+        for fieldName, _, _, _ in self.sofaMappings + self.mrmlMappings:
+            if getattr(parameterNode, fieldName, None) and fieldName not in recordableNodes:
+                recordableNodes.append(fieldName)
 
-    @property
-    def dt(self):
-        return self._dt
+        # Create a sequence browser node if there is anything to record
+        if recordableNodes:
+            self._sequenceBrowserNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceBrowserNode', "SOFA Simulation Browser")
+        else:
+            self._sequenceBrowserNode = None
+            return  # No nodes to record
 
-    @currentStep.setter
-    def currentStep(self, step):
-       self._currentStep = step
+        # Set up recording for each node
+        for fieldName in recordableNodes:
+            mrmlNode = getattr(parameterNode, fieldName, None)
+            if isinstance(mrmlNode, vtkMRMLNode):
+                sequenceNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSequenceNode', f"{mrmlNode.GetName()}_Sequence")
+                self._sequenceBrowserNode.SetPlaybackActive(False)
+                self._sequenceBrowserNode.AddSynchronizedSequenceNodeID(sequenceNode.GetID())
+                self._sequenceBrowserNode.AddProxyNode(mrmlNode, sequenceNode, False)
+                self._sequenceBrowserNode.SetRecording(sequenceNode, True)
 
-    @totalSteps.setter
-    def totalSteps(self, steps):
-        self._totalSteps = steps
+        # Activate sequence recording
+        if self._sequenceBrowserNode:
+            self._sequenceBrowserNode.SetRecordingActive(True)
 
-    @dt.setter
-    def dt(self, dt):
-        self._dt = dt
+    def stopSequenceRecording(self):
+        """
+        Stops any active sequence recording if a sequence browser node exists.
+        """
+        if hasattr(self, '_sequenceBrowserNode') and self._sequenceBrowserNode is not None:
+            self._sequenceBrowserNode.SetRecordingActive(False)
+            logging.info("Sequence recording stopped.")
+
+
+    def __updateSofa__(self):
+        """
+        Update SOFA nodes based on registered mappings.
+        """
+        pn = self.getParameterNode()
+        for fieldName, sofaPath, mappingFunction, runOnce in self.mrmlMappings:
+            if runOnce and self.runOnceFlags.get(mappingFunction, False):
+                continue  # Skip if already run
+            fieldValue = getattr(pn, fieldName, None)
+            if fieldValue is None:
+                continue  # Skip if parameter node field is None
+            sofaObject = self._getSofaObjectByPath(sofaPath)
+            if sofaObject is None:
+                continue  # Skip if SOFA object not found
+            mappingFunction(fieldValue, sofaObject)
+            if runOnce:
+                self.runOnceFlags[mappingFunction] = True
+
+    def __updateMRML__(self):
+        """
+        Update MRML nodes based on registered mappings.
+        """
+        pn = self.getParameterNode()
+        for fieldName, sofaPath, mappingFunction, runOnce in self.sofaMappings:
+            if runOnce and self.runOnceFlags.get(mappingFunction, False):
+                continue  # Skip if already run
+            fieldValue = getattr(pn, fieldName, None)
+            if fieldValue is None:
+                continue  # Skip if parameter node field is None
+            sofaObject = self._getSofaObjectByPath(sofaPath)
+            if sofaObject is None:
+                continue  # Skip if SOFA object not found
+            mappingFunction(fieldValue, sofaObject)
+            if runOnce:
+                self.runOnceFlags[mappingFunction] = True
 
     @abstractmethod
-    def updateSofa(self, parameterNode) -> None:
-        """Update Sofa simulation parameters. Must be implemented by subclasses."""
+    def setupMappings(self):
+        """
+        Abstract method for setting up mappings in derived classes.
+        """
         pass
 
-    @abstractmethod
-    def updateMRML(self, parameterNode) -> None:
-        """Update the simulation scene. Must be implemented by subclasses."""
+
+    def _saveState(self) -> None:
+        """
+        This function will be called on start simulation and it should be implemented
+        on derived classes. The purpose of this function is to let the user save relevant
+        objects for the reset of the simulation
+        """
         pass
 
-    @abstractmethod
-    def createScene(self, parameterNode) -> Sofa.Core.Node:
-        """Create the simulation scene. Must be implemented by subclasses."""
+    def _restoreState(self) -> None:
+        """
+        This function will be called on simulation reset and it should be implemented on derive classes.
+        The purpose of this function is to let the user restore a previously saved state of relevant
+        objects during simulation reset.
+        """
         pass
