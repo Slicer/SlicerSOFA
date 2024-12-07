@@ -27,10 +27,11 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   set(BOOST_URL "https://github.com/boostorg/boost/releases/download/boost-${_version}/boost-${_version}.tar.gz")
   set(BOOST_URL_HASH "SHA256=4d27e9efed0f6f152dc28db6430b9d3dfb40c0345da7342eaa5a987dde57bd95") # Replace <expected hash value> with the actual SHA256 hash of the tar.gz file
 
+  # SOFA relies only on header-based components, therefore there's no need to build/install boost
   if(WIN32)
-    set(BUILD_COMMAND ${EP_SOURCE_DIR}/bootstrap.bat)
+    set(BUILD_COMMAND  cmd /c ${EP_SOURCE_DIR}/bootstrap.bat && cmd /c ${EP_SOURCE_DIR}/b2 headers)
   else()
-    set(BUILD_COMMAND ${EP_SOURCE_DIR}/bootstrap.sh)
+    set(BUILD_COMMAND ${EP_SOURCE_DIR}/bootstrap.sh && ${EP_SOURCE_DIR}/b2 headers)
   endif()
 
   set(EXTERNAL_PROJECT_OPTIONAL_ARGS)
@@ -49,12 +50,12 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${BUILD_COMMAND}
-    INSTALL_COMMAND ${EP_SOURCE_DIR}/b2 --prefix=${EP_INSTALL_DIR} install
+    INSTALL_COMMAND ""
     BUILD_IN_SOURCE 1
     DEPENDS
       ${${proj}_DEPENDS}
   )
-  set(${proj}_DIR ${EP_INSTALL_DIR}/lib/cmake/Boost-${_version}/)
+  set(${proj}_DIR ${EP_SOURCE_DIR})
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
