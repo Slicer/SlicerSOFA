@@ -132,8 +132,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DSOFA_WITH_OPENGL:BOOL=ON
       # Dependencies
       -DGLEW_DIR:PATH=${GLEW_DIR}
-      -DBoost_DIR:PATH=${Boost_DIR}
       -DBoost_NO_BOOST_CMAKE:BOOL=FALSE # Support finding Boost as config-file package
+      -DBOOST_ROOT:PATH=${Boost_DIR}
       -DEIGEN3_INCLUDE_DIR:PATH=${Eigen3_DIR}/include/eigen3
       -DQt5_DIR:PATH=${Qt5_DIR}
       -DTinyXML2_INCLUDE_DIR:PATH=${tinyxml2_INCLUDE_DIR}
