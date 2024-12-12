@@ -118,7 +118,7 @@ def mrmlMarkupsFiducialToSofaPointer(fiducialNode, sofaNode) -> None:
         raise ValueError("modelNode can't be None")
 
     # Set the SOFA node position based on the first control point of the fiducial node
-    sofaNode.position = [list(fiducialNode.GetNthControlPointPosition(0)) * 3]
+    sofaNode.position = slicer.util.arrayFromMarkupsControlPoints(fiducialNode)
 
 def mrmlMarkupsROIToSofaBoxROI(roiNode, sofaNode):
     """
