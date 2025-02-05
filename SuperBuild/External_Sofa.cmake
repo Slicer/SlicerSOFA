@@ -38,6 +38,23 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   set(SOFA_EXTERNAL_DIRECTORIES)
 
+
+  include(CheckIPOSupported)
+
+  # This is a workaround to avoid a bug in Sofa that causes the build to fail in centos-qt5-gcc7 build environment
+  # TODO: Re-evaluate this setting when the new slicer environment is available.
+  set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION OFF)
+
+  check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_CHECK_OUTPUT)
+
+  if(UNIX AND IPO_SUPPORTED)
+    message(STATUS "IPO/LTO is supported: Enabling Link Time Optimization for ${proj}. See https://github.com/Slicer/SlicerSOFA/pull/42 for details")
+    set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION ON)
+  else()
+    message(STATUS "IPO/LTO is not supported: ${IPO_CHECK_OUTPUT}")
+    set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION OFF)
+  endif()
+
   include(FetchContent)
 
   # SofaIGTLink
@@ -171,6 +188,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCOLLECTION_SOFAUSERINTERACTION:BOOL=ON
       -DSOFA_GUI_QT_ENABLE_QDOCBROWSER:BOOL=OFF
       -DSOFA_INSTALL_RESOURCES_FILES:BOOL=OFF
+      -DSOFA_ENABLE_LINK_TIME_OPTIMIZATION:BOOL=${SOFA_ENABLE_LINK_TIME_OPTIMIZATION}
       # Output directory
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
