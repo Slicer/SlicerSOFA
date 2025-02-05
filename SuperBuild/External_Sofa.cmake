@@ -38,6 +38,14 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   set(SOFA_EXTERNAL_DIRECTORIES)
 
+  # This is a workaround to avoid a bug in Sofa that causes the build to fail in centos-qt5-gcc7 build environment
+  # TODO: Re-evaluate this setting when the new slicer environment is available.
+  set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION OFF)
+  if (UNIX)
+    message("Enabling Link Time Optimization (LTO) for ${proj}. See https://github.com/Slicer/SlicerSOFA/pull/42 for details")
+    set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION ON)
+  endif()
+
   include(FetchContent)
 
   # SofaIGTLink
@@ -46,7 +54,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/SofaIGTLink.git"
-    GIT_TAG        "055351b5532a2d273b43121c23d1e715855f7d0d" # master-20240423
+    GIT_TAG        "ca4fc99c07d4fbed65c5f4ede61ffb2129cf0de8" # master-20250513
     GIT_PROGRESS   1
     QUIET
     )
@@ -72,7 +80,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/STLIB.git"
-    GIT_TAG        "41de3a79e9bb887db3e163eebb7ad3d40f3d31e8" # v23.12-20240313
+    GIT_TAG        "ab95265366821f399ba69d461243d76a64ff59eb" # v24.12-20250513
     GIT_PROGRESS   1
     QUIET
     )
@@ -85,7 +93,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/Cosserat.git"
-    GIT_TAG        "f077ff85deaf78f0b6cbf1011bb193fd862846fb" # v24.06
+    GIT_TAG        "bac7519f38bf9f0a0c292d03bd81d4419f8d14d9" # v24.12-20250513
     GIT_PROGRESS   1
     QUIET
     )
@@ -98,7 +106,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/BeamAdapter.git"
-    GIT_TAG        "4f0f30c7025740e808865d392c1bac7df3627e9b" # v24.06
+    GIT_TAG        "08d033fe20e12cccbff8e43a02c673fe0d865f62" # v24.12-20250513
     GIT_PROGRESS   1
     QUIET
     )
@@ -111,7 +119,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/Registration.git"
-    GIT_TAG        "8551d8fa6cd5af7cd29a7261729b153d9549d2d6" # master-8551d8fa6cd5af7cd29a7261729b153d9549d2d6
+    GIT_TAG        "7f17713f2364c676ecdf676dd9575ef605995497" # v24.12-20250513
     GIT_PROGRESS   1
     QUIET
     )
@@ -124,7 +132,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/Shell.git"
-    GIT_TAG        "fc89d076e862e65d56a9693d7a3811fc1efaaf48" # master-fc89d076e862e65d56a9693d7a3811fc1efaaf48
+    GIT_TAG        "2483355f011681c7d9310cd4130b57935d16c6ba" # v24.12-20250513
     GIT_PROGRESS   1
     QUIET
     )
@@ -167,6 +175,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCOLLECTION_SOFAUSERINTERACTION:BOOL=ON
       -DSOFA_GUI_QT_ENABLE_QDOCBROWSER:BOOL=OFF
       -DSOFA_INSTALL_RESOURCES_FILES:BOOL=OFF
+      -DSOFA_ENABLE_LINK_TIME_OPTIMIZATION:BOOL=${SOFA_ENABLE_LINK_TIME_OPTIMIZATION}
       # Output directory
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
