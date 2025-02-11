@@ -38,6 +38,14 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   set(SOFA_EXTERNAL_DIRECTORIES)
 
+  # This is a workaround to avoid a bug in Sofa that causes the build to fail in centos-qt5-gcc7 build environment
+  # TODO: Re-evaluate this setting when the new slicer environment is available.
+  set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION OFF)
+  if (UNIX)
+    message("Enabling Link Time Optimization (LTO) for ${proj}. See https://github.com/Slicer/SlicerSOFA/pull/42 for details")
+    set(SOFA_ENABLE_LINK_TIME_OPTIMIZATION ON)
+  endif()
+
   include(FetchContent)
 
   # SofaIGTLink
@@ -59,7 +67,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/Slicer/SofaPython3.git"
-    GIT_TAG        "baaf3fc6f3f2665aacb4178a69eb27003936fda8" # slicer-20.12.00-2024-03-13-1972c5181
+    GIT_TAG        "23c391f48d9f37ae5f1335ea4734ff9882cc06cb" # slicer-24.12.00-2025-01-30-23c391f48
     GIT_PROGRESS   1
     QUIET
     )
@@ -86,7 +94,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "8778c194336efb7551c620b047f0e7ea24b93fd7" # slicer-v24.06.00-2024-06-07-2628b9f29
+    GIT_TAG "fa9d33bdb96072ee8015feeb7d782dd532355979" # slicer-v24.12.00-2025-30-01-fa9d33bdb
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
@@ -115,6 +123,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCOLLECTION_SOFAUSERINTERACTION:BOOL=ON
       -DSOFA_GUI_QT_ENABLE_QDOCBROWSER:BOOL=OFF
       -DSOFA_INSTALL_RESOURCES_FILES:BOOL=OFF
+      -DSOFA_ENABLE_LINK_TIME_OPTIMIZATION:BOOL=${SOFA_ENABLE_LINK_TIME_OPTIMIZATION}
       # Output directory
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
