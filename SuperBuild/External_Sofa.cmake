@@ -79,6 +79,45 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
   ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
 
+  # BeamAdapter
+  set(plugin_name "BeamAdapter")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/sofa-framework/BeamAdapter.git"
+    GIT_TAG        "4f0f30c7025740e808865d392c1bac7df3627e9b" # v24.06
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
+  # Registration
+  set(plugin_name "Registration")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/sofa-framework/Registration.git"
+    GIT_TAG        "8551d8fa6cd5af7cd29a7261729b153d9549d2d6" # master-8551d8fa6cd5af7cd29a7261729b153d9549d2d6
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
+  # Shell
+  set(plugin_name "Shell")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/SofaDefrost/Shell.git"
+    GIT_TAG        "fc89d076e862e65d56a9693d7a3811fc1efaaf48" # master-fc89d076e862e65d56a9693d7a3811fc1efaaf48
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
 
