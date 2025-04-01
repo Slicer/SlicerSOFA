@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0869ccb..99a9e31 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -46,7 +46,5 @@ sofa_create_package_with_targets(
+         TARGETS ${PROJECT_NAME} AUTO_SET_TARGET_PROPERTIES
+         INCLUDE_SOURCE_DIR "src"
+         INCLUDE_INSTALL_DIR ${PROJECT_NAME}
+-        RELOCATABLE "plugins"
++        RELOCATABLE ${SOFA_PLUGINS_RELOCATABLE_INSTALL_DIR}
+ )
+-
+-

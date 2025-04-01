@@ -10,6 +10,8 @@ set(${proj}_DEPENDS
   OpenIGTLink
   )
 
+find_package(Patch REQUIRED)
+
 # Include dependent projects if any
 ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj)
 
@@ -48,6 +50,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     GIT_REPOSITORY "https://github.com/sofa-framework/SofaIGTLink.git"
     GIT_TAG        "055351b5532a2d273b43121c23d1e715855f7d0d" # master-20240423
     GIT_PROGRESS   1
+    PATCH_COMMAND  ${Patch_EXECUTABLE} -p1 -d ${${plugin_name}_SOURCE_DIR} -i ${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild/patches/SofaIGTLink_relocatable_install_dir.patch
     QUIET
     )
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
@@ -74,6 +77,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     GIT_REPOSITORY "https://github.com/SofaDefrost/STLIB.git"
     GIT_TAG        "41de3a79e9bb887db3e163eebb7ad3d40f3d31e8" # v23.12-20240313
     GIT_PROGRESS   1
+    PATCH_COMMAND  ${Patch_EXECUTABLE} -p1 -d ${${plugin_name}_SOURCE_DIR} -i ${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild/patches/SofaSTLIB_relocatable_install_dir.patch
     QUIET
     )
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
@@ -86,7 +90,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "8778c194336efb7551c620b047f0e7ea24b93fd7" # slicer-v24.06.00-2024-06-07-2628b9f29
+    GIT_TAG "c6a3460cd4cc4cd367769e5f322b109d02e7866f" # slicer-v24.06.00-2025-31-03-c6a3460cd
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
@@ -120,7 +124,9 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
       -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
       # Install directories
-      # NA
+      -DSOFA_PLUGINS_RELOCATABLE_INSTALL_DIR:PATH=lib/plugins
+      -DSOFA_COLLECTIONS_RELOCATABLE_INSTALL_DIR:PATH=lib/collections
+      -DSOFA_PROJECTS_RELOCATABLE_INSTALL_DIR:PATH=lib/projects
       # More options
       -DSofaSTLIB_ENABLED:BOOL=ON
       -DLIBRARY_SOFA_GUI:BOOL=ON
@@ -141,6 +147,9 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
       -DZLIB_LIBRARY:PATH=${ZLIB_LIBRARY}
       -DSOFA_EXTERNAL_DIRECTORIES:STRING=${SOFA_EXTERNAL_DIRECTORIES}
+      -DSOFA_INSTALL_RESOURCES_FILES:BOOL=OFF
+      -DAPPLICATION_RUNSOFA:BOOL=OFF
+      -DAPPLICATION_SCENECHECKING:BOOL=OFF
       # SofaPython3
       -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE}
       -DPython3_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE}
