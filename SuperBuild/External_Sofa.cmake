@@ -81,6 +81,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
+  set(EP_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
@@ -101,7 +102,9 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCMAKE_CXX_STANDARD:STRING=${CMAKE_CXX_STANDARD}
       -DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}
       -DCMAKE_CXX_EXTENSIONS:BOOL=${CMAKE_CXX_EXTENSIONS}
+      -DCMAKE_SKIP_BUILD_RPATH:BOOL=ON
       # Options
+      -DSOFA_BUILD_RELEASE_PACKAGE:BOOL=ON
       -DSOFA_BUILD_TESTS:BOOL=OFF
       -DAPPLICATION_RUNSOFA:BOOL=ON
       -DAPPLICATION_SCENECHECKING:BOOL=ON
@@ -156,30 +159,34 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     )
   set(${proj}_DIR ${EP_BINARY_DIR})
 
-  #-----------------------------------------------------------------------------
-  # Launcher setting specific to build tree
+  # #-----------------------------------------------------------------------------
+  # # Launcher setting specific to build tree
 
-  # library paths
-  set(${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
-    ${${proj}_DIR}/lib
-    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
-    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}/<CMAKE_CFG_INTDIR>
-    )
-  mark_as_superbuild(
-    VARS ${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
-    LABELS "LIBRARY_PATHS_LAUNCHER_BUILD"
-    )
+  # # library paths
+  # set(${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
+  #   )
+  # mark_as_superbuild(
+  #   VARS ${proj}_LIBRARY_PATHS_LAUNCHER_BUILD
+  #   LABELS "LIBRARY_PATHS_LAUNCHER_BUILD"
+  #   )
 
-  # python paths
-  set(${proj}_PYTHONPATH_LAUNCHER_BUILD
-    ${${proj}_DIR}/lib/python3/site-packages
-    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
-    # ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}/<CMAKE_CFG_INTDIR>
-    )
-  mark_as_superbuild(
-    VARS ${proj}_PYTHONPATH_LAUNCHER_BUILD
-    LABELS "PYTHONPATH_LAUNCHER_BUILD"
-    )
+  # # python paths
+  # set(${proj}_PYTHONPATH_LAUNCHER_BUILD
+  #   ${EP_BINARY_DIR}/lib/python3/site-packages
+  #   )
+  # mark_as_superbuild(
+  #   VARS ${proj}_PYTHONPATH_LAUNCHER_BUILD
+  #   LABELS "PYTHONPATH_LAUNCHER_BUILD"
+  #   )
+
+  # # environment variables
+  # set(${proj}_ENVVARS_LAUNCHER_BUILD
+  #   "Slicer_SOFA_ROOT=${EP_BINARY_DIR}"
+  #   )
+  # mark_as_superbuild(
+  #   VARS ${proj}_ENVVARS_LAUNCHER_BUILD
+  #   LABELS "ENVVARS_LAUNCHER_BUILD"
+  #   )
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
