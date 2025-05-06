@@ -79,6 +79,19 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
   ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
 
+  # SofaCosserat
+  set(plugin_name "SofaCosserat")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/SofaDefrost/Cosserat.git"
+    GIT_TAG        "f077ff85deaf78f0b6cbf1011bb193fd862846fb" # v24.06
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
   # BeamAdapter
   set(plugin_name "BeamAdapter")
   set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
