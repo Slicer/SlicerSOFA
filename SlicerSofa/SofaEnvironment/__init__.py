@@ -3,7 +3,8 @@ import sys
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path = [
-    script_dir + '/../../Sofa/lib/python3/site-packages',
+    script_dir + '/../../Sofa/plugins/SofaPython3/lib/python3/site-packages',
+    script_dir + '/../../Sofa/plugins/STLIB/lib/python3/site-packages',
 ] + sys.path
 
 os.environ['SOFA_ROOT'] = script_dir + '/../../Sofa'
