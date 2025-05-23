@@ -89,6 +89,9 @@ def CreateScene() -> Sofa.Core.Node:
     # Initialize the root node of the SOFA scene
     rootNode = Sofa.Core.Node("Root")
 
+    # FIX: This is due to https://github.com/SofaDefrost/STLIB/issues/131
+    rootNode.addObject("RequiredPlugin", name="Sofa.Component.Visual")
+
     # Initialize main scene headers with necessary plugins for SOFA components
     MainHeader(rootNode, plugins=[
         "Sofa.Component.IO.Mesh",
@@ -101,7 +104,6 @@ def CreateScene() -> Sofa.Core.Node:
         "Sofa.Component.SolidMechanics.FEM.Elastic",
         "Sofa.Component.StateContainer",
         "Sofa.Component.Topology.Container.Dynamic",
-        "Sofa.Component.Visual",
         "Sofa.GL.Component.Rendering3D",
         "Sofa.Component.AnimationLoop",
         "Sofa.Component.Collision.Detection.Algorithm",
@@ -112,7 +114,7 @@ def CreateScene() -> Sofa.Core.Node:
         "Sofa.Component.Constraint.Lagrangian.Correction",
         "Sofa.Component.LinearSystem",
         "Sofa.Component.MechanicalLoad",
-        "MultiThreading",
+        "Sofa.Component.MultiThreading",
         "Sofa.Component.SolidMechanics.Spring",
         "Sofa.Component.Constraint.Lagrangian.Model",
         "Sofa.Component.Mapping.NonLinear",
@@ -121,7 +123,7 @@ def CreateScene() -> Sofa.Core.Node:
         "Sofa.Component.Topology.Container.Dynamic",
         "Sofa.Component.Engine.Select",
         "Sofa.Component.Constraint.Projective",
-        "SofaIGTLink"
+        "Sofa.IGTLink"
     ])
 
     # Set gravity vector for the simulation (no gravity in this case)
@@ -165,7 +167,7 @@ def CreateScene() -> Sofa.Core.Node:
     attachPointNode.addObject('PointSetTopologyContainer', name="Container")
     attachPointNode.addObject('PointSetTopologyModifier', name="Modifier")
     attachPointNode.addObject('MechanicalObject', name="mstate", template="Vec3d", drawMode=2, showObjectScale=0.01, showObject=False)
-    attachPointNode.addObject('iGTLinkMouseInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
+    attachPointNode.addObject('PickingInteractor', name="mouseInteractor", pickingType="constraint", reactionTime=20, destCollisionModel="@../FEM/Collision/collisionModel")
 
     return rootNode
 

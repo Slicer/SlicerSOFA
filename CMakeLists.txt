@@ -60,6 +60,7 @@ install(DIRECTORY "${Sofa_DIR}/"
   DESTINATION "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/Sofa/"
   COMPONENT RuntimeLibraries
   PATTERN "cmake" EXCLUDE
+  PATTERN "include" EXCLUDE
   PATTERN "metis.framework" EXCLUDE
   #PATTERN "plugin_list.conf.default" EXCLUDE
 )
