@@ -125,6 +125,10 @@ def CreateScene() -> Sofa.Core.Node:
     from stlib3.physics.deformable import ElasticMaterialObject
 
     rootNode = Sofa.Core.Node("root")
+
+    # FIX: This is due to https://github.com/SofaDefrost/STLIB/issues/131
+    rootNode.addObject("RequiredPlugin", name="Sofa.Component.Visual")
+
     MainHeader(rootNode, plugins=[
         "Sofa.Component.IO.Mesh",
         "Sofa.Component.LinearSolver.Direct",
@@ -159,12 +163,12 @@ def CreateScene() -> Sofa.Core.Node:
     ])
 
     rootNode.addObject('DefaultAnimationLoop', parallelODESolving=True)
-    rootNode.addObject('DefaultPipeline', depth=6, verbose=0, draw=0)
+    rootNode.addObject('CollisionPipeline', depth=6, verbose=0, draw=0)
     rootNode.addObject('ParallelBruteForceBroadPhase')
     rootNode.addObject('BVHNarrowPhase')
     rootNode.addObject('ParallelBVHNarrowPhase')
     rootNode.addObject('MinProximityIntersection', name="Proximity", alarmDistance=0.005, contactDistance=0.003)
-    rootNode.addObject('DefaultContactManager', name="Response", response="PenalityContactForceField")
+    rootNode.addObject('CollisionResponse', name="Response", response="PenalityContactForceField")
 
     inputNode = rootNode.addChild('InputSurfaceNode')
     inputNode.addObject('TriangleSetTopologyContainer', name='Container')
