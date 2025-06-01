@@ -244,15 +244,12 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
     Implements the computation logic for the Slicer SOFA module, handling the simulation lifecycle.
     """
 
-    def __init__(self, createSceneFunction=None) -> None:
+    def __init__(self) -> None:
         """
         Initialize the logic with an optional scene creation function.
 
-        Args:
-            createSceneFunction (callable, optional): Function to create the SOFA scene. Defaults to None.
         """
         super().__init__()
-        self._createSceneFunction = createSceneFunction
         self.sofaMappings: List[Tuple[str, str, Callable, bool]] = []
         self.mrmlMappings: List[Tuple[str, str, Callable, bool]] = []
         self.recordSequenceFlags = {}
@@ -261,6 +258,14 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self._rootNode = None
         self._parameterNode = None
         self.ui = None
+
+    @abstractmethod
+    def createScene(self, parameterNode):
+        """
+        Abstract funtion for creating scene
+
+        """
+        pass
 
     def registerSOFAToMRMLMapping(self, fieldName: str, sofaPath: str, mappingFunction: Callable, runOnce: bool = False):
         """
@@ -326,10 +331,10 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
             raise ValueError("parameterNode is not a valid parameterNode wrapped by the sofaParameterNodeWrapper")
 
         self._parameterNode = parameterNode
+        self._rootNode = self.createScene(self._parameterNode)
 
         if not isinstance(self._rootNode, Sofa.Core.Node):
             raise ValueError("rootNode is not a valid Sofa.Core.Node root node")
-        self._rootNode = self.CreateScene()
         setattr(self._parameterNode, "_rootNode", self._rootNode)
         self.__updateSofa__()
         Sofa.Simulation.init(self._rootNode)
@@ -342,10 +347,6 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         """
         if self._parameterNode is None:
             raise ValueError("Parameter node has not been initialized.")
-        if self._rootNode is None:
-            if self._createSceneFunction is None:
-                raise ValueError("No scene creation function provided.")
-            self._rootNode = self._createSceneFunction()
         self._saveState()
         self.resetRunOnceFlags()
         self.setupScene(self._parameterNode)
