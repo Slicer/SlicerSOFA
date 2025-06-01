@@ -62,12 +62,14 @@ from SlicerSofaUtils.Mappings import (
     sofaVonMisesStressToMRMLModelGrid,
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
+    arrayFromModelGridCells,
+    arrayFromMarkupsROIPoints,
 )
 
 # -----------------------------------------------------------------------------
 # Function: CreateScene
 # -----------------------------------------------------------------------------
-def CreateScene() -> Sofa.Core.Node:
+def CreateScene(parameterNode) -> Sofa.Core.Node:
     """
     Creates the main SOFA scene with required components for simulation.
 
@@ -114,7 +116,6 @@ def CreateScene() -> Sofa.Core.Node:
         "Sofa.Component.Constraint.Lagrangian.Correction",
         "Sofa.Component.LinearSystem",
         "Sofa.Component.MechanicalLoad",
-        "Sofa.Component.MultiThreading",
         "Sofa.Component.SolidMechanics.Spring",
         "Sofa.Component.Constraint.Lagrangian.Model",
         "Sofa.Component.Mapping.NonLinear",
@@ -123,6 +124,7 @@ def CreateScene() -> Sofa.Core.Node:
         "Sofa.Component.Topology.Container.Dynamic",
         "Sofa.Component.Engine.Select",
         "Sofa.Component.Constraint.Projective",
+        "MultiThreading",
         "Sofa.IGTLink"
     ])
 
@@ -137,7 +139,7 @@ def CreateScene() -> Sofa.Core.Node:
     femNode = rootNode.addChild('FEM')
     femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
     femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
-    femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=None, tetrahedra=None)
+    femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), tetrahedra=arrayFromModelGridCells(parameterNode.modelNode))
     femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
     femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
     femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large", computeVonMisesStress=vonMisesMode['fullGreen'])
@@ -145,7 +147,7 @@ def CreateScene() -> Sofa.Core.Node:
 
     # Add a region of interest (ROI) with fixed constraints in the FEM node
     fixedROI = femNode.addChild('FixedROI')
-    fixedROI.addObject('BoxROI', template="Vec3", box=[0.0]*6, drawBoxes=False,
+    fixedROI.addObject('BoxROI', template="Vec3", box=arrayFromMarkupsROIPoints(parameterNode.boundaryROI), drawBoxes=False,
                        position="@../mstate.rest_position", name="BoxROI",
                        computeTriangles=False, computeTetrahedra=False, computeEdges=False)
     fixedROI.addObject('FixedConstraint', indices="@BoxROI.indices")
@@ -361,11 +363,10 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         Initialize the logic with the SOFA scene.
         """
         super().__init__()
-        self._rootNode = CreateScene()
         self._parameterNode = None
 
-    def CreateScene(self):
-        return CreateScene()
+    def createScene(self, parameterNode) -> Sofa.Core.Node:
+        return CreateScene(parameterNode)
 
     def getParameterNode(self):
         """
