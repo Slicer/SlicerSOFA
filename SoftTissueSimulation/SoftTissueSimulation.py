@@ -62,12 +62,14 @@ from SlicerSofaUtils.Mappings import (
     sofaVonMisesStressToMRMLModelGrid,
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
+    arrayFromModelGridCells,
+    arrayFromMarkupsROIPoints,
 )
 
 # -----------------------------------------------------------------------------
 # Function: CreateScene
 # -----------------------------------------------------------------------------
-def CreateScene() -> Sofa.Core.Node:
+def CreateScene(parameterNode) -> Sofa.Core.Node:
     """
     Creates the main SOFA scene with required components for simulation.
 
@@ -90,39 +92,39 @@ def CreateScene() -> Sofa.Core.Node:
     rootNode = Sofa.Core.Node("Root")
 
     # Initialize main scene headers with necessary plugins for SOFA components
-    MainHeader(rootNode, plugins=[
-        "Sofa.Component.IO.Mesh",
-        "Sofa.Component.LinearSolver.Direct",
-        "Sofa.Component.LinearSolver.Iterative",
-        "Sofa.Component.Mapping.Linear",
-        "Sofa.Component.Mass",
-        "Sofa.Component.ODESolver.Backward",
-        "Sofa.Component.Setting",
-        "Sofa.Component.SolidMechanics.FEM.Elastic",
-        "Sofa.Component.StateContainer",
-        "Sofa.Component.Topology.Container.Dynamic",
-        "Sofa.Component.Visual",
-        "Sofa.GL.Component.Rendering3D",
-        "Sofa.Component.AnimationLoop",
-        "Sofa.Component.Collision.Detection.Algorithm",
-        "Sofa.Component.Collision.Detection.Intersection",
-        "Sofa.Component.Collision.Geometry",
-        "Sofa.Component.Collision.Response.Contact",
-        "Sofa.Component.Constraint.Lagrangian.Solver",
-        "Sofa.Component.Constraint.Lagrangian.Correction",
-        "Sofa.Component.LinearSystem",
-        "Sofa.Component.MechanicalLoad",
-        "MultiThreading",
-        "Sofa.Component.SolidMechanics.Spring",
-        "Sofa.Component.Constraint.Lagrangian.Model",
-        "Sofa.Component.Mapping.NonLinear",
-        "Sofa.Component.Topology.Container.Constant",
-        "Sofa.Component.Topology.Mapping",
-        "Sofa.Component.Topology.Container.Dynamic",
-        "Sofa.Component.Engine.Select",
-        "Sofa.Component.Constraint.Projective",
-        "SofaIGTLink"
-    ])
+    plugins=["Sofa.Component.IO.Mesh",
+             "Sofa.Component.LinearSolver.Direct",
+             "Sofa.Component.LinearSolver.Iterative",
+             "Sofa.Component.Mapping.Linear",
+             "Sofa.Component.Mass",
+             "Sofa.Component.ODESolver.Backward",
+             "Sofa.Component.Setting",
+             "Sofa.Component.SolidMechanics.FEM.Elastic",
+             "Sofa.Component.StateContainer",
+             "Sofa.Component.Topology.Container.Dynamic",
+             "Sofa.GL.Component.Rendering3D",
+             "Sofa.Component.AnimationLoop",
+             "Sofa.Component.Collision.Detection.Algorithm",
+             "Sofa.Component.Collision.Detection.Intersection",
+             "Sofa.Component.Collision.Geometry",
+             "Sofa.Component.Collision.Response.Contact",
+             "Sofa.Component.Constraint.Lagrangian.Solver",
+             "Sofa.Component.Constraint.Lagrangian.Correction",
+             "Sofa.Component.LinearSystem",
+             "Sofa.Component.MechanicalLoad",
+             "Sofa.Component.SolidMechanics.Spring",
+             "Sofa.Component.Constraint.Lagrangian.Model",
+             "Sofa.Component.Mapping.NonLinear",
+             "Sofa.Component.Topology.Container.Constant",
+             "Sofa.Component.Topology.Mapping",
+             "Sofa.Component.Topology.Container.Dynamic",
+             "Sofa.Component.Engine.Select",
+             "Sofa.Component.Constraint.Projective",
+             "MultiThreading",
+             "SofaIGTLink"]
+
+    for plugin_name in plugins:
+         rootNode.addObject("RequiredPlugin", name=plugin_name)
 
     # Set gravity vector for the simulation (no gravity in this case)
     rootNode.gravity = [0, 0, 0]
@@ -135,7 +137,7 @@ def CreateScene() -> Sofa.Core.Node:
     femNode = rootNode.addChild('FEM')
     femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
     femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
-    femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=None, tetrahedra=None)
+    femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), tetrahedra=arrayFromModelGridCells(parameterNode.modelNode))
     femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
     femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
     femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large", computeVonMisesStress=vonMisesMode['fullGreen'])
@@ -143,7 +145,7 @@ def CreateScene() -> Sofa.Core.Node:
 
     # Add a region of interest (ROI) with fixed constraints in the FEM node
     fixedROI = femNode.addChild('FixedROI')
-    fixedROI.addObject('BoxROI', template="Vec3", box=[0.0]*6, drawBoxes=False,
+    fixedROI.addObject('BoxROI', template="Vec3", box=arrayFromMarkupsROIPoints(parameterNode.boundaryROI), drawBoxes=False,
                        position="@../mstate.rest_position", name="BoxROI",
                        computeTriangles=False, computeTetrahedra=False, computeEdges=False)
     fixedROI.addObject('FixedConstraint', indices="@BoxROI.indices")
@@ -359,11 +361,10 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         Initialize the logic with the SOFA scene.
         """
         super().__init__()
-        self._rootNode = CreateScene()
         self._parameterNode = None
 
-    def CreateScene(self):
-        return CreateScene()
+    def createScene(self, parameterNode) -> Sofa.Core.Node:
+        return CreateScene(parameterNode)
 
     def getParameterNode(self):
         """

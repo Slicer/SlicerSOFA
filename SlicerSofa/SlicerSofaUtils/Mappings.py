@@ -31,7 +31,7 @@
 import slicer
 import vtk
 import numpy as np
-from vtk.util.numpy_support import numpy_to_vtk
+from vtk.util.numpy_support import numpy_to_vtk,vtk_to_numpy
 from slicer.parameterNodeWrapper import parameterPack
 from slicer import vtkMRMLGridTransformNode
 
@@ -56,9 +56,10 @@ def mrmlModelPolyToSofaTriangleTopologyContainer(modelNode, sofaNode) -> None:
         raise ValueError("modelNode can't be None")
 
     # Update SOFA node with tetrahedra and positions
-    sofaNode.triangle = slicer.util.arrayFromModelPolyIds(modelNode).reshape(-1,4)[:,1:]
-    sofaNode.position = slicer.util.arrayFromModelPoints(modelNode)
-
+    with sofaNode.triangle.writeable() as topology:
+        topology[:] = slicer.util.arrayFromModelPolyIds(modelNode).reshape(-1,5)[:,1:5]
+    with sofaNode.position.writeable() as geometry:
+        geometry[:] = slicer.util.arrayFromModelPoints(modelNode)
 
 def mrmlModelGridToSofaTetrahedronTopologyContainer(modelNode, sofaNode) -> None:
     """
@@ -76,30 +77,11 @@ def mrmlModelGridToSofaTetrahedronTopologyContainer(modelNode, sofaNode) -> None
     if sofaNode is None:
         raise ValueError("modelNode can't be None")
 
-    unstructuredGrid = modelNode.GetUnstructuredGrid()
-    if not unstructuredGrid:
-        raise ValueError("Unstructured grid associated to modelNode can't be none")
-
-    # Retrieve unstructured grid data from the model node
-    points = unstructuredGrid.GetPoints()
-    numPoints = points.GetNumberOfPoints()
-
-    # Convert VTK points to a list for SOFA node
-    pointCoords = [points.GetPoint(i) for i in range(numPoints)]
-
-    # Parse cell data (tetrahedra connectivity)
-    cells = unstructuredGrid.GetCells()
-    cellArray = vtk.util.numpy_support.vtk_to_numpy(cells.GetData())
-    cellConnectivity = []
-    idx = 0
-    for i in range(unstructuredGrid.GetNumberOfCells()):
-        numPoints = cellArray[idx]
-        cellConnectivity.append(cellArray[idx + 1:idx + 1 + numPoints].tolist())
-        idx += numPoints + 1
-
     # Update SOFA node with tetrahedra and positions
-    sofaNode.tetrahedra = cellConnectivity
-    sofaNode.position = pointCoords
+    with sofaNode.tetrahedra.writeable() as topology:
+        topology[:] = arrayFromModelGridCells(modelNode)
+    with sofaNode.position.writeable() as geometry:
+        geometry[:] = slicer.util.arrayFromModelPoints(modelNode)
 
 
 def mrmlMarkupsFiducialToSofaPointer(fiducialNode, sofaNode) -> None:
@@ -118,7 +100,8 @@ def mrmlMarkupsFiducialToSofaPointer(fiducialNode, sofaNode) -> None:
         raise ValueError("modelNode can't be None")
 
     # Set the SOFA node position based on the first control point of the fiducial node
-    sofaNode.position = slicer.util.arrayFromMarkupsControlPoints(fiducialNode)
+    with sofaNode.position.writeable() as geometry:
+        geometry[:] = slicer.util.arrayFromMarkupsControlPoints(fiducialNode)
 
 def mrmlMarkupsROIToSofaBoxROI(roiNode, sofaNode):
     """
@@ -133,7 +116,8 @@ def mrmlMarkupsROIToSofaBoxROI(roiNode, sofaNode):
     if sofaNode is None:
         raise ValueError("modelNode can't be None")
 
-    sofaNode.box = [arrayFromMarkupsROIPoints(roiNode)]
+    with sofaNode.box.writeable() as box:
+        box[:] = arrayFromMarkupsROIPoints(roiNode)
 
 # -----------------------------------------------------------------------------
 # Mapping functions Sofa->MRML
@@ -304,5 +288,16 @@ def arrayVectorFromMarkupsLinePoints(lineNode):
        return vector  # Return the original vector if norm is zero to avoid division by zero
     return vector / norm
 
+def arrayFromModelGridCells(modelNode):
 
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
 
+    unstructuredGrid = modelNode.GetUnstructuredGrid()
+    if not unstructuredGrid:
+        raise ValueError("Unstructured grid associated to modelNode can't be none")
+
+    cellsArray = np.array(unstructuredGrid.GetCells().GetData())
+    cellConnectivity= cellsArray.reshape(-1,5)[:,1:5]
+
+    return cellConnectivity
