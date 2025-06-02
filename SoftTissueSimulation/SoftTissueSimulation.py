@@ -76,7 +76,6 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     Returns:
         Sofa.Core.Node: The root node of the SOFA simulation scene.
     """
-    from stlib3.scene import MainHeader, ContactHeader
     from stlib3.solver import DefaultSolver
     from stlib3.physics.deformable import ElasticMaterialObject
     from stlib3.physics.rigid import Floor
@@ -95,38 +94,39 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     rootNode.addObject("RequiredPlugin", name="Sofa.Component.Visual")
 
     # Initialize main scene headers with necessary plugins for SOFA components
-    MainHeader(rootNode, plugins=[
-        "Sofa.Component.IO.Mesh",
-        "Sofa.Component.LinearSolver.Direct",
-        "Sofa.Component.LinearSolver.Iterative",
-        "Sofa.Component.Mapping.Linear",
-        "Sofa.Component.Mass",
-        "Sofa.Component.ODESolver.Backward",
-        "Sofa.Component.Setting",
-        "Sofa.Component.SolidMechanics.FEM.Elastic",
-        "Sofa.Component.StateContainer",
-        "Sofa.Component.Topology.Container.Dynamic",
-        "Sofa.GL.Component.Rendering3D",
-        "Sofa.Component.AnimationLoop",
-        "Sofa.Component.Collision.Detection.Algorithm",
-        "Sofa.Component.Collision.Detection.Intersection",
-        "Sofa.Component.Collision.Geometry",
-        "Sofa.Component.Collision.Response.Contact",
-        "Sofa.Component.Constraint.Lagrangian.Solver",
-        "Sofa.Component.Constraint.Lagrangian.Correction",
-        "Sofa.Component.LinearSystem",
-        "Sofa.Component.MechanicalLoad",
-        "Sofa.Component.SolidMechanics.Spring",
-        "Sofa.Component.Constraint.Lagrangian.Model",
-        "Sofa.Component.Mapping.NonLinear",
-        "Sofa.Component.Topology.Container.Constant",
-        "Sofa.Component.Topology.Mapping",
-        "Sofa.Component.Topology.Container.Dynamic",
-        "Sofa.Component.Engine.Select",
-        "Sofa.Component.Constraint.Projective",
-        "MultiThreading",
-        "Sofa.IGTLink"
-    ])
+    plugins=["Sofa.Component.IO.Mesh",
+             "Sofa.Component.LinearSolver.Direct",
+             "Sofa.Component.LinearSolver.Iterative",
+             "Sofa.Component.Mapping.Linear",
+             "Sofa.Component.Mass",
+             "Sofa.Component.ODESolver.Backward",
+             "Sofa.Component.Setting",
+             "Sofa.Component.SolidMechanics.FEM.Elastic",
+             "Sofa.Component.StateContainer",
+             "Sofa.Component.Topology.Container.Dynamic",
+             "Sofa.GL.Component.Rendering3D",
+             "Sofa.Component.AnimationLoop",
+             "Sofa.Component.Collision.Detection.Algorithm",
+             "Sofa.Component.Collision.Detection.Intersection",
+             "Sofa.Component.Collision.Geometry",
+             "Sofa.Component.Collision.Response.Contact",
+             "Sofa.Component.Constraint.Lagrangian.Solver",
+             "Sofa.Component.Constraint.Lagrangian.Correction",
+             "Sofa.Component.LinearSystem",
+             "Sofa.Component.MechanicalLoad",
+             "Sofa.Component.SolidMechanics.Spring",
+             "Sofa.Component.Constraint.Lagrangian.Model",
+             "Sofa.Component.Mapping.NonLinear",
+             "Sofa.Component.Topology.Container.Constant",
+             "Sofa.Component.Topology.Mapping",
+             "Sofa.Component.Topology.Container.Dynamic",
+             "Sofa.Component.Engine.Select",
+             "Sofa.Component.Constraint.Projective",
+             "MultiThreading",
+             "Sofa.IGTLink"]
+
+    for plugin_name in plugins:
+         rootNode.addObject("RequiredPlugin", name=plugin_name)
 
     # Set gravity vector for the simulation (no gravity in this case)
     rootNode.gravity = [0, 0, 0]
