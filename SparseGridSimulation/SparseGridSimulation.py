@@ -121,42 +121,47 @@ def CreateScene() -> Sofa.Core.Node:
     Creates the main SOFA scene with required components for simulation.
     """
     import Sofa.Core
-    from stlib3.scene import MainHeader
     from stlib3.physics.deformable import ElasticMaterialObject
 
     rootNode = Sofa.Core.Node("root")
-    MainHeader(rootNode, plugins=[
-        "Sofa.Component.IO.Mesh",
-        "Sofa.Component.LinearSolver.Direct",
-        "Sofa.Component.LinearSolver.Iterative",
-        "Sofa.Component.Mapping.Linear",
-        "Sofa.Component.Mass",
-        "Sofa.Component.ODESolver.Backward",
-        "Sofa.Component.Setting",
-        "Sofa.Component.SolidMechanics.FEM.Elastic",
-        "Sofa.Component.StateContainer",
-        "Sofa.Component.Topology.Container.Dynamic",
-        "Sofa.Component.Visual",
-        "Sofa.GL.Component.Rendering3D",
-        "Sofa.Component.AnimationLoop",
-        "Sofa.Component.Collision.Detection.Algorithm",
-        "Sofa.Component.Collision.Detection.Intersection",
-        "Sofa.Component.Collision.Geometry",
-        "Sofa.Component.Collision.Response.Contact",
-        "Sofa.Component.Constraint.Lagrangian.Solver",
-        "Sofa.Component.Constraint.Lagrangian.Correction",
-        "Sofa.Component.LinearSystem",
-        "Sofa.Component.MechanicalLoad",
-        "MultiThreading",
-        "Sofa.Component.SolidMechanics.Spring",
-        "Sofa.Component.Constraint.Lagrangian.Model",
-        "Sofa.Component.Mapping.NonLinear",
-        "Sofa.Component.Topology.Container.Constant",
-        "Sofa.Component.Topology.Mapping",
-        "Sofa.Component.Engine.Select",
-        "Sofa.Component.Constraint.Projective",
-        "Sofa.Component.Topology.Container.Grid",
-    ])
+
+    # FIX: This is due to https://github.com/SofaDefrost/STLIB/issues/131
+    rootNode.addObject("RequiredPlugin", name="Sofa.Component.Visual")
+
+    plugins=["Sofa.Component.IO.Mesh",
+             "Sofa.Component.LinearSolver.Direct",
+             "Sofa.Component.LinearSolver.Iterative",
+             "Sofa.Component.Mapping.Linear",
+             "Sofa.Component.Mass",
+             "Sofa.Component.ODESolver.Backward",
+             "Sofa.Component.Setting",
+             "Sofa.Component.SolidMechanics.FEM.Elastic",
+             "Sofa.Component.StateContainer",
+             "Sofa.Component.Topology.Container.Dynamic",
+             "Sofa.Component.Visual",
+             "Sofa.GL.Component.Rendering3D",
+             "Sofa.Component.AnimationLoop",
+             "Sofa.Component.Collision.Detection.Algorithm",
+             "Sofa.Component.Collision.Detection.Intersection",
+             "Sofa.Component.Collision.Geometry",
+             "Sofa.Component.Collision.Response.Contact",
+             "Sofa.Component.Constraint.Lagrangian.Solver",
+             "Sofa.Component.Constraint.Lagrangian.Correction",
+             "Sofa.Component.LinearSystem",
+             "Sofa.Component.MechanicalLoad",
+             "MultiThreading",
+             "Sofa.Component.SolidMechanics.Spring",
+             "Sofa.Component.Constraint.Lagrangian.Model",
+             "Sofa.Component.Mapping.NonLinear",
+             "Sofa.Component.Topology.Container.Constant",
+             "Sofa.Component.Topology.Mapping",
+             "Sofa.Component.Engine.Select",
+             "Sofa.Component.Constraint.Projective",
+             "Sofa.Component.Topology.Container.Grid",
+             ]
+
+    for plugin_name in plugins:
+        rootNode.addObject('RequiredPlugin', name=plugin_name)
 
     rootNode.addObject('DefaultAnimationLoop', parallelODESolving=True)
     rootNode.addObject('DefaultPipeline', depth=6, verbose=0, draw=0)
