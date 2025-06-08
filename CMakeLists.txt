@@ -45,7 +45,7 @@ set(EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS)
 if(NOT APPLE)
   list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${EXTENSION_SUPERBUILD_BINARY_DIR}/GLEW-build;glew;Runtime;/")
 endif()
-list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${Sofa_DIR};Sofa;libraries;/")
+#list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${Sofa_DIR};Sofa;libraries;/")
 set(${EXTENSION_NAME}_CPACK_INSTALL_CMAKE_PROJECTS "${EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS}" CACHE STRING "List of external projects to install" FORCE)
 
 if(APPLE)
@@ -57,6 +57,17 @@ if(APPLE)
 
   set(${EXTENSION_NAME}_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES}" CACHE STRING "List of directories to look up libraries to copy into the application package" FORCE)
 endif()
+
+install(DIRECTORY "${Sofa_DIR}/lib/"
+  DESTINATION "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/"
+  COMPONENT RuntimeLibraries
+  PATTERN "cmake" EXCLUDE
+  PATTERN "include" EXCLUDE
+  PATTERN "tutorial" EXCLUDE
+  PATTERN "examples" EXCLUDE
+  PATTERN "metis.framework" EXCLUDE
+  PATTERN "plugin_list.conf.default" EXCLUDE
+)
 
 #-----------------------------------------------------------------------------
 list(APPEND CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
