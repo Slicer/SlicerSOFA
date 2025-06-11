@@ -1,22 +1,32 @@
 import os
 import sys
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
+this_script_dir = os.path.dirname(os.path.abspath(__file__))
 
-if os.path.isdir(script_dir + '/../../python3'): #Install-tree
-    os.environ['SOFA_ROOT'] = script_dir + '/../..'
-    sys.path = [script_dir + '/../../python3/site-packages'] + sys.path
+plugins = ['ArticulatedSystemPlugin',
+           'MultiThreading',
+           'SceneChecking',
+           'SofaIGTLink',
+           'SofaMatrix',
+           'SofaPython3',
+           'SofaValidation',
+           'STLIB']
+
+if os.path.isdir(this_script_dir + '/../../Sofa'): #Install-tree
+    os.environ['SOFA_ROOT'] = this_script_dir + '/../../Sofa'
+    for plugin in plugins:
+        sys.path = [this_script_dir + '/../../Sofa/plugins/' + plugin + '/lib/python3/site-packages'] + sys.path
 else:                                         #Build-tree
-    os.environ['SOFA_ROOT'] = script_dir + '/../../../../../Sofa-build'
-    sys.path = [script_dir + '/../../../../../Sofa-build/lib/python3/site-packages'] + sys.path
+    os.environ['SOFA_ROOT'] = this_script_dir + '/../../../../../Sofa-build'
+    sys.path = [this_script_dir + '/../../../../../Sofa-build/lib/python3/site-packages'] + sys.path
 
 # Sofa, by default, will capture the exception handling. This is a workaround
 # to keep the exception handling in PythonSlicer
 defaultExecHook = sys.excepthook
 
 import Sofa
-import SofaRuntime
+#import SofaRuntime
 
 sys.excepthook = defaultExecHook
 
-__all__ = ["Sofa", "SofaRuntime"]
+__all__ = ["Sofa"]#, "SofaRuntime"]
