@@ -23,7 +23,7 @@ if platform.system() == "Windows":
         os.environ['SOFA_ROOT'] = this_script_dir + '/../../../../../Sofa-build'
         sys.path = [this_script_dir + '/../../../../../Sofa-build/lib/python3/site-packages'] + sys.path
 
-else:
+else:  #Linux and MacOS
 
     if os.path.isdir(this_script_dir + '/../../Sofa'): #Install-tree
         os.environ['SOFA_ROOT'] = this_script_dir + '/../../Sofa'
@@ -42,4 +42,4 @@ import Sofa
 
 sys.excepthook = defaultExecHook
 
-__all__ = ["Sofa"]#, "SofaRuntime"]
+__all__ = ["Sofa"] #, "SofaRuntime"]
