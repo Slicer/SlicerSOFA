@@ -1,5 +1,6 @@
 import os
 import sys
+import platform
 
 this_script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -12,13 +13,25 @@ plugins = ['ArticulatedSystemPlugin',
            'SofaValidation',
            'STLIB']
 
-if os.path.isdir(this_script_dir + '/../../Sofa'): #Install-tree
-    os.environ['SOFA_ROOT'] = this_script_dir + '/../../Sofa'
-    for plugin in plugins:
-        sys.path = [this_script_dir + '/../../Sofa/plugins/' + plugin + '/lib/python3/site-packages'] + sys.path
-else:                                         #Build-tree
-    os.environ['SOFA_ROOT'] = this_script_dir + '/../../../../../Sofa-build'
-    sys.path = [this_script_dir + '/../../../../../Sofa-build/lib/python3/site-packages'] + sys.path
+if platform.system() == "Windows":
+
+    if os.path.isdir(this_script_dir + '/../../../../plugins'): #Install-tree
+        os.environ['SOFA_ROOT'] = this_script_dir + '/../../../../'
+        for plugin in plugins:
+            sys.path = [this_script_dir + '/../../../../plugins/' + plugin + '/lib/python3/site-packages'] + sys.path
+    else:                                         #Build-tree
+        os.environ['SOFA_ROOT'] = this_script_dir + '/../../../../../Sofa-build'
+        sys.path = [this_script_dir + '/../../../../../Sofa-build/lib/python3/site-packages'] + sys.path
+
+else:
+
+    if os.path.isdir(this_script_dir + '/../../Sofa'): #Install-tree
+        os.environ['SOFA_ROOT'] = this_script_dir + '/../../Sofa'
+        for plugin in plugins:
+            sys.path = [this_script_dir + '/../../Sofa/plugins/' + plugin + '/lib/python3/site-packages'] + sys.path
+    else:                                         #Build-tree
+        os.environ['SOFA_ROOT'] = this_script_dir + '/../../../../../Sofa-build'
+        sys.path = [this_script_dir + '/../../../../../Sofa-build/lib/python3/site-packages'] + sys.path
 
 # Sofa, by default, will capture the exception handling. This is a workaround
 # to keep the exception handling in PythonSlicer
