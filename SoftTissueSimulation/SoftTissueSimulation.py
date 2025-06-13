@@ -89,7 +89,6 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
 
     # Initialize the root node of the SOFA scene
     rootNode = Sofa.Core.Node("Root")
-    slicer.modules.rootNode = rootNode
 
     # Initialize main scene headers with necessary plugins for SOFA components
     plugins=["Sofa.Component.IO.Mesh",
