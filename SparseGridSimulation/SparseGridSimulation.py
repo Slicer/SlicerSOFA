@@ -54,6 +54,8 @@ from SlicerSofaUtils.Mappings import (
     sofaMechanicalObjectToMRMLModelPoly,
     sofaSparseGridTopologyToMRMLModelGrid,
     arrayVectorFromMarkupsLinePoints,
+    arrayFromModelGridCells,
+    arrayFromMarkupsROIPoints,
 )
 
 #
@@ -116,7 +118,7 @@ class SparseGridSimulation(ScriptedLoadableModule):
 # CreateScene Function
 #
 
-def CreateScene() -> Sofa.Core.Node:
+def CreateScene(parameterNode) -> Sofa.Core.Node:
     """
     Creates the main SOFA scene with required components for simulation.
     """
@@ -125,8 +127,8 @@ def CreateScene() -> Sofa.Core.Node:
 
     rootNode = Sofa.Core.Node("root")
 
-    # FIX: This is due to https://github.com/SofaDefrost/STLIB/issues/131
-    rootNode.addObject("RequiredPlugin", name="Sofa.Component.Visual")
+    # # FIX: This is due to https://github.com/SofaDefrost/STLIB/issues/131
+    # rootNode.addObject("RequiredPlugin", name="Sofa.Component.Visual")
 
     plugins=["Sofa.Component.IO.Mesh",
              "Sofa.Component.LinearSolver.Direct",
@@ -163,6 +165,9 @@ def CreateScene() -> Sofa.Core.Node:
     for plugin_name in plugins:
         rootNode.addObject('RequiredPlugin', name=plugin_name)
 
+    # Set gravity vector for the simulation (no gravity in this case)
+    rootNode.gravity = [0, 0, 0]
+
     rootNode.addObject('DefaultAnimationLoop', parallelODESolving=True)
     rootNode.addObject('DefaultPipeline', depth=6, verbose=0, draw=0)
     rootNode.addObject('ParallelBruteForceBroadPhase')
@@ -172,10 +177,11 @@ def CreateScene() -> Sofa.Core.Node:
     rootNode.addObject('DefaultContactManager', name="Response", response="PenalityContactForceField")
 
     inputNode = rootNode.addChild('InputSurfaceNode')
-    inputNode.addObject('TriangleSetTopologyContainer', name='Container')
+    inputNode.addObject('TriangleSetTopologyContainer', name='Container', position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), triangles=slicer.util.arrayFromModelPolyIds(parameterNode.modelNode))
+
 
     fem = rootNode.addChild('FEM')
-    fem.addObject('SparseGridTopology', name='SparseGridTopology', n=[20, 20, 20], position="@../InputSurfaceNode/Container.position")
+    fem.addObject('SparseGridTopology', name='SparseGridTopology', n=parameterNode.sparseGridDimensions.array(), position="@../InputSurfaceNode/Container.position")
     fem.addObject('EulerImplicitSolver', rayleighStiffness=0.1, rayleighMass=0.1)
     fem.addObject('CGLinearSolver', iterations=100, tolerance=1e-5, threshold=1e-5)
     fem.addObject('MechanicalObject', name='MO')
@@ -191,7 +197,7 @@ def CreateScene() -> Sofa.Core.Node:
     surf.addObject('BarycentricMapping')
 
     fem.addObject('BoxROI', name="FixedROI",
-                  template="Vec3", box=[0.0]*6, drawBoxes=False,
+                  template="Vec3", box=arrayFromMarkupsROIPoints(parameterNode.boundaryROI), drawBoxes=False,
                   position="@../MO.rest_position",
                   computeTriangles=False, computeTetrahedra=False, computeEdges=False)
     fem.addObject('FixedConstraint', indices="@FixedROI.indices")
@@ -204,9 +210,13 @@ def CreateScene() -> Sofa.Core.Node:
 
 @parameterPack
 class GridDimensions:
+
     x: int
     y: int
     z: int
+
+    def array(self) -> np.array:
+        return np.array([self.x,self.y,self.z],dtype=np.int64)
 
 #
 # SparseGridSimulationParameterNode
@@ -333,12 +343,12 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
 
     def __init__(self):
         super().__init__()
-        self._rootNode = CreateScene()
+        self._rootNode = None
         self._parameterNode = None
         self._simulationRunning = False
 
-    def CreateScene(self):
-        return CreateScene()
+    def createScene(self, parameterNode) -> Sofa.Core.Node:
+        return CreateScene(parameterNode)
 
     def getParameterNode(self):
         """
@@ -348,7 +358,7 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
             self._parameterNode = SparseGridSimulationParameterNode(super().getParameterNode())
         return self._parameterNode
 
-    def resetParameterNode(self):
+    def resetParameterNode(self) -> None:
         """
         Resets simulation parameters in the parameter node to default values.
         """
@@ -361,6 +371,9 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
             self._parameterNode.sparseGridDimensions = GridDimensions(x=10, y=10, z=10)
             self._parameterNode.gravityMagnitude = 1.0
             self._parameterNode.recordSequence = False
+            self._parameterNode.dt = 0.01
+            self._parameterNode.totalSteps = -1
+            self._parameterNode.currentStep = 0
 
     def startSimulation(self):
         """
@@ -440,6 +453,8 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
         """
         gravityVector = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLMarkupsLineNode', "Gravity")
         gravityVector.CreateDefaultDisplayNodes()
+        gravityVector.SetName("Gravity")
+        gravityVector.GetMeasurement("length").SetEnabled(0)
         modelNode = self.getParameterNode().modelNode
 
         if modelNode and modelNode.GetPolyData():

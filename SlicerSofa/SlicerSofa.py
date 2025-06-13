@@ -61,7 +61,6 @@ from slicer import(
 
 from SofaEnvironment import *
 
-
 # -----------------------------------------------------------------------------
 # Decorator: SofaParameterNodeWrapper
 # -----------------------------------------------------------------------------
@@ -220,7 +219,7 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def updateWidgetOnSimulation(self, parentWidget=None):
         """
         Goes through all child widgets of the specified parent widget and checks
-        for the 'SofaDisableOnSimulation' dynamic property. If found, prints message a.
+        for the 'SofaDisableOnSimulation' dynamic property.
         """
 
         slicer.modules.widget = parentWidget

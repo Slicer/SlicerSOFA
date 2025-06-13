@@ -56,8 +56,8 @@ def mrmlModelPolyToSofaTriangleTopologyContainer(modelNode, sofaNode) -> None:
         raise ValueError("modelNode can't be None")
 
     # Update SOFA node with tetrahedra and positions
-    with sofaNode.triangle.writeable() as topology:
-        topology[:] = slicer.util.arrayFromModelPolyIds(modelNode).reshape(-1,5)[:,1:5]
+    with sofaNode.triangles.writeable() as topology:
+        topology[:] = slicer.util.arrayFromModelPolyIds(modelNode).reshape(-1,3)
     with sofaNode.position.writeable() as geometry:
         geometry[:] = slicer.util.arrayFromModelPoints(modelNode)
 
