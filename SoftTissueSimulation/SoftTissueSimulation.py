@@ -89,6 +89,7 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
 
     # Initialize the root node of the SOFA scene
     rootNode = Sofa.Core.Node("Root")
+    slicer.modules.rootNode = rootNode
 
     # Initialize main scene headers with necessary plugins for SOFA components
     plugins=["Sofa.Component.IO.Mesh",
@@ -149,14 +150,14 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
                        computeTriangles=False, computeTetrahedra=False, computeEdges=False)
     fixedROI.addObject('FixedConstraint', indices="@BoxROI.indices")
 
-    # # Set up collision detection within the FEM node
-    # collisionNode = femNode.addChild('Collision')
-    # collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
-    # collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
-    # collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
-    # collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
-    # collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
-    # collisionNode.addObject('IdentityMapping', name='visualMapping')
+    # Set up collision detection within the FEM node
+    collisionNode = femNode.addChild('Collision')
+    collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
+    collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
+    collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
+    collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
+    collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
+    collisionNode.addObject('IdentityMapping', name='visualMapping')
 
     # Apply a linear solver constraint correction in the FEM node
     femNode.addObject('LinearSolverConstraintCorrection', linearSolver="@precond")
@@ -491,6 +492,7 @@ class SoftTissueSimulationLogic(SlicerSofaLogic):
         """
         gravityVector = slicer.vtkMRMLMarkupsLineNode()
         gravityVector.SetName("Gravity")
+        gravityVector.GetMeasurement("length").SetEnabled(0)
         mesh = None
 
         # Determine the mesh type and retrieve bounds

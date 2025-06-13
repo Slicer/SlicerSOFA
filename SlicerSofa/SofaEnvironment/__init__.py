@@ -38,8 +38,8 @@ else:  #Linux and MacOS
 defaultExecHook = sys.excepthook
 
 import Sofa
-#import SofaRuntime
+import SofaRuntime
 
 sys.excepthook = defaultExecHook
 
-__all__ = ["Sofa"] #, "SofaRuntime"]
+__all__ = ["Sofa", "SofaRuntime"]

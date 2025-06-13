@@ -364,9 +364,11 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         Stops the simulation and halts sequence recording.
         """
         if self._sceneUp:
+            Sofa.Simulation.unload(self._rootNode)
             self._parameterNode.isSimulationRunning = False
             self.stopSequenceRecording()
             self.onSimulationStopped()
+
 
     def onSimulationStarted(self):
         """
