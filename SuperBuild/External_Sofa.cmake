@@ -79,6 +79,14 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
   ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
 
+  set(EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS)
+  if(APPLE)
+    list(APPEND EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS
+      -DCMAKE_INSTALL_NAME_TOOL:FILEPATH=
+      -DCMAKE_MACOSX_RPATH:BOOL=OFF
+      )
+  endif()
+
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
 
@@ -86,7 +94,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "8778c194336efb7551c620b047f0e7ea24b93fd7" # slicer-v24.06.00-2024-06-07-2628b9f29
+    GIT_TAG "f698e29e66e24c702e665c9fb80822731dd31407" # slicer-v24.06.00-2024-06-07-2628b9f29
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
@@ -146,6 +154,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -Dpybind11_DIR:PATH=${pybind11_DIR}/share/cmake/pybind11
       # SofaIGTLink
       -DOpenIGTLink_DIR:PATH=${OpenIGTLink_DIR}
+      ${EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS}
     DEPENDS
       ${${proj}_DEPENDS}
     INSTALL_COMMAND ""
