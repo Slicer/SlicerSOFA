@@ -57,10 +57,18 @@ else() # APPLE
   install(DIRECTORY "${Sofa_DIR}/lib/"
     DESTINATION "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/"
     COMPONENT RuntimeLibraries
+    PATTERN "*.dylib" EXCLUDE
     PATTERN "cmake" EXCLUDE
     PATTERN "metis.framework" EXCLUDE
     PATTERN "plugin_list.conf.default" EXCLUDE
   )
+
+  #-----------------------------------------------------------------------------
+  # Fixup candidates patterns specified as relative paths
+  set(EXTENSION_FIXUP_BUNDLE_CANDIDATES_PATTERNS
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/*.cpython-*.so" # Recursively glob Python modules
+  )
+  set(${EXTENSION_NAME}_FIXUP_BUNDLE_CANDIDATES_PATTERNS "${EXTENSION_FIXUP_BUNDLE_CANDIDATES_PATTERNS}" CACHE STRING "List of candidate patterns for globbing libraries that should be fixed up" FORCE)
 
   #-----------------------------------------------------------------------------
   # Fixup library directories
@@ -75,6 +83,19 @@ else() # APPLE
   list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES ${SOFA_RUNTIME_LIBRARY_DIR})
 
   set(${EXTENSION_NAME}_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES}" CACHE STRING "List of directories to look up libraries to copy into the application package" FORCE)
+
+  #-----------------------------------------------------------------------------
+  # Fixup embedded path overrides
+  set(EXTENSION_FIXUP_BUNDLE_EMBEDDED_PATH_OVERRIDES
+    # Installed libraries
+    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages"
+    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa"
+    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaRuntime/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaRuntime"
+    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaTypes/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaTypes"
+    # Copied libraries
+    "${SOFA_RUNTIME_LIBRARY_DIR}/[^/]+\.dylib$|${Slicer_THIRDPARTY_LIB_DIR}"
+  )
+  set(${EXTENSION_NAME}_FIXUP_BUNDLE_EMBEDDED_PATH_OVERRIDES "${EXTENSION_FIXUP_BUNDLE_EMBEDDED_PATH_OVERRIDES}" CACHE STRING "List of embedded path overrides" FORCE)
 endif()
 
 
