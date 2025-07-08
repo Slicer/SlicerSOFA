@@ -57,7 +57,6 @@ else() # APPLE
   install(DIRECTORY "${Sofa_DIR}/lib/"
     DESTINATION "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/"
     COMPONENT RuntimeLibraries
-    PATTERN "*.dylib" EXCLUDE
     PATTERN "cmake" EXCLUDE
     PATTERN "metis.framework" EXCLUDE
     PATTERN "plugin_list.conf.default" EXCLUDE
@@ -66,6 +65,7 @@ else() # APPLE
   #-----------------------------------------------------------------------------
   # Fixup candidates patterns specified as relative paths
   set(EXTENSION_FIXUP_BUNDLE_CANDIDATES_PATTERNS
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/*.dylib" # Recursively SOFA libraries as these are plugins loaded in runtime
     "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/*.cpython-*.so" # Recursively glob Python modules
   )
   set(${EXTENSION_NAME}_FIXUP_BUNDLE_CANDIDATES_PATTERNS "${EXTENSION_FIXUP_BUNDLE_CANDIDATES_PATTERNS}" CACHE STRING "List of candidate patterns for globbing libraries that should be fixed up" FORCE)
