@@ -39,26 +39,13 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   include(FetchContent)
 
-  # SofaIGTLink
-  set(plugin_name "SofaIGTLink")
-  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
-  FetchContent_Populate(${plugin_name}
-    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
-    GIT_REPOSITORY "https://github.com/sofa-framework/SofaIGTLink.git"
-    GIT_TAG        "055351b5532a2d273b43121c23d1e715855f7d0d" # master-20240423
-    GIT_PROGRESS   1
-    QUIET
-    )
-  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
-  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
-
   # SofaPython3
   set(plugin_name "SofaPython3")
   set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
-    GIT_REPOSITORY "https://github.com/Slicer/SofaPython3.git"
-    GIT_TAG        "baaf3fc6f3f2665aacb4178a69eb27003936fda8" # slicer-20.12.00-2024-03-13-1972c5181
+    GIT_REPOSITORY "https://github.com/Slicer/SofaPython3"
+    GIT_TAG        "23c391f48d9f37ae5f1335ea4734ff9882cc06cb" #slicer-24.12.00-2025-01-30-23c391f48
     GIT_PROGRESS   1
     QUIET
     )
@@ -71,7 +58,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/STLIB.git"
-    GIT_TAG        "41de3a79e9bb887db3e163eebb7ad3d40f3d31e8" # v23.12-20240313
+    GIT_TAG        "ab95265366821f399ba69d461243d76a64ff59eb" # v24.12-20250711
     GIT_PROGRESS   1
     QUIET
     )
@@ -85,6 +72,11 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCMAKE_MACOSX_RPATH:BOOL=OFF
       )
   endif()
+  if(UNIX AND (NOT APPLE))
+    list(APPEND EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS
+      -DSOFA_ENABLE_LINK_TIME_OPTIMIZATION:BOOL=OFF
+    )
+  endif()
 
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
@@ -92,8 +84,9 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     # Note: Update the repository URL and tag to match the correct SOFA version
-    GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "f698e29e66e24c702e665c9fb80822731dd31407" # slicer-v24.06.00-2024-06-07-2628b9f29
+    #GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
+    GIT_REPOSITORY "file:///work/Sofa"
+    GIT_TAG "1263a6c904196b1bd450128dda6643d8a3f86abb" #slicer-v24.12.00-2025-07-11-af8132ed
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
