@@ -7,8 +7,7 @@ set(${proj}_DEPENDS
   GLEW
   tinyxml2
   pybind11
-  OpenIGTLink
-  )
+ )
 
 # Include dependent projects if any
 ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj)
