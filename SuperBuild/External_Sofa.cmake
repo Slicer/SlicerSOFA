@@ -91,6 +91,19 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
   ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
 
+  # Cosserat
+  set(plugin_name "Cosserat")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/SofaDefrost/Cosserat.git"
+    GIT_TAG        "6d9eee545acccadeebac6d118ba56d2d53bee8c4" # v25.06-20250729
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
   set(EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS)
   if(APPLE)
     list(APPEND EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS
@@ -146,6 +159,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DSofaSTLIB_ENABLED:BOOL=ON
       -DSofaBeamAdapter_ENABLED:BOOL=ON
       -DRegistration_ENABLED:BOOL=ON
+      -DCosserat_ENABLED:BOOL=ON
       -DLIBRARY_SOFA_GUI:BOOL=ON
       -DLIBRARY_SOFA_GUI_COMMON:BOOL=ON
       -DMODULE_SOFA_GUI_COMPONENT:BOOL=ON
