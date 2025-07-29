@@ -45,7 +45,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/Slicer/SofaPython3"
-    GIT_TAG        "23c391f48d9f37ae5f1335ea4734ff9882cc06cb" #slicer-24.12.00-2025-01-30-23c391f48
+    GIT_TAG        "1e57a9652e2be88108a7e1dc5322aacee212912f" #slicer-25.06.00-2025-07-29-1e57a9652
     GIT_PROGRESS   1
     QUIET
     )
@@ -58,7 +58,12 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/STLIB.git"
-    GIT_TAG        "ab95265366821f399ba69d461243d76a64ff59eb" # v24.12-20250711
+    GIT_TAG        "b6d1bdb4f74bf1c4cf7b92a0feaf7a9987358591" # v25.06-20250729
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
     GIT_PROGRESS   1
     QUIET
     )
@@ -86,7 +91,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     # Note: Update the repository URL and tag to match the correct SOFA version
     #GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
     GIT_REPOSITORY "file:///work/Sofa"
-    GIT_TAG "1263a6c904196b1bd450128dda6643d8a3f86abb" #slicer-v24.12.00-2025-07-11-af8132ed
+    GIT_TAG "84f21d96cd754070dd58775b9307eecd0a64b14" #slicer-v25.06.00-2025-07-29-84f21d96c
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
