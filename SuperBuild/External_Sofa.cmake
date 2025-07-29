@@ -64,6 +64,19 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     )
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
   ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
+  # Beam Adapter
+  set(plugin_name "BeamAdapter")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/sofa-framework/beamadapter.git"
+    GIT_TAG        "4c3fa31c68f18336240f46219b03005bad4c2c7b" # v25.06-20250729
+    GIT_PROGRESS   1
+    QUIET
+    )
+  list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
+  ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
     GIT_PROGRESS   1
     QUIET
     )
@@ -123,6 +136,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       # NA
       # More options
       -DSofaSTLIB_ENABLED:BOOL=ON
+      -DSofaBeamAdapter_ENABLED:BOOL=ON
       -DLIBRARY_SOFA_GUI:BOOL=ON
       -DLIBRARY_SOFA_GUI_COMMON:BOOL=ON
       -DMODULE_SOFA_GUI_COMPONENT:BOOL=ON
