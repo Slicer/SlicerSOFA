@@ -77,6 +77,14 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     )
   list(APPEND SOFA_EXTERNAL_DIRECTORIES ${${plugin_name}_SOURCE_DIR})
   ExternalProject_Message(${proj} "${plugin_name} sources [OK]")
+
+  # Registration
+  set(plugin_name "Registration")
+  set(${plugin_name}_SOURCE_DIR "${CMAKE_BINARY_DIR}/${plugin_name}")
+  FetchContent_Populate(${plugin_name}
+    SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
+    GIT_REPOSITORY "https://github.com/sofa-framework/registration.git"
+    GIT_TAG        "dd6673cc0e0e1a361aba5dc58b9e1cfe6fb2c762" # v25.06-20250729
     GIT_PROGRESS   1
     QUIET
     )
@@ -137,6 +145,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       # More options
       -DSofaSTLIB_ENABLED:BOOL=ON
       -DSofaBeamAdapter_ENABLED:BOOL=ON
+      -DRegistration_ENABLED:BOOL=ON
       -DLIBRARY_SOFA_GUI:BOOL=ON
       -DLIBRARY_SOFA_GUI_COMMON:BOOL=ON
       -DMODULE_SOFA_GUI_COMPONENT:BOOL=ON
