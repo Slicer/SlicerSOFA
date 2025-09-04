@@ -123,7 +123,6 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     Creates the main SOFA scene with required components for simulation.
     """
     import Sofa.Core
-    from stlib3.physics.deformable import ElasticMaterialObject
 
     rootNode = Sofa.Core.Node("root")
 
