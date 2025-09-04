@@ -76,10 +76,6 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     Returns:
         Sofa.Core.Node: The root node of the SOFA simulation scene.
     """
-    from stlib3.solver import DefaultSolver
-    from stlib3.physics.deformable import ElasticMaterialObject
-    from stlib3.physics.rigid import Floor
-    from splib3.numerics import Vec3
 
     vonMisesMode = {
         "none": 0,
