@@ -168,12 +168,12 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     rootNode.gravity = [0, 0, 0]
 
     rootNode.addObject('DefaultAnimationLoop', parallelODESolving=True)
-    rootNode.addObject('DefaultPipeline', depth=6, verbose=0, draw=0)
+    rootNode.addObject('CollisionPipeline', depth=6, verbose=0, draw=0)
     rootNode.addObject('ParallelBruteForceBroadPhase')
     rootNode.addObject('BVHNarrowPhase')
     rootNode.addObject('ParallelBVHNarrowPhase')
     rootNode.addObject('MinProximityIntersection', name="Proximity", alarmDistance=0.005, contactDistance=0.003)
-    rootNode.addObject('DefaultContactManager', name="Response", response="PenalityContactForceField")
+    rootNode.addObject('CollisionResponse', name="Response", response="PenalityContactForceField")
 
     inputNode = rootNode.addChild('InputSurfaceNode')
     inputNode.addObject('TriangleSetTopologyContainer', name='Container', position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), triangles=slicer.util.arrayFromModelPolyIds(parameterNode.modelNode))
