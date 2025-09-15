@@ -176,7 +176,7 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     rootNode.addObject('CollisionResponse', name="Response", response="PenalityContactForceField")
 
     inputNode = rootNode.addChild('InputSurfaceNode')
-    inputNode.addObject('TriangleSetTopologyContainer', name='Container', position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), triangles=slicer.util.arrayFromModelPolyIds(parameterNode.modelNode))
+    inputNode.addObject('TriangleSetTopologyContainer', name='Container', position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), triangles=slicer.util.arrayFromModelPolyIds(parameterNode.modelNode).reshape(-1,4)[:,1:4])
 
 
     fem = rootNode.addChild('FEM')
