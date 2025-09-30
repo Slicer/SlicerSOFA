@@ -197,7 +197,7 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
 
     fem.addObject('BoxROI', name="FixedROI",
                   template="Vec3", box=arrayFromMarkupsROIPoints(parameterNode.boundaryROI), drawBoxes=False,
-                  position="@../MO.rest_position",
+                  position="@MO.rest_position",
                   computeTriangles=False, computeTetrahedra=False, computeEdges=False)
     fem.addObject('FixedConstraint', indices="@FixedROI.indices")
 
