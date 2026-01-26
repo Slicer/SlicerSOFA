@@ -309,7 +309,7 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
     def setUi(self, ui):
         self.ui = ui
 
-    def getUi(self, ui):
+    def getUi(self):
         return self.ui
 
     def setupScene(self, parameterNode):
