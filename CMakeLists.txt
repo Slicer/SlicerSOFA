@@ -38,6 +38,7 @@ endif()
 add_subdirectory(SlicerSofa)
 add_subdirectory(SoftTissueSimulation)
 add_subdirectory(SparseGridSimulation)
+add_subdirectory(SOFASceneLoader)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
