@@ -426,8 +426,6 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         #Mappings are setup in the sofa node wrapper during the scene creation
 
     def _saveState(self) -> None:
-        # self._originalModelGrid = vtk.vtkUnstructuredGrid()
-        # self._originalModelGrid.DeepCopy(self._parameterNode.modelNode.GetUnstructuredGrid())
         pass
 
     def _restoreState(self) -> None:
@@ -436,43 +434,11 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         if self.createSceneMethod is not None:
             self.setupScene(self.getParameterNode())
         self._parameterNode.currentStep = 0
+        self.updateSimulationProgress()
 
         pass
     
-    def test_sofa_node_wrapper(self):
-        """
-        Test method to demonstrate the SOFA node wrapper functionality.
-        
-        This method shows how the wrapper intercepts addObject calls and
-        recursively wraps child nodes.
-        """
-        # Create a new scene with the wrapper
-        test_root = self.CreateScene()
-        
-        # Test adding an object to the root node
-        test_object = Sofa.Core.MechanicalObject()
-        result1 = test_root.addObject(test_object)
-        
-        # Test adding a child node
-        child_node = test_root.addChild("child_node")
-        
-        # Test adding an object to the child node
-        child_object = Sofa.Core.MechanicalObject()
-        result2 = child_node.addObject(child_object)
-        
-        # Verify that the wrapper maintains compatibility and tracks paths
-        print(f"Root node type: {type(test_root)}")
-        print(f"Root node path: '{test_root.getPath()}'")
-        print(f"Child node type: {type(child_node)}")
-        print(f"Child node path: '{child_node.getPath()}'")
-        print(f"AddObject result 1: {result1}")
-        print(f"AddObject result 2: {result2}")
-        
-        # Test deeper nesting
-        grandchild_node = child_node.addChild("grandchild_node")
-        print(f"Grandchild node path: '{grandchild_node.getPath()}'")
-        
-        return [result1, result2]
+
 
 
 
@@ -490,11 +456,53 @@ class SOFASceneLoaderTest(ScriptedLoadableModuleTest):
         """
         slicer.mrmlScene.Clear()
 
+
+    def test_sofa_node_wrapper(self):
+        """
+        Test method to demonstrate the SOFA node wrapper functionality.
+        
+        This method shows how the wrapper intercepts addObject calls and
+        recursively wraps child nodes.
+        """
+        logic = SOFASceneLoaderLogic()
+        logic.getParameterNode()
+
+        # Create a new scene with the wrapper
+        sofa_root = Sofa.Core.Node("root")
+        test_root = SOFANodeWrapper(sofa_root, logic)
+
+        # Test adding a child node
+        child_node = test_root.addChild("child_node")
+        second_child_node = child_node.addChild("second_child_node")
+        
+        # Test adding an object to the child node
+        result2 = child_node.addObject("MechanicalObject", name="toto")
+        
+        # Verify that the wrapper maintains compatibility and tracks paths
+        if test_root.getPath() != "":
+            ValueError("Root path should be empty")
+
+        if child_node.getPath() != "child_node":
+            ValueError("Root path should be empty child_node")
+
+        if second_child_node.getPath() != "child_node.second_child_node":
+            ValueError("Root path should be empty child_node.second_child_node")
+
+        if not hasattr(logic.getParameterNode(), "child_node_second_child_node"):
+            ValueError("Parameter node should contain a mrlm node called child_node_second_child_node")
+
+        if len(logic.sofaMappings) != 1:
+            ValueError("One mapping should have been created")
+            
+        if logic.sofaMappings[0][0] != "child_node_second_child_node" or  logic.sofaMappings[0][0] != "child_node.second_child_node":
+            ValueError("Mapping should map child_node_second_child_node into child_node.second_child_node")
+
+
     def runTest(self):
         """
         Run the tests for the SOFASceneLoader module.
         """
         self.delayDisplay("Starting SOFASceneLoader test")
-        # self.testGravitySimulation()
+        self.test_sofa_node_wrapper()
         #self.testMovingPointSimulation()
         self.delayDisplay("SOFASceneLoader tests passed")

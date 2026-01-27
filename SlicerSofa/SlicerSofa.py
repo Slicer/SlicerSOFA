@@ -385,6 +385,13 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         if self.ui is not None:
             self.ui.updateWidgetOnSimulation()
 
+    def updateSimulationProgress(self):
+        if self._parameterNode.totalSteps < 0:
+            self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/\u221E"
+        else:
+            self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/{self._parameterNode.totalSteps}"
+
+
     def simulationStep(self) -> None:
         """
         Executes a single simulation step, updating the simulation and MRML scenes.
@@ -397,12 +404,10 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         if self._parameterNode.currentStep < self._parameterNode.totalSteps or self._parameterNode.totalSteps < 0:
             Sofa.Simulation.animate(self._rootNode, self._parameterNode.dt)
             self._parameterNode.currentStep += 1
-            if self._parameterNode.totalSteps < 0:
-                self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/\u221E"
-            else:
-                self._parameterNode.simulationProgress = f"{self._parameterNode.currentStep}/{self._parameterNode.totalSteps}"
+            self.updateSimulationProgress()
         else:
             self._parameterNode.isSimulationRunning = False
+            self.onSimulationStopped()
 
         self.__updateMRML__()
 
