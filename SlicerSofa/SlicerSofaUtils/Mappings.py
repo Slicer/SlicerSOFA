@@ -147,6 +147,32 @@ def sofaMechanicalObjectToMRMLModelPoly(modelNode, sofaNode):
     slicer.util.arrayFromModelPointsModified(modelNode)
 
 
+
+def sofaMechanicalObjectToMRMLModelPoly(modelNode, sofaNode):
+    """
+    Maps geometry from a SOFA MechanicalObject to a vtkPolyData stored
+    in a vtkMRMLModelNode.
+
+    Args:
+        sofaNode: SOFA MechanicalObject node.
+        modelNode (vtkMRMLModelNode): MRML model node to store the geometry.
+    """
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
+    if sofaNode is None:
+        raise ValueError("modelNode can't be None")
+
+    if modelNode.GetPolyData() is None:
+        polyData = vtk.vtkPolyData()
+        modelNode.SetAndObservePolyData(polyData)
+
+    surfacePointsArray = sofaNode.position.array()
+    surfaceModelPointsArray = slicer.util.arrayFromModelPoints(modelNode)
+    surfaceModelPointsArray[:] = surfacePointsArray
+    slicer.util.arrayFromModelPointsModified(modelNode)
+
+
+
 def sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode):
     """
     Maps geometry from a SOFA MechanicalObject to a vtkUnstructuredGrid stored
@@ -194,6 +220,30 @@ def sofaSparseGridTopologyToMRMLModelGrid(modelNode, sofaNode):
         cellArray.InsertNextCell(hexahedron)
 
     modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_HEXAHEDRON, cellArray)
+
+def sofaTetrahedronTopologyToMRMLModelGrid(modelNode, sofaNode):
+    """
+    Maps topology from a SOFA TetrahedronSetTopologyContainer to a vtkUnstructuredGrid
+    stored in a vtkMRMLModelNode.
+
+    Args:
+        sofaNode: SOFA TetrahedronSetTopologyContainer node.
+        modelNode (vtkMRMLModelNode): MRML model node to store the topology.
+    """
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
+    if sofaNode is None:
+        raise ValueError("modelNode can't be None")
+
+    cellArray = vtk.vtkCellArray()
+    for cell in sofaNode.tetrahedra.array():
+        tetrahedron = vtk.vtkTetra()
+        for i, pointId in enumerate(cell):
+            tetrahedron.GetPointIds().SetId(i, pointId)
+        cellArray.InsertNextCell(tetrahedron)
+
+    modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_TETRA, cellArray)
+
 
 def sofaVonMisesStressToMRMLModelGrid(modelNode, sofaNode):
     """
