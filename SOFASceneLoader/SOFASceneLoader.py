@@ -57,14 +57,116 @@ from SlicerSofa import (
 )
 
 from SlicerSofaUtils.Mappings import (
-    mrmlModelGridToSofaTetrahedronTopologyContainer,
-    mrmlMarkupsFiducialToSofaPointer,
-    mrmlMarkupsROIToSofaBoxROI,
     sofaMechanicalObjectToMRMLModelGrid,
     sofaVonMisesStressToMRMLModelGrid,
-    arrayFromMarkupsROIPoints,
-    arrayVectorFromMarkupsLinePoints,
+    sofaTetrahedronTopologyToMRMLModelGrid
 )
+
+
+SOFA2MRML_dict = {
+"MechanicalObject" : sofaMechanicalObjectToMRMLModelGrid,
+"TetrahedralCorotationalFEMForceField" : sofaVonMisesStressToMRMLModelGrid,
+"TetrahedronFEMForceField" : sofaVonMisesStressToMRMLModelGrid,
+"TetrahedronSetTopologyContainer" : sofaTetrahedronTopologyToMRMLModelGrid
+}
+
+# -----------------------------------------------------------------------------
+# Class: SOFANodeWrapper
+# -----------------------------------------------------------------------------
+class SOFANodeWrapper:
+    """
+    Wrapper class for SOFA nodes that intercepts addObject calls and recursively wraps children.
+    
+    This wrapper allows triggering an internal callback function whenever addObject is called,
+    while maintaining all other functionality of the original SOFA node.
+    """
+    def __init__(self, sofa_node, logic, path=""):
+        """
+        Initialize the wrapper with a SOFA node and optional path.
+        
+        Args:
+            sofa_node: The original SOFA node to wrap
+            path: The current path in the SOFA tree (e.g., "first.second")
+        """
+        self._sofa_node = sofa_node
+        self._path = path
+        self._logic = logic
+    
+
+    def getInternalSofaNode(self):
+        return self._sofa_node
+    
+    def _getPath(self):
+        """
+        Get the current path of this node in the SOFA tree.
+        
+        Returns:
+            str: The current path (e.g., "first.second")
+        """
+        return self._path
+    
+    def addObject(self, obj, *args, **kwargs):
+        """
+        Intercept addObject calls to trigger the internal callback function.
+        
+        Args:
+            obj: The object being added to the SOFA node
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments
+            
+        Returns:
+            The result of the original addObject call
+        """
+        sofaObj = self._sofa_node.addObject(obj, *args, **kwargs)
+
+        # Call the internal callback function with the object being added and current path
+        if obj in SOFA2MRML_dict:
+            mrmlID = self._getPath().replace('.', '_')
+            if not hasattr(self._logic.getParameterNode(), mrmlID ) : 
+                setattr(self._logic.getParameterNode(),mrmlID, slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode"))
+            self._logic.registerSOFAToMRMLMapping(mrmlID, f"{self._getPath()}.{sofaObj.getName()}", SOFA2MRML_dict[obj])
+
+        # Delegate to the original node's addObject method
+        return sofaObj
+    
+    def addChild(self, child_name, *args, **kwargs):
+        """
+        Override addChild to recursively wrap any new children.
+        
+        Args:
+            child_name: Name of the child node to create
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments
+            
+        Returns:
+            A wrapped version of the newly created child node
+        """
+        # Create the child using the original node's method
+        child_node = self._sofa_node.addChild(child_name, *args, **kwargs)
+        
+        # Build the new path for the child node
+        if self._path != "":
+            child_path = f"{self._path}.{child_name}"
+        else:
+            child_path = child_name
+        
+        # Return a wrapped version of the child node with the updated path
+        return SOFANodeWrapper(child_node, self._logic, child_path)
+    
+    def __getattr__(self, name):
+        """
+        Delegate all other method calls to the original SOFA node.
+        
+        This ensures that the wrapper maintains full compatibility with
+        the original SOFA node interface.
+        
+        Args:
+            name: Name of the method or attribute to access
+            
+        Returns:
+            The method or attribute from the original SOFA node
+        """
+        return getattr(self._sofa_node, name)
 
 
 # -----------------------------------------------------------------------------
@@ -76,7 +178,6 @@ class SOFASceneLoaderParameterNode:
     Parameter class for the soft tissue simulation.
     Defines nodes to map between SOFA and MRML scenes with recording options.
     """
-    modelNode: vtkMRMLModelNode                    # Model node with SOFA mapping and sequence recording
     recordSequence: bool = False                   # Record sequence?
 
 # -----------------------------------------------------------------------------
@@ -193,11 +294,12 @@ class SOFASceneLoaderWidget(SlicerSofaWidget):
             event: The event triggered.
         """
         parameterNode = self.logic.getParameterNode()
-        self.ui.startSimulationPushButton.setEnabled(not parameterNode.isSimulationRunning and parameterNode.modelNode is not None)
+        self.ui.startSimulationPushButton.setEnabled(not parameterNode.isSimulationRunning)
         self.ui.stopSimulationPushButton.setEnabled(parameterNode.isSimulationRunning)
 
     def loadSimulation(self) -> None:
         self.logic.loadSimulationFile(self)
+        
 
     def startSimulation(self) -> None:
         """
@@ -238,9 +340,13 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
 
     def CreateScene(self):
         sofa_root = Sofa.Core.Node("root")
+        wrapped_root = SOFANodeWrapper(sofa_root, self)
+
         if self.createSceneMethod is not None:
             self.createSceneMethod(sofa_root)
-        return sofa_root
+        
+        # Return the wrapped root node
+        return wrapped_root
     
     def loadSimulationFile(self, widget):
         supposedPath = self.getUi().simulationFileName.text
@@ -249,7 +355,7 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         elif not os.path.isabs(supposedPath) and os.path.isfile(os.path.join(os.getcwd(), supposedPath)):
             path = os.path.join(os.getcwd(), supposedPath)
         else:
-            path = qt.QFileDialog.getOpenFileName(widget.parent.window(), _("Select SOFA scene file (*.py)"))
+            path = qt.QFileDialog.getOpenFileName(widget.parent.window(),"Select SOFA scene file", os.getcwd() , "Python Files (*.py);;All Files (*)")
             self.getUi().simulationFileName.setText(path)
 
         if not os.path.isfile(path):
@@ -261,7 +367,9 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
             foo = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(foo)
             self.createSceneMethod = foo.createScene
-            
+            self.setupScene(self.getParameterNode())
+            self._parameterNode.currentStep = 0
+
 
     def getParameterNode(self):
         """
@@ -282,7 +390,7 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
             self.getParameterNode().modelNode = None
             self.getParameterNode().dt = 0.01
             self.getParameterNode().currentStep = 0
-            self.getParameterNode().totalSteps = -1
+            self.getParameterNode().totalSteps = 0
 
     def startSimulation(self) -> None:
         """
@@ -290,8 +398,10 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         """
         # TODO: The order here is important. Maybe move part to SlicerSOFA to enforce correct order
         # self.setupMappings()
-        self.setupScene(self.getParameterNode())
-        super().startSimulation()
+        # 
+        self._parameterNode.isSimulationRunning = True
+        self.setupSequenceRecording()
+        self.onSimulationStarted()
         self._simulationRunning = True
         self.getParameterNode().Modified()
 
@@ -307,25 +417,7 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         """
         Registers mappings between MRML and SOFA nodes.
         """
-        pn = self.getParameterNode()
-
-        # if pn is not None:
-        #     # Register MRML-to-SOFA mappings
-        #     self.registerMRMLToSOFAMapping('modelNode', 'FEM.Container', mrmlModelGridToSofaTetrahedronTopologyContainer, runOnce=True)
-        #     self.registerMRMLToSOFAMapping('movingPointNode', 'AttachPoint.mouseInteractor', mrmlMarkupsFiducialToSofaPointer)
-        #     self.registerMRMLToSOFAMapping('boundaryROI', 'FEM.FixedROI.BoxROI', mrmlMarkupsROIToSofaBoxROI)
-        #     self.registerMRMLToSOFAMapping('gravityVector', '', self.mrmlMarkupsLineToGravityVector)
-
-        #     # Register SOFA-to-MRML mappings
-        #     self.registerSOFAToMRMLMapping('modelNode', 'FEM.Collision.dofs', sofaMechanicalObjectToMRMLModelGrid)
-        #     self.registerSOFAToMRMLMapping('modelNode', 'FEM.FEM', sofaVonMisesStressToMRMLModelGrid)
-
-        #     # Set sequence recording flags
-        #     self.setRecordSequenceFlag('modelNode', lambda: pn.recordSequence)
-        #     self.setRecordSequenceFlag('movingPointNode', lambda: pn.recordSequence)
-        #     self.setRecordSequenceFlag('boundaryROI', lambda: pn.recordSequence)
-        #     self.setRecordSequenceFlag('gravityVector', lambda: pn.recordSequence)
-
+        #Mappings are setup in the sofa node wrapper during the scene creation
 
     def _saveState(self) -> None:
         # self._originalModelGrid = vtk.vtkUnstructuredGrid()
@@ -333,8 +425,48 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         pass
 
     def _restoreState(self) -> None:
-        # self._parameterNode.modelNode.SetAndObserveMesh(self._originalModelGrid)
+
+        self.stopSimulation()
+        if self.createSceneMethod is not None:
+            self.setupScene(self.getParameterNode())
+        self._parameterNode.currentStep = 0
+
         pass
+    
+    def test_sofa_node_wrapper(self):
+        """
+        Test method to demonstrate the SOFA node wrapper functionality.
+        
+        This method shows how the wrapper intercepts addObject calls and
+        recursively wraps child nodes.
+        """
+        # Create a new scene with the wrapper
+        test_root = self.CreateScene()
+        
+        # Test adding an object to the root node
+        test_object = Sofa.Core.MechanicalObject()
+        result1 = test_root.addObject(test_object)
+        
+        # Test adding a child node
+        child_node = test_root.addChild("child_node")
+        
+        # Test adding an object to the child node
+        child_object = Sofa.Core.MechanicalObject()
+        result2 = child_node.addObject(child_object)
+        
+        # Verify that the wrapper maintains compatibility and tracks paths
+        print(f"Root node type: {type(test_root)}")
+        print(f"Root node path: '{test_root.getPath()}'")
+        print(f"Child node type: {type(child_node)}")
+        print(f"Child node path: '{child_node.getPath()}'")
+        print(f"AddObject result 1: {result1}")
+        print(f"AddObject result 2: {result2}")
+        
+        # Test deeper nesting
+        grandchild_node = child_node.addChild("grandchild_node")
+        print(f"Grandchild node path: '{grandchild_node.getPath()}'")
+        
+        return [result1, result2]
 
 
 
