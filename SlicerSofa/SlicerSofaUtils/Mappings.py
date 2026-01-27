@@ -226,6 +226,115 @@ def sofaSparseGridTopologyToMRMLModelGrid(modelNode, sofaNode):
     modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_HEXAHEDRON, cellArray)
     modelNode.Modified()
 
+def sofaMeshTopologyToMRMLModelGrid(modelNode, sofaNode):
+    """
+    Maps topology from a SOFA TetrahedronSetTopologyContainer to a vtkUnstructuredGrid
+    stored in a vtkMRMLModelNode.
+
+    Args:
+        sofaNode: SOFA TetrahedronSetTopologyContainer node.
+        modelNode (vtkMRMLModelNode): MRML model node to store the topology.
+    """
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
+    if sofaNode is None:
+        raise ValueError("modelNode can't be None")
+    
+    if len(sofaNode.tetrahedra.array()) != 0:
+        sofaTetrahedronTopologyToMRMLModelGrid(modelNode, sofaNode)
+    elif len(sofaNode.triangles.array()) != 0:
+        sofaTriangleTopologyToMRMLModelGrid(modelNode, sofaNode)
+    elif len(sofaNode.edges.array()) != 0:
+        sofaEdgeTopologyToMRMLModelGrid(modelNode, sofaNode)
+    else :
+        print(f"No topology element found in {sofaNode}")
+
+
+def sofaOglModelToMRMLModelGrid(modelNode, sofaNode):
+    """
+    Maps topology from a SOFA TetrahedronSetTopologyContainer to a vtkUnstructuredGrid
+    stored in a vtkMRMLModelNode.
+
+    Args:
+        sofaNode: SOFA TetrahedronSetTopologyContainer node.
+        modelNode (vtkMRMLModelNode): MRML model node to store the topology.
+    """
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
+    if sofaNode is None:
+        raise ValueError("modelNode can't be None")
+    
+    sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode)
+
+    if len(sofaNode.triangles.array()) != 0:
+        sofaTriangleTopologyToMRMLModelGrid(modelNode, sofaNode)
+    elif len(sofaNode.edges.array()) != 0:
+        sofaEdgeTopologyToMRMLModelGrid(modelNode, sofaNode)
+    else :
+        print(f"No topology element found in {sofaNode}")
+        return
+    
+    # TODO use the material data in the ogl model to get the color and apply it to the mrml node
+    # color = sofaNode.color.array()
+    # modelNode.GetDisplayNode().SetColor(color[0],color[1],color[2])
+
+
+def sofaEdgeTopologyToMRMLModelGrid(modelNode, sofaNode):
+    """
+    Maps topology from a SOFA EdgeSetTopologyContainer to a vtkUnstructuredGrid
+    stored in a vtkMRMLModelNode.
+
+    Args:
+        sofaNode: SOFA EdgeSetTopologyContainer node.
+        modelNode (vtkMRMLModelNode): MRML model node to store the topology.
+    """
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
+    if sofaNode is None:
+        raise ValueError("sofaNode can't be None")
+
+    cellArray = vtk.vtkCellArray()
+    for cell in sofaNode.edges.array():
+        edge = vtk.vtkLine()
+        for i, pointId in enumerate(cell):
+            edge.GetPointIds().SetId(i, pointId)
+        cellArray.InsertNextCell(edge)
+
+    if modelNode.GetUnstructuredGrid() is None:
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        modelNode.SetAndObserveMesh(unstructuredGrid)
+
+    modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_LINE, cellArray)
+    modelNode.Modified()
+
+def sofaTriangleTopologyToMRMLModelGrid(modelNode, sofaNode):
+    """
+    Maps topology from a SOFA TriangleSetTopologyContainer to a vtkUnstructuredGrid
+    stored in a vtkMRMLModelNode.
+
+    Args:
+        sofaNode: SOFA TriangleSetTopologyContainer node.
+        modelNode (vtkMRMLModelNode): MRML model node to store the topology.
+    """
+    if modelNode is None:
+        raise ValueError("modelNode can't be None")
+    if sofaNode is None:
+        raise ValueError("sofaNode can't be None")
+
+    cellArray = vtk.vtkCellArray()
+    for cell in sofaNode.triangles.array():
+        triangle = vtk.vtkTriangle()
+        for i, pointId in enumerate(cell):
+            triangle.GetPointIds().SetId(i, pointId)
+        cellArray.InsertNextCell(triangle)
+
+    if modelNode.GetUnstructuredGrid() is None:
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        modelNode.SetAndObserveMesh(unstructuredGrid)
+
+    modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_TRIANGLE, cellArray)
+    modelNode.Modified()
+
 def sofaTetrahedronTopologyToMRMLModelGrid(modelNode, sofaNode):
     """
     Maps topology from a SOFA TetrahedronSetTopologyContainer to a vtkUnstructuredGrid

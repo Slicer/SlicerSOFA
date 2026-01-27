@@ -59,7 +59,11 @@ from SlicerSofa import (
 from SlicerSofaUtils.Mappings import (
     sofaMechanicalObjectToMRMLModelGrid,
     sofaVonMisesStressToMRMLModelGrid,
-    sofaTetrahedronTopologyToMRMLModelGrid
+    sofaTetrahedronTopologyToMRMLModelGrid,
+    sofaMeshTopologyToMRMLModelGrid,
+    sofaEdgeTopologyToMRMLModelGrid,
+    sofaTriangleTopologyToMRMLModelGrid,
+    sofaOglModelToMRMLModelGrid
 )
 
 
@@ -67,7 +71,11 @@ SOFA2MRML_dict = {
 "MechanicalObject" : sofaMechanicalObjectToMRMLModelGrid,
 "TetrahedralCorotationalFEMForceField" : sofaVonMisesStressToMRMLModelGrid,
 "TetrahedronFEMForceField" : sofaVonMisesStressToMRMLModelGrid,
-"TetrahedronSetTopologyContainer" : sofaTetrahedronTopologyToMRMLModelGrid
+"MeshTopology" : sofaMeshTopologyToMRMLModelGrid,
+"EdgeSetTopologyContainer" : sofaEdgeTopologyToMRMLModelGrid,
+"TriangleSetTopologyContainer" : sofaTriangleTopologyToMRMLModelGrid,
+"TetrahedronSetTopologyContainer" : sofaTetrahedronTopologyToMRMLModelGrid,
+"OglModel" : sofaOglModelToMRMLModelGrid
 }
 
 # -----------------------------------------------------------------------------
