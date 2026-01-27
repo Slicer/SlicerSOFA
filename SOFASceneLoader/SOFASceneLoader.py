@@ -123,7 +123,10 @@ class SOFANodeWrapper:
         if obj in SOFA2MRML_dict:
             mrmlID = self._getPath().replace('.', '_')
             if not hasattr(self._logic.getParameterNode(), mrmlID ) : 
-                setattr(self._logic.getParameterNode(),mrmlID, slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode"))
+                modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", mrmlID)
+                modelNode.CreateDefaultDisplayNodes()
+                modelNode.GetDisplayNode().SetVisibility(True)
+                setattr(self._logic.getParameterNode(),mrmlID, modelNode)
             self._logic.registerSOFAToMRMLMapping(mrmlID, f"{self._getPath()}.{sofaObj.getName()}", SOFA2MRML_dict[obj])
 
         # Delegate to the original node's addObject method
@@ -263,7 +266,7 @@ class SOFASceneLoaderWidget(SlicerSofaWidget):
         self.setParameterNode(self.logic.getParameterNode())
         self.initializeParameterNode()
         self.logic.getParameterNode().AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateSimulationGUI)
-        self.logic.setUi(self.ui)
+        self.logic.setUi(self)
 
     def cleanup(self) -> None:
         """
@@ -343,20 +346,22 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         wrapped_root = SOFANodeWrapper(sofa_root, self)
 
         if self.createSceneMethod is not None:
-            self.createSceneMethod(sofa_root)
-        
+            self.createSceneMethod(wrapped_root)
+
+        self.getParameterNode().Modified()
+
         # Return the wrapped root node
-        return wrapped_root
+        return wrapped_root.getInternalSofaNode()
     
     def loadSimulationFile(self, widget):
-        supposedPath = self.getUi().simulationFileName.text
+        supposedPath = self.getUi().ui.simulationFileName.text
         if os.path.isabs(supposedPath) and os.path.isfile(supposedPath):
             path = supposedPath
         elif not os.path.isabs(supposedPath) and os.path.isfile(os.path.join(os.getcwd(), supposedPath)):
             path = os.path.join(os.getcwd(), supposedPath)
         else:
             path = qt.QFileDialog.getOpenFileName(widget.parent.window(),"Select SOFA scene file", os.getcwd() , "Python Files (*.py);;All Files (*)")
-            self.getUi().simulationFileName.setText(path)
+            self.getUi().ui.simulationFileName.setText(path)
 
         if not os.path.isfile(path):
             print("Input file must exist")
@@ -368,7 +373,9 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
             spec.loader.exec_module(foo)
             self.createSceneMethod = foo.createScene
             self.setupScene(self.getParameterNode())
+            self.__updateMRML__()
             self._parameterNode.currentStep = 0
+            slicer.app.layoutManager().resetThreeDViews()
 
 
     def getParameterNode(self):
@@ -387,7 +394,6 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         Resets simulation parameters in the parameter node to default values.
         """
         if self.getParameterNode() is not None:
-            self.getParameterNode().modelNode = None
             self.getParameterNode().dt = 0.01
             self.getParameterNode().currentStep = 0
             self.getParameterNode().totalSteps = 0

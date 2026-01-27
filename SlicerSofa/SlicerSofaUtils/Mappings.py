@@ -219,7 +219,12 @@ def sofaSparseGridTopologyToMRMLModelGrid(modelNode, sofaNode):
             hexahedron.GetPointIds().SetId(i, pointId)
         cellArray.InsertNextCell(hexahedron)
 
+    if modelNode.GetUnstructuredGrid() is None:
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        modelNode.SetAndObserveMesh(unstructuredGrid)
+
     modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_HEXAHEDRON, cellArray)
+    modelNode.Modified()
 
 def sofaTetrahedronTopologyToMRMLModelGrid(modelNode, sofaNode):
     """
@@ -242,7 +247,12 @@ def sofaTetrahedronTopologyToMRMLModelGrid(modelNode, sofaNode):
             tetrahedron.GetPointIds().SetId(i, pointId)
         cellArray.InsertNextCell(tetrahedron)
 
+    if modelNode.GetUnstructuredGrid() is None:
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        modelNode.SetAndObserveMesh(unstructuredGrid)
+
     modelNode.GetUnstructuredGrid().SetCells(vtk.VTK_TETRA, cellArray)
+    modelNode.Modified()
 
 
 def sofaVonMisesStressToMRMLModelGrid(modelNode, sofaNode):
@@ -259,6 +269,11 @@ def sofaVonMisesStressToMRMLModelGrid(modelNode, sofaNode):
     if sofaNode is None:
         raise ValueError("modelNode can't be None")
 
+    if modelNode.GetUnstructuredGrid() is None:
+        unstructuredGrid = vtk.vtkUnstructuredGrid()
+        modelNode.SetAndObserveMesh(unstructuredGrid)
+
+
     unstructuredGrid = modelNode.GetUnstructuredGrid()
     if not unstructuredGrid:
         raise ValueError("Unstructured grid associated to modelNode can't be none")
@@ -271,10 +286,14 @@ def sofaVonMisesStressToMRMLModelGrid(modelNode, sofaNode):
         stressArray.SetName("VonMisesStress")
         unstructuredGrid.GetCellData().AddArray(stressArray)
 
-    # Resize and populate the stress array
     vonMisesStresses = sofaNode.vonMisesPerElement.array()
-    stressArray.SetNumberOfValues(len(vonMisesStresses))
-    stressArray.SetVoidArray(vonMisesStresses, len(vonMisesStresses), 1)
+    numberOfCells = unstructuredGrid.GetNumberOfCells()
+    stressArray.SetNumberOfValues(numberOfCells)
+
+    if len(vonMisesStresses) == numberOfCells:
+        stressArray.SetVoidArray(vonMisesStresses, len(vonMisesStresses), 1)
+    else:
+        stressArray.Fill(0.0)
 
     # Notify MRML about changes to the array
     unstructuredGrid.GetCellData().Modified()
