@@ -360,7 +360,11 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         wrapped_root = SOFANodeWrapper(sofa_root, self)
 
         if self.createSceneMethod is not None:
+            #This is for path handling when the scene refers to models using relative path
+            cwd = os.getcwd()
+            os.chdir(self.createSceneFilePath)
             self.createSceneMethod(wrapped_root)
+            os.chdir(cwd)
 
         self.getParameterNode().Modified()
 
@@ -387,6 +391,7 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
             foo = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(foo)
             self.createSceneMethod = foo.createScene
+            self.createSceneFilePath = pathlib.Path(path).parent
 
             self._resetMappings()
             self.setupScene(self.getParameterNode())
