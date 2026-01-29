@@ -187,7 +187,15 @@ def sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode):
     if sofaNode is None:
         raise ValueError("modelNode can't be None")
 
-    points = numpy_to_vtk(num_array=sofaNode.position.array(), deep=True, array_type=vtk.VTK_FLOAT)
+    positionArray = sofaNode.position.array()
+    if positionArray.shape[1] >= 3:
+        # Extract only the first 3 columns (x, y, z)
+        points3D = positionArray[:, :3]
+    else:
+        points3D = positionArray
+
+    points = numpy_to_vtk(num_array=points3D, deep=True, array_type=vtk.VTK_FLOAT)
+    
     vtkPoints = vtk.vtkPoints()
     vtkPoints.SetData(points)
 
