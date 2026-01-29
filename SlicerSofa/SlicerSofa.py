@@ -165,7 +165,6 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Set up the module widget events when closing scenes and calls parent's setup
         """
-
         ScriptedLoadableModuleWidget.setup(self)
 
         # Setup event connections for scene close events
@@ -195,13 +194,22 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if self.parent.isEntered:
             self.initializeParameterNode()
 
-    def exit(self) -> None:
+
+    def exit(self) -> None: 
         """
         Cleanup GUI connections when the module is exited.
         """
         if self._parameterNode:
             self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
             self._parameterNodeGuiTag = None
+
+    def enter(self) -> None: 
+        """
+        Reconnect the GUI when the module is entered.
+        """
+        if self._parameterNode:
+            self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
+
 
     def setParameterNode(self, parameterNode) -> None:
         """
@@ -221,11 +229,9 @@ class SlicerSofaWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         Goes through all child widgets of the specified parent widget and checks
         for the 'SofaDisableOnSimulation' dynamic property.
         """
-
         slicer.modules.widget = parentWidget
         if parentWidget is None:
             parentWidget = self.parent  # Use the main widget if no parent is provided
-
         # Recursively checks and enables/disables widgets depending on the simulation status
         for child in parentWidget.findChildren(qt.QWidget):
             if child.property('SlicerDisableOnSimulation') is not None:
@@ -332,8 +338,10 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self._parameterNode = parameterNode
         self._rootNode = self.createScene(self._parameterNode)
 
-        if not isinstance(self._rootNode, Sofa.Core.Node):
-            raise ValueError("rootNode is not a valid Sofa.Core.Node root node")
+        if isinstance(self._rootNode, Sofa.Core.Node):
+            Sofa.Simulation.unload(self._rootNode)
+            
+        self._rootNode = self.CreateScene()
         setattr(self._parameterNode, "_rootNode", self._rootNode)
         self.__updateSofa__()
         Sofa.Simulation.init(self._rootNode)

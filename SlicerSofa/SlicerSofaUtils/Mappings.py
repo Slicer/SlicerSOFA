@@ -264,7 +264,6 @@ def sofaOglModelToMRMLModelGrid(modelNode, sofaNode):
     if sofaNode is None:
         raise ValueError("modelNode can't be None")
     
-    sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode)
 
     if len(sofaNode.triangles.array()) != 0:
         sofaTriangleTopologyToMRMLModelGrid(modelNode, sofaNode)
@@ -272,8 +271,11 @@ def sofaOglModelToMRMLModelGrid(modelNode, sofaNode):
         sofaEdgeTopologyToMRMLModelGrid(modelNode, sofaNode)
     else :
         print(f"No topology element found in {sofaNode}")
-        return
-    
+        
+    sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode)
+        
+    modelNode.Modified()
+
     # TODO use the material data in the ogl model to get the color and apply it to the mrml node
     # color = sofaNode.color.array()
     # modelNode.GetDisplayNode().SetColor(color[0],color[1],color[2])

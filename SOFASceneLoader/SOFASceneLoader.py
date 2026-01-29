@@ -178,6 +178,11 @@ class SOFANodeWrapper:
             The method or attribute from the original SOFA node
         """
         return getattr(self._sofa_node, name)
+    
+    def __setattr__(self, key, value):
+        if key in ["_sofa_node", "_path", "_logic"]:
+            self.__dict__[key] = value
+        self.__dict__["_sofa_node"].__setattr__(key, value)
 
 
 # -----------------------------------------------------------------------------
@@ -349,6 +354,7 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         self._rootNode = self.CreateScene()
         self._parameterNode = None
 
+
     def CreateScene(self):
         sofa_root = Sofa.Core.Node("root")
         wrapped_root = SOFANodeWrapper(sofa_root, self)
@@ -375,11 +381,14 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
             print("Input file must exist")
         else:
             #Open file
+            
             moduleName = pathlib.Path(path).name.split('.')[0]
             spec=importlib.util.spec_from_file_location(moduleName,path)
             foo = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(foo)
             self.createSceneMethod = foo.createScene
+
+            self._resetMappings()
             self.setupScene(self.getParameterNode())
             self.__updateMRML__()
             self._parameterNode.currentStep = 0
@@ -433,18 +442,22 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         """
         #Mappings are setup in the sofa node wrapper during the scene creation
 
+    def _resetMappings(self) -> None:
+        self.sofaMappings = []
+        self.mrmlMappings = []
+
     def _saveState(self) -> None:
         pass
 
     def _restoreState(self) -> None:
 
         self.stopSimulation()
+        self._resetMappings()
         if self.createSceneMethod is not None:
             self.setupScene(self.getParameterNode())
         self._parameterNode.currentStep = 0
         self.updateSimulationProgress()
-
-        pass
+        self.__updateMRML__()
     
 
 
