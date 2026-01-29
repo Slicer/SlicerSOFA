@@ -25,7 +25,6 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
 
   # Sanity checks
   set(expected_defined_vars
-    Qt5_DIR
     ZLIB_INCLUDE_DIR
     ZLIB_LIBRARY
     )
@@ -45,7 +44,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/Slicer/SofaPython3"
-    GIT_TAG        "1e57a9652e2be88108a7e1dc5322aacee212912f" #slicer-25.06.00-2025-07-29-1e57a9652
+    GIT_TAG        "d531197caff3a93080c8b66704f3185c2164043c" #slicer-25.12.00-2026-01-29-d531197ca
     GIT_PROGRESS   1
     QUIET
     )
@@ -58,7 +57,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/STLIB.git"
-    GIT_TAG        "b6d1bdb4f74bf1c4cf7b92a0feaf7a9987358591" # v25.06-20250729
+    GIT_TAG        "da062381847b26458390937c75c23968ea0a9c6a" # v25.12-20260129
     GIT_PROGRESS   1
     QUIET
     )
@@ -71,7 +70,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/beamadapter.git"
-    GIT_TAG        "4c3fa31c68f18336240f46219b03005bad4c2c7b" # v25.06-20250729
+    GIT_TAG        "5d02b8322cc82fc8a04085862affb99b008ef175" # v25.12-20260129
     GIT_PROGRESS   1
     QUIET
     )
@@ -84,7 +83,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/registration.git"
-    GIT_TAG        "dd6673cc0e0e1a361aba5dc58b9e1cfe6fb2c762" # v25.06-20250729
+    GIT_TAG        "091ebecafafc3fc3ba1e493e855b09ec4918c857" # v25.12-20260729
     GIT_PROGRESS   1
     QUIET
     )
@@ -97,7 +96,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/Cosserat.git"
-    GIT_TAG        "6d9eee545acccadeebac6d118ba56d2d53bee8c4" # v25.06-20250729
+    GIT_TAG        "f6a4f35075c5fc0364c4d96dd130e22f2c5bb1e3" # v25.12-20260129
     GIT_PROGRESS   1
     QUIET
     )
@@ -123,7 +122,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "84f21d96cd754070dd58775b9307eecd0a64b14" #slicer-v25.06.00-2025-07-29-84f21d96c
+    GIT_TAG "9f48bc12fa974fb3d8d4d5b2ec8ed154181d8c11" #slicer-v25.12.00-2026-01-29-9f48bc12f
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
@@ -185,8 +184,6 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DPYTHON_LIBRARIES:FILEPATH=${PYTHON_LIBRARY}
       -DPYTHON_INCLUDE_DIRS:PATH=${PYTHON_INCLUDE_DIR}
       -Dpybind11_DIR:PATH=${pybind11_DIR}/share/cmake/pybind11
-      # SofaIGTLink
-      -DOpenIGTLink_DIR:PATH=${OpenIGTLink_DIR}
       ${EXTERNAL_PROJECT_OPTIONAL_CMAKE_CACHE_ARGS}
     DEPENDS
       ${${proj}_DEPENDS}

@@ -126,7 +126,7 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
 
     # Add animation and constraint solver objects to the root node
     rootNode.addObject('FreeMotionAnimationLoop', parallelODESolving=True, parallelCollisionDetectionAndFreeMotion=True)
-    rootNode.addObject('GenericConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
+    rootNode.addObject('BlockGaussSeidelConstraintSolver', maxIterations=10, multithreading=True, tolerance=1.0e-3)
 
     # Define a deformable Finite Element Method (FEM) object
     femNode = rootNode.addChild('FEM')
