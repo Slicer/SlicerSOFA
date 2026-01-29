@@ -390,30 +390,38 @@ def sofaVonMisesStressToMRMLModelGrid(modelNode, sofaNode):
         raise ValueError("Unstructured grid associated to modelNode can't be none")
 
     # Retrieve or initialize the von Mises stress array in the MRML model node
-    stressArray = unstructuredGrid.GetCellData().GetArray("VonMisesStress")
+    stressArray = unstructuredGrid.GetPointData().GetArray("VonMisesStress")
     if stressArray is None:
         # Create a stress array if it doesn't exist
         stressArray = vtk.vtkFloatArray()
         stressArray.SetName("VonMisesStress")
-        unstructuredGrid.GetCellData().AddArray(stressArray)
+        unstructuredGrid.GetPointData().AddArray(stressArray)
 
-    vonMisesStresses = sofaNode.vonMisesPerElement.array()
-    numberOfCells = unstructuredGrid.GetNumberOfCells()
-    stressArray.SetNumberOfValues(numberOfCells)
+    vonMisesStresses = sofaNode.vonMisesPerNode.array()
+    numberOfPoints = unstructuredGrid.GetNumberOfPoints()
+    stressArray.SetNumberOfValues(numberOfPoints)
 
-    if len(vonMisesStresses) == numberOfCells:
-        stressArray.SetVoidArray(vonMisesStresses, len(vonMisesStresses), 1)
+    if len(vonMisesStresses) == numberOfPoints:
+        for i in range(len(vonMisesStresses)):
+            stressArray.SetValue(i, vonMisesStresses[i])
     else:
         stressArray.Fill(0.0)
 
+    displayNode = modelNode.GetDisplayNode()
+
+    if displayNode:
+        colorNode = slicer.util.getNode('ColdToHotRainbow')
+        displayNode.SetActiveScalarName(stressArray.GetName())  # Set your scalar field name here
+        displayNode.SetAndObserveColorNodeID(colorNode.GetID())
+        # Set the scalar visibility and range
+        displayNode.SetAutoScalarRange(False)  # Disable auto range
+        displayNode.SetScalarRange(np.min(vonMisesStresses), np.max(vonMisesStresses))  # Set your desired range
+        displayNode.Modified() 
+
     # Notify MRML about changes to the array
-    unstructuredGrid.GetCellData().Modified()
+    unstructuredGrid.GetPointData().Modified()
     modelNode.Modified()
 
-    # Update the display node's scalar range
-    displayNode = modelNode.GetDisplayNode()
-    if displayNode:
-        displayNode.UpdateScalarRange()
 
 # -----------------------------------------------------------------------------
 # Utility Functions
