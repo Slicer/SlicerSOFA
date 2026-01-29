@@ -130,12 +130,32 @@ class SOFANodeWrapper:
         # Call the internal callback function with the object being added and current path
         if obj in SOFA2MRML_dict:
             mrmlID = self._getPath().replace('.', '_')
+            # If no mrml node in the parameter node
             if not hasattr(self._logic.getParameterNode(), mrmlID ) : 
-                modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", mrmlID)
-                modelNode.CreateDefaultDisplayNodes()
-                modelNode.GetDisplayNode().SetVisibility(True)
-                setattr(self._logic.getParameterNode(),mrmlID, modelNode)
+                # First find out if one with correct ID already exist in mrml scene
+                existingNode = slicer.mrmlScene.GetNodeByID(mrmlID)
+                if existingNode:
+                    modelNode = existingNode
+                else:
+                    # Create new node if it doesn't exist
+                    modelNode = vtkMRMLModelNode()
+                    modelNode.SetSingletonTag(mrmlID)
+                    modelNode.SetName(mrmlID)
+                    slicer.mrmlScene.AddNode(modelNode)
+                    modelNode.CreateDefaultDisplayNodes()
+                    modelNode.GetDisplayNode().SetVisibility(True)
+
+                setattr(self._logic.getParameterNode(), mrmlID, modelNode)
+            else:
+                # Case 2: Parameter node already has the attribute
+                # Get the referenced node from parameter node
+                modelNode = getattr(self._logic.getParameterNode(), mrmlID)
+                # If it is not in the scene then add it
+                if not slicer.mrmlScene.GetNodeByID(f"vtkMRMLModelNode{mrmlID}"):
+                    slicer.mrmlScene.AddNode(modelNode)
+
             self._logic.registerSOFAToMRMLMapping(mrmlID, f"{self._getPath()}.{sofaObj.getName()}", SOFA2MRML_dict[obj])
+
 
         # Delegate to the original node's addObject method
         return sofaObj
