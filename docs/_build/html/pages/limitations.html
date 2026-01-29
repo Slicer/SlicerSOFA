@@ -1,0 +1,140 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>9. Limitations and Caveats &mdash; SlicerSOFA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="10. Links" href="links.html" />
+    <link rel="prev" title="8. Tests" href="test.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SlicerSOFA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="features.html">1. Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">2. Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integration.html">3. Integration design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">4. Slicer modules and MRML nodes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="softtissue-simulation.html">5. SoftTissueSimulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sparsegrid-simulation.html">6. SparseGridSimulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="superbuild.html">7. SuperBuild and dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="test.html">8. Tests</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">9. Limitations and Caveats</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#known-caveats">9.1. Known caveats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#missing-features-future-work">9.2. Missing features (future work)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="links.html">10. Links</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SlicerSOFA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">9. </span>Limitations and Caveats</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/pages/limitations.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="limitations-and-caveats">
+<h1><span class="section-number">9. </span>Limitations and Caveats<a class="headerlink" href="#limitations-and-caveats" title="Link to this heading"></a></h1>
+<section id="known-caveats">
+<h2><span class="section-number">9.1. </span>Known caveats<a class="headerlink" href="#known-caveats" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Unit conventions: SOFA typically uses meters (SI) while Slicer often uses millimeters in some pipelines. SlicerSOFA tries to keep units consistent but users should ensure correct scaling when importing/exporting geometry.</p></li>
+<li><p>Mesh formats: Slicer can import OBJ and STL; if a SOFA scene contains other formats you may need to convert them prior to loading.</p></li>
+<li><p>Threading: The integration currently executes simulation steps on the main thread via a Qt timer. Long-running simulations can block the GUI; for heavy simulations consider an out-of-process solver or adopt a custom multithreaded approach with careful MRML/VTK synchronization.</p></li>
+<li><p>SOFA plugins: Only SOFA features and plugins available at build-time will be supported. If your scene relies on third-party SOFA plugins, add them to the SuperBuild or provide them at runtime.</p></li>
+<li><p>Persistence: Saving and restoring scenes that include live SOFA scenes is supported via MRML nodes but complex scenes with external file paths may require path rewrites.</p></li>
+</ul>
+</section>
+<section id="missing-features-future-work">
+<h2><span class="section-number">9.2. </span>Missing features (future work)<a class="headerlink" href="#missing-features-future-work" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Full two-way editing (editing Slicer model -&gt; propagate to SOFA scene) is limited.</p></li>
+<li><p>Advanced UI for complex SOFA parameter editing is not yet complete.</p></li>
+<li><p>Integration with remote/hardware-in-the-loop simulation backends is not included out-of-the-box.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="test.html" class="btn btn-neutral float-left" title="8. Tests" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="links.html" class="btn btn-neutral float-right" title="10. Links" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

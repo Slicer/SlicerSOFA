@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2. Getting Started &mdash; SlicerSOFA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="3. Integration design" href="integration.html" />
+    <link rel="prev" title="1. Features" href="features.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SlicerSOFA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="features.html">1. Features</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">2. Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#pre-requisites">2.1. Pre-requisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#recommended-environment">2.2. Recommended environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cloning">2.3. Cloning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-overview">2.4. Building overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-build-example-using-superbuild">2.5. Basic build example (using SuperBuild)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-the-module-into-slicer">2.6. Loading the module into Slicer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start-with-python">2.7. Quick start with Python</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="integration.html">3. Integration design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">4. Slicer modules and MRML nodes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="softtissue-simulation.html">5. SoftTissueSimulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sparsegrid-simulation.html">6. SparseGridSimulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="superbuild.html">7. SuperBuild and dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="test.html">8. Tests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitations.html">9. Limitations and Caveats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="links.html">10. Links</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SlicerSOFA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">2. </span>Getting Started</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/pages/getting-started.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started">
+<h1><span class="section-number">2. </span>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+<section id="pre-requisites">
+<h2><span class="section-number">2.1. </span>Pre-requisites<a class="headerlink" href="#pre-requisites" title="Link to this heading"></a></h2>
+<p>Before building and using SlicerSOFA you should be familiar with:</p>
+<ul class="simple">
+<li><p>Linux, CMake and building C++ projects.</p></li>
+<li><p>Building Slicer from source (required to compile the C++ extensions).</p></li>
+<li><p>Basic SOFA knowledge (scene files, solvers, meshes) is helpful to author or modify SOFA scenes.</p></li>
+</ul>
+</section>
+<section id="recommended-environment">
+<h2><span class="section-number">2.2. </span>Recommended environment<a class="headerlink" href="#recommended-environment" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Ubuntu LTS (e.g. 20.04, 22.04 depending on your Slicer build).</p></li>
+<li><p>Slicer built from source (see Slicer developer guide).</p></li>
+<li><p>System Qt (install with apt; do not install a conflicting Qt from upstream unless you know how to adapt the build).</p></li>
+<li><p>Required libraries and tools are orchestrated by the included SuperBuild (see pages/superbuild).</p></li>
+</ul>
+</section>
+<section id="cloning">
+<h2><span class="section-number">2.3. </span>Cloning<a class="headerlink" href="#cloning" title="Link to this heading"></a></h2>
+<p>Assuming a development workspace:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>~/dev
+<span class="nb">cd</span><span class="w"> </span>~/dev
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/yourorg/SlicerSOFA.git
+<span class="nb">cd</span><span class="w"> </span>SlicerSOFA
+</pre></div>
+</div>
+</section>
+<section id="building-overview">
+<h2><span class="section-number">2.4. </span>Building overview<a class="headerlink" href="#building-overview" title="Link to this heading"></a></h2>
+<p>There are two main approaches to build SlicerSOFA depending on how you want to manage external dependencies:</p>
+<ol class="arabic simple">
+<li><p>Use the included SuperBuild to fetch and build SOFA and other third-party libraries. This is useful if you do not already have SOFA available.</p></li>
+<li><p>If you already have a Slicer build and external dependencies (SOFA and libraries) installed on your system, build only the Slicer extension and point CMake to your Slicer build directory.</p></li>
+</ol>
+</section>
+<section id="basic-build-example-using-superbuild">
+<h2><span class="section-number">2.5. </span>Basic build example (using SuperBuild)<a class="headerlink" href="#basic-build-example-using-superbuild" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release<span class="w"> </span>-DSlicer_DIR:PATH<span class="o">=</span>/path/to/your/Slicer-build
+make<span class="w"> </span>-j4
+</pre></div>
+</div>
+<p>Alternatively, if building the Slicer module only:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release<span class="w"> </span>-DSlicer_DIR:PATH<span class="o">=</span>/path/to/your/Slicer-build<span class="w"> </span>-DUSE_SUPERBUILD<span class="o">=</span>OFF
+make<span class="w"> </span>-j4
+</pre></div>
+</div>
+</section>
+<section id="loading-the-module-into-slicer">
+<h2><span class="section-number">2.6. </span>Loading the module into Slicer<a class="headerlink" href="#loading-the-module-into-slicer" title="Link to this heading"></a></h2>
+<p>After a successful build:</p>
+<ul class="simple">
+<li><p>Ensure Slicer can find SlicerSOFA binaries and any required dynamic libraries. If you built against a Slicer build tree and used the build install steps, the module will be placed into the Slicer extensions path in the build area.</p></li>
+<li><p>Start Slicer from the same shell where environment variables are correct (if you built/install in custom locations set LD_LIBRARY_PATH accordingly). Example:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/path/to/Slicer-build
+./Slicer
+</pre></div>
+</div>
+<p>Inside Slicer the SlicerSOFA module(s) should appear under the Modules menu (names: SlicerSofa, SoftTissueSimulation, SparseGridSimulation).</p>
+</section>
+<section id="quick-start-with-python">
+<h2><span class="section-number">2.7. </span>Quick start with Python<a class="headerlink" href="#quick-start-with-python" title="Link to this heading"></a></h2>
+<p>Once the module is loaded you can control simulations from Slicer’s Python interactor. Example (pseudo-API; see integration docs for real API):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">slicer</span>
+<span class="n">logic</span> <span class="o">=</span> <span class="n">slicer</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">getModuleLogic</span><span class="p">(</span><span class="s1">&#39;SlicerSofa&#39;</span><span class="p">)</span>
+<span class="c1"># Load a scene file (path relative to your project or absolute)</span>
+<span class="n">sofaSceneNode</span> <span class="o">=</span> <span class="n">logic</span><span class="o">.</span><span class="n">LoadSofaScene</span><span class="p">(</span><span class="s1">&#39;/path/to/scene.scn&#39;</span><span class="p">)</span>
+<span class="c1"># Start simulation (run on a timer integrated with Slicer UI)</span>
+<span class="n">sofaSceneNode</span><span class="o">.</span><span class="n">Play</span><span class="p">()</span>
+<span class="c1"># Pause and step</span>
+<span class="n">sofaSceneNode</span><span class="o">.</span><span class="n">Pause</span><span class="p">()</span>
+<span class="n">sofaSceneNode</span><span class="o">.</span><span class="n">Step</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>See pages/integration.rst for the API details and examples.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="features.html" class="btn btn-neutral float-left" title="1. Features" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="integration.html" class="btn btn-neutral float-right" title="3. Integration design" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,185 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3. Integration design &mdash; SlicerSOFA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="4. Slicer modules and MRML nodes" href="modules.html" />
+    <link rel="prev" title="2. Getting Started" href="getting-started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SlicerSOFA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="features.html">1. Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">2. Getting Started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">3. Integration design</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#goals">3.1. Goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-ideas">3.2. Key ideas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#c-vs-python">3.3. C++ vs Python</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#typical-workflow">3.4. Typical workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-python-usage">3.5. Example Python usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#threading-and-execution-model">3.6. Threading and execution model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extending-mappings">3.7. Extending mappings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">4. Slicer modules and MRML nodes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="softtissue-simulation.html">5. SoftTissueSimulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sparsegrid-simulation.html">6. SparseGridSimulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="superbuild.html">7. SuperBuild and dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="test.html">8. Tests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitations.html">9. Limitations and Caveats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="links.html">10. Links</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SlicerSOFA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><span class="section-number">3. </span>Integration design</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/pages/integration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="integration-design">
+<h1><span class="section-number">3. </span>Integration design<a class="headerlink" href="#integration-design" title="Link to this heading"></a></h1>
+<section id="goals">
+<h2><span class="section-number">3.1. </span>Goals<a class="headerlink" href="#goals" title="Link to this heading"></a></h2>
+<p>SlicerSOFA aims to tightly integrate SOFA’s simulation capabilities with 3D Slicer’s visualization and scripting environment while keeping the two systems loosely coupled.</p>
+</section>
+<section id="key-ideas">
+<h2><span class="section-number">3.2. </span>Key ideas<a class="headerlink" href="#key-ideas" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Each loaded SOFA scene is represented by an MRML node (vtkMRMLSofaSceneNode). This enables:
+- Observers and callback mechanisms available in Slicer to respond to simulation changes.
+- Export and persistence with MRML scenes.
+- Easy retrieval and manipulation via Slicer’s Python API.</p></li>
+<li><p>Simulation loop integration:
+- The main Slicer GUI thread triggers periodic simulation steps via a Qt timer. This avoids complex multithreading issues with VTK and MRML scene updates.
+- The default step frequency is configurable (for example 60 Hz). Users can Play, Pause or Step manually.</p></li>
+<li><p>Data mapping:
+- A set of utility functions map SOFA data (mesh vertices, transforms, pointclouds) to VTK/ MRML data structures (vtkPolyData, vtkMatrix4x4, vtkPoints).
+- The SlicerSofaUtils package contains the mapping logic and convenience helpers.</p></li>
+</ul>
+</section>
+<section id="c-vs-python">
+<h2><span class="section-number">3.3. </span>C++ vs Python<a class="headerlink" href="#c-vs-python" title="Link to this heading"></a></h2>
+<p>SlicerSOFA is implemented in C++ for robust linking with SOFA. The build generates Python bindings for the MRML/C++ classes (via VTK/Slicer wrappers and/or pybind11 where appropriate). This provides a full Python API inside Slicer without requiring to import SOFA directly from Python.</p>
+</section>
+<section id="typical-workflow">
+<h2><span class="section-number">3.4. </span>Typical workflow<a class="headerlink" href="#typical-workflow" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Build and load module in Slicer.</p></li>
+<li><p>In Slicer, create or load a SOFA scene (from a .scn or .py scene file).</p></li>
+<li><p>The scene MRML node can expose:
+* Play / Pause / Stop / Step operations.
+* Export of current mesh as a VTK node.
+* Parameters to adjust solver and visual properties.</p></li>
+<li><p>Observers can be attached to the scene node to react to simulation updates (for example update other Slicer modules when tissue moves).</p></li>
+</ol>
+</section>
+<section id="example-python-usage">
+<h2><span class="section-number">3.5. </span>Example Python usage<a class="headerlink" href="#example-python-usage" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sofaLogic</span> <span class="o">=</span> <span class="n">slicer</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">getModuleLogic</span><span class="p">(</span><span class="s1">&#39;SlicerSofa&#39;</span><span class="p">)</span>
+<span class="c1"># load and add a sofa scene</span>
+<span class="n">sceneNode</span> <span class="o">=</span> <span class="n">sofaLogic</span><span class="o">.</span><span class="n">LoadSofaScene</span><span class="p">(</span><span class="s1">&#39;/home/user/models/soft_tissue.scn&#39;</span><span class="p">)</span>
+
+<span class="c1"># add an observer to update something when the scene is stepped</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">onSimulationTick</span><span class="p">(</span><span class="n">caller</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="c1"># get a VTK mesh from sofa scene and add to Slicer view</span>
+    <span class="n">polydata</span> <span class="o">=</span> <span class="n">sceneNode</span><span class="o">.</span><span class="n">GetVTKMesh</span><span class="p">(</span><span class="s1">&#39;liverMesh&#39;</span><span class="p">)</span>
+    <span class="c1"># update/attach polydata to a MRML model node...</span>
+<span class="n">sceneNode</span><span class="o">.</span><span class="n">AddObserver</span><span class="p">(</span><span class="n">sceneNode</span><span class="o">.</span><span class="n">SimulationTickEvent</span><span class="p">,</span> <span class="n">onSimulationTick</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="threading-and-execution-model">
+<h2><span class="section-number">3.6. </span>Threading and execution model<a class="headerlink" href="#threading-and-execution-model" title="Link to this heading"></a></h2>
+<p>To avoid race conditions with VTK and the MRML scene, simulation stepping is invoked on the main thread via a Qt timer. If you need a separate simulation thread for heavy computation, you must ensure MRML/VTK updates are marshalled back to the main thread using Slicer/Qt mechanisms.</p>
+</section>
+<section id="extending-mappings">
+<h2><span class="section-number">3.7. </span>Extending mappings<a class="headerlink" href="#extending-mappings" title="Link to this heading"></a></h2>
+<p>SlicerSofaUtils contains Mappings.py (Python) and mapping C++ helpers. If you need additional conversions (e.g. custom SOFA components), implement the conversion in the Mappings module and expose accessors on your scene node.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting-started.html" class="btn btn-neutral float-left" title="2. Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="4. Slicer modules and MRML nodes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
