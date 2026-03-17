@@ -132,7 +132,9 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     femNode = rootNode.addChild('FEM')
     femNode.addObject('EulerImplicitSolver', firstOrder=False, rayleighMass=0.1, rayleighStiffness=0.1)
     femNode.addObject('SparseLDLSolver', name="precond", template="CompressedRowSparseMatrixd", parallelInverseProduct=True)
-    femNode.addObject('TetrahedronSetTopologyContainer', name="Container", position=slicer.util.arrayFromModelPoints(parameterNode.modelNode), tetrahedra=arrayFromModelGridCells(parameterNode.modelNode))
+    femNode.addObject('TetrahedronSetTopologyContainer', name="Container",
+                      position=slicer.util.arrayFromModelPoints(parameterNode.modelNode).tolist(),
+                      tetrahedra=arrayFromModelGridCells(parameterNode.modelNode).tolist())
     femNode.addObject('TetrahedronSetTopologyModifier', name="Modifier")
     femNode.addObject('MechanicalObject', name="mstate", template="Vec3d")
     femNode.addObject('TetrahedronFEMForceField', name="FEM", youngModulus=1.5, poissonRatio=0.45, method="large", computeVonMisesStress=vonMisesMode['fullGreen'])
@@ -150,8 +152,8 @@ def CreateScene(parameterNode) -> Sofa.Core.Node:
     collisionNode.addObject('TriangleSetTopologyContainer', name="Container")
     collisionNode.addObject('TriangleSetTopologyModifier', name="Modifier")
     collisionNode.addObject('Tetra2TriangleTopologicalMapping', input="@../Container", output="@Container")
-    collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
     collisionNode.addObject('MechanicalObject', name='dofs', rest_position="@../mstate.rest_position")
+    collisionNode.addObject('TriangleCollisionModel', name="collisionModel", proximity=0.001, contactStiffness=20)
     collisionNode.addObject('IdentityMapping', name='visualMapping')
 
     # Apply a linear solver constraint correction in the FEM node

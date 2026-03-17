@@ -63,10 +63,15 @@ if(NOT DEFINED GLEW_DIR AND NOT Autoscoper_USE_SYSTEM_${proj})
       ${${proj}_DEPENDENCIES}
     )
   if(APPLE)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      set(_glew_lib_name "libGLEWd.2.2.0.dylib")
+    else()
+      set(_glew_lib_name "libGLEW.2.2.0.dylib")
+    endif()
     ExternalProject_Add_Step(${proj} fix_rpath
       COMMAND install_name_tool -id
-        ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libGLEW.2.2.0.dylib
-        ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/libGLEW.2.2.0.dylib
+        ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/${_glew_lib_name}
+        ${EP_INSTALL_DIR}/${Slicer_THIRDPARTY_LIB_DIR}/${_glew_lib_name}
       DEPENDEES install
       )
   endif()
