@@ -65,9 +65,16 @@ else() # APPLE
 
   #-----------------------------------------------------------------------------
   # Fixup candidates patterns specified as relative paths
+  # ORDER MATTERS: subpackage .so files must come before top-level site-packages/*.so
+  # so that Sofa.Core, Sofa.Helper, etc. keys are registered before Cosserat/SofaExporter
+  # (which depend on them via @rpath). Otherwise the @rpath dep registers the key with
+  # the wrong destination path and the correct copy is skipped as a duplicate.
   set(EXTENSION_FIXUP_BUNDLE_CANDIDATES_PATTERNS
-    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/*.dylib" # Recursively SOFA libraries as these are plugins loaded in runtime
-    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/*.cpython-*.so" # Recursively glob Python modules
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/*.dylib" # SOFA libraries loaded at runtime
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa/*.cpython-*.so" # Sofa Python subpackage (must be first)
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaRuntime/*.cpython-*.so" # SofaRuntime Python subpackage
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaTypes/*.cpython-*.so" # SofaTypes Python subpackage
+    "${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/python3/site-packages/*.cpython-*.so" # Top-level Python modules (after subpackages)
   )
   set(${EXTENSION_NAME}_FIXUP_BUNDLE_CANDIDATES_PATTERNS "${EXTENSION_FIXUP_BUNDLE_CANDIDATES_PATTERNS}" CACHE STRING "List of candidate patterns for globbing libraries that should be fixed up" FORCE)
 
@@ -82,18 +89,30 @@ else() # APPLE
   # SOFA
   set(SOFA_RUNTIME_LIBRARY_DIR "${EXTENSION_SUPERBUILD_BINARY_DIR}/Sofa-build/lib")
   list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES ${SOFA_RUNTIME_LIBRARY_DIR})
+  # Python subpackages: needed so gp_resolve_item can find @rpath/Core.cpython-*.so etc.
+  list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${SOFA_RUNTIME_LIBRARY_DIR}/python3/site-packages")
+  list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${SOFA_RUNTIME_LIBRARY_DIR}/python3/site-packages/Sofa")
+  list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${SOFA_RUNTIME_LIBRARY_DIR}/python3/site-packages/SofaRuntime")
+  list(APPEND EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${SOFA_RUNTIME_LIBRARY_DIR}/python3/site-packages/SofaTypes")
 
   set(${EXTENSION_NAME}_FIXUP_BUNDLE_LIBRARY_DIRECTORIES "${EXTENSION_FIXUP_BUNDLE_LIBRARY_DIRECTORIES}" CACHE STRING "List of directories to look up libraries to copy into the application package" FORCE)
 
   #-----------------------------------------------------------------------------
   # Fixup embedded path overrides
+  # Rules are matched against the item as it appears in the binary (which may be
+  # @rpath/<bare-name>.so or an absolute build/install-tree path). Last match wins.
   set(EXTENSION_FIXUP_BUNDLE_EMBEDDED_PATH_OVERRIDES
-    # Installed libraries
-    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages"
-    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa"
-    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaRuntime/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaRuntime"
-    "${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaTypes/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaTypes"
-    # Copied libraries
+    # @rpath/<name>.cpython-*.so: bare-name references come from files whose install
+    # name has no subdirectory component (e.g. Cosserat.so depending on Core.so).
+    # The default Sofa/ catch-all handles Core, Helper, Simulation, Types, Gui, etc.
+    "@rpath/[^/]+\.cpython-[^.]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa"
+    # Python subpackages: match build-tree and install-tree absolute paths
+    "python3/site-packages/Sofa/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/Sofa"
+    "python3/site-packages/SofaRuntime/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaRuntime"
+    "python3/site-packages/SofaTypes/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages/SofaTypes"
+    # Top-level Python site-packages (must come after the subpackage rules)
+    "python3/site-packages/[^/]+\.so$|${Slicer_THIRDPARTY_LIB_DIR}/python3/site-packages"
+    # Copied dylib libraries from SOFA build tree
     "${SOFA_RUNTIME_LIBRARY_DIR}/[^/]+\.dylib$|${Slicer_THIRDPARTY_LIB_DIR}"
   )
   set(${EXTENSION_NAME}_FIXUP_BUNDLE_EMBEDDED_PATH_OVERRIDES "${EXTENSION_FIXUP_BUNDLE_EMBEDDED_PATH_OVERRIDES}" CACHE STRING "List of embedded path overrides" FORCE)
