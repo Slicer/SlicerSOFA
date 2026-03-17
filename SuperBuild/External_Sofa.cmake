@@ -34,6 +34,19 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     endif()
   endforeach()
 
+  # Determine Qt version (prefer Qt6, fall back to Qt5)
+  if(DEFINED Qt6_DIR)
+    set(_sofa_qt_version_major 6)
+    set(_sofa_qt_dir ${Qt6_DIR})
+    message(STATUS "SlicerSOFA/Sofa: Using Qt6 (${Qt6_DIR})")
+  elseif(DEFINED Qt5_DIR)
+    set(_sofa_qt_version_major 5)
+    set(_sofa_qt_dir ${Qt5_DIR})
+    message(STATUS "SlicerSOFA/Sofa: Using Qt5 (${Qt5_DIR})")
+  else()
+    message(FATAL_ERROR "Neither Qt6_DIR nor Qt5_DIR is defined")
+  endif()
+
   set(SOFA_EXTERNAL_DIRECTORIES)
 
   include(FetchContent)
@@ -171,7 +184,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DBoost_NO_BOOST_CMAKE:BOOL=FALSE # Support finding Boost as config-file package
       -DBOOST_ROOT:PATH=${Boost_DIR}
       -DEIGEN3_INCLUDE_DIR:PATH=${Eigen3_DIR}/include/eigen3
-      -DQt5_DIR:PATH=${Qt5_DIR}
+      -DQt${_sofa_qt_version_major}_DIR:PATH=${_sofa_qt_dir}
       -DTinyXML2_INCLUDE_DIR:PATH=${tinyxml2_INCLUDE_DIR}
       -DTinyXML2_LIBRARY:PATH=${tinyxml2_LIBRARY}
       -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}

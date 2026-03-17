@@ -338,10 +338,8 @@ class SlicerSofaLogic(ScriptedLoadableModuleLogic):
         self._parameterNode = parameterNode
         self._rootNode = self.createScene(self._parameterNode)
 
-        if isinstance(self._rootNode, Sofa.Core.Node):
-            Sofa.Simulation.unload(self._rootNode)
-            
-        self._rootNode = self.CreateScene()
+        if not isinstance(self._rootNode, Sofa.Core.Node):
+            raise ValueError("rootNode is not a valid Sofa.Core.Node root node")
         setattr(self._parameterNode, "_rootNode", self._rootNode)
         self.__updateSofa__()
         Sofa.Simulation.init(self._rootNode)
