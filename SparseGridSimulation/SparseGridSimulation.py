@@ -547,21 +547,30 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
         self.probeFilter.SetSourceData(self._parameterNode.sparseGridModelNode.GetUnstructuredGrid())
         self.probeFilter.SetPassPointArrays(True)
 
-        displacementGrid = self._parameterNode.gridTransformNode.GetTransformFromParent().GetDisplacementGrid()
-        # NOTE: The order is slices, rows columns
-        displacementGrid.SetDimensions(self._parameterNode.sparseGridDimensions.z,
-                                       self._parameterNode.sparseGridDimensions.y,
-                                       self._parameterNode.sparseGridDimensions.x)
+        # Provide TransformToParent directly instead of letting the rendering
+        # pipeline invert TransformFromParent.  Inverting near steep
+        # displacement gradients introduces transient singular regions that
+        # cause the deformation to blow up at the grid boundaries.
+        self.gridTransform = slicer.vtkOrientedGridTransform()
+        self.displacementGrid = vtk.vtkImageData()
+        # NOTE: The order is slices, rows, columns
+        self.displacementGrid.SetDimensions(self._parameterNode.sparseGridDimensions.z,
+                                            self._parameterNode.sparseGridDimensions.y,
+                                            self._parameterNode.sparseGridDimensions.x)
 
         narray = np.zeros((self._parameterNode.sparseGridDimensions.x,
                            self._parameterNode.sparseGridDimensions.y,
                            self._parameterNode.sparseGridDimensions.z, 3))
 
         scalarType = vtk.util.numpy_support.get_vtk_array_type(narray.dtype)
-        displacementGrid.AllocateScalars(scalarType, 3)
-        displacementArray = slicer.util.arrayFromGridTransform(self._parameterNode.gridTransformNode)
+        self.displacementGrid.AllocateScalars(scalarType, 3)
+        self.gridTransform.SetDisplacementGridData(self.displacementGrid)
+        self._parameterNode.gridTransformNode.SetAndObserveTransformToParent(self.gridTransform)
+
+        displacementArray = vtk.util.numpy_support.vtk_to_numpy(
+            self.displacementGrid.GetPointData().GetScalars()).reshape(narray.shape)
         displacementArray[:] = narray
-        slicer.util.arrayFromGridTransformModified(self._parameterNode.gridTransformNode)
+        self.displacementGrid.Modified()
 
     def _updateProbingImage(self) -> None:
         # Update the geometry of the probing image, which need to match the sparse grid created by SOFA
@@ -587,12 +596,17 @@ class SparseGridSimulationLogic(SlicerSofaLogic):
                            self._parameterNode.sparseGridDimensions.z,
                            3)
         probeArray = probeArray.reshape(probeArrayShape)
-        gridArray = slicer.util.arrayFromGridTransform(self._parameterNode.gridTransformNode)
-        gridArray[:] = -1. * probeArray
-        slicer.util.arrayFromGridTransformModified(self._parameterNode.gridTransformNode)
-        self.displacementGrid = self._parameterNode.gridTransformNode.GetTransformFromParent().GetDisplacementGrid()
+        gridArray = vtk.util.numpy_support.vtk_to_numpy(
+            self.displacementGrid.GetPointData().GetScalars()).reshape(probeArrayShape)
+        # Sign matches previous behavior: the old code stored -probeArray in
+        # TransformFromParent and the rendering pipeline inverted it back to
+        # +probeArray; storing directly into TransformToParent removes that
+        # inversion, so the negation is no longer needed.
+        gridArray[:] = probeArray
         self.displacementGrid.SetOrigin(probeGrid.GetOrigin())
         self.displacementGrid.SetSpacing(probeGrid.GetSpacing())
+        self.displacementGrid.Modified()
+        self._parameterNode.gridTransformNode.Modified()
 
 #
 # SparseGridSimulationTest
