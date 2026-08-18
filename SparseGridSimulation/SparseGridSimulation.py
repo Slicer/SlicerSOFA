@@ -622,23 +622,69 @@ class SparseGridSimulationTest(ScriptedLoadableModuleTest):
         slicer.mrmlScene.Clear()
 
     def runTest(self):
-        """Run the test case."""
+        """Run the test case.
+
+        NOTE: Slicer's test runner invokes runTest() only, so every test method
+        must be called explicitly here.  A test_* method that is not listed is
+        silently never executed.
+        """
         self.setUp()
         self.test_SparseGridSimulation1()
+        self.setUp()
+        self.test_displacementGridIsStoredAsTransformToParent()
+        self.setUp()
+        self.test_displacementGridDimensionsMatchParameters()
+
+    @staticmethod
+    def _createInputSurfaceModel(radius=10.0, name="Test Surface"):
+        """Build a triangulated sphere as simulation input.
+
+        Generated procedurally rather than downloaded so the test is hermetic:
+        no network access and no stored reference data.  CreateScene feeds the
+        result to SOFA's TriangleSetTopologyContainer, which requires pure
+        triangles, hence the vtkTriangleFilter.
+        """
+        sphere = vtk.vtkSphereSource()
+        sphere.SetRadius(radius)
+        sphere.SetThetaResolution(16)
+        sphere.SetPhiResolution(16)
+
+        triangulate = vtk.vtkTriangleFilter()
+        triangulate.SetInputConnection(sphere.GetOutputPort())
+        triangulate.Update()
+
+        modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", name)
+        modelNode.SetAndObservePolyData(triangulate.GetOutput())
+        modelNode.CreateDefaultDisplayNodes()
+        return modelNode
+
+    def _buildLogic(self, dimensions=None):
+        """Assemble a runnable SparseGridSimulation logic.
+
+        NOTE: modelNode must be assigned *before* addBoundaryROI/addGravityVector,
+        because both read parameterNode.modelNode to derive their geometry and
+        silently fall back to degenerate defaults when it is None.
+        """
+        logic = SparseGridSimulationLogic()
+        logic.resetParameterNode()
+        parameterNode = logic.getParameterNode()
+
+        parameterNode.modelNode = self._createInputSurfaceModel()
+        if dimensions is not None:
+            parameterNode.sparseGridDimensions = dimensions
+
+        logic.addSparseGridModelNode()
+        logic.addBoundaryROI()
+        logic.addGravityVector()
+        logic.addGridTransformNode()
+        return logic
 
     def test_SparseGridSimulation1(self):
         """Basic test of the SparseGridSimulation module."""
         self.delayDisplay("Starting the test")
 
-        # Create logic and widget
-        logic = SparseGridSimulationLogic()
-        logic.resetParameterNode()
-        logic.addSparseGridModelNode()
-        logic.addBoundaryROI()
-        logic.addGravityVector()
-        logic.addGridTransformNode()
+        logic = self._buildLogic()
 
-        # Start simulation
         logic.startSimulation()
         for _ in range(10):
             logic.simulationStep()
@@ -646,3 +692,56 @@ class SparseGridSimulationTest(ScriptedLoadableModuleTest):
         logic.stopSimulation()
 
         self.delayDisplay("Test passed")
+
+    def test_displacementGridIsStoredAsTransformToParent(self):
+        """The displacement field must be installed as TransformToParent.
+
+        Regression guard for the fix co-authored with @pieper: storing the field
+        in TransformFromParent forces the rendering pipeline to invert it, and
+        inverting near steep displacement gradients produces transient singular
+        regions that blow up at the grid boundaries.  Slicer's documented
+        convention also puts geometry-deforming transforms in ToParent.
+        """
+        self.delayDisplay("Starting TransformToParent test")
+
+        logic = self._buildLogic()
+        logic.startSimulation()
+        logic.simulationStep()
+
+        gridTransformNode = logic.getParameterNode().gridTransformNode
+        toParent = gridTransformNode.GetTransformToParent()
+
+        self.assertIsNotNone(toParent, "No TransformToParent installed on the grid transform node")
+        self.assertIsInstance(toParent, slicer.vtkOrientedGridTransform)
+        self.assertIsNotNone(toParent.GetDisplacementGrid(),
+                             "TransformToParent carries no displacement grid")
+
+        # The transform must be the one the logic pre-allocated, i.e. installed
+        # directly rather than derived by inverting the opposite direction.
+        self.assertIs(toParent, logic.gridTransform)
+
+        logic.stopSimulation()
+        self.delayDisplay("TransformToParent test passed")
+
+    def test_displacementGridDimensionsMatchParameters(self):
+        """Displacement grid dimensions are the parameter dimensions reversed.
+
+        VTK image point ordering runs fastest over the first dimension, so the
+        module allocates (z, y, x) to match a numpy view shaped (x, y, z, 3).
+        """
+        self.delayDisplay("Starting grid dimensions test")
+
+        logic = self._buildLogic()
+        logic.startSimulation()
+        logic.simulationStep()
+
+        dimensions = logic.getParameterNode().sparseGridDimensions
+        displacementGrid = logic.getParameterNode().gridTransformNode \
+                                .GetTransformToParent().GetDisplacementGrid()
+
+        self.assertEqual(displacementGrid.GetDimensions(),
+                         (dimensions.z, dimensions.y, dimensions.x))
+        self.assertEqual(displacementGrid.GetNumberOfScalarComponents(), 3)
+
+        logic.stopSimulation()
+        self.delayDisplay("Grid dimensions test passed")
