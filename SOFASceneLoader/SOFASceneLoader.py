@@ -504,51 +504,77 @@ class SOFASceneLoaderTest(ScriptedLoadableModuleTest):
 
 
     def test_sofa_node_wrapper(self):
-        """
-        Test method to demonstrate the SOFA node wrapper functionality.
-        
-        This method shows how the wrapper intercepts addObject calls and
-        recursively wraps child nodes.
+        """SOFANodeWrapper tracks paths and registers one mapping per object.
+
+        NOTE: SOFA components live in plugins that must be loaded explicitly.
+        Without a RequiredPlugin for Sofa.Component.StateContainer the
+        MechanicalObject type is never registered and addObject fails with
+        "Object type MechanicalObject<> was not created".
         """
         logic = SOFASceneLoaderLogic()
         logic.getParameterNode()
 
-        # Create a new scene with the wrapper
         sofa_root = Sofa.Core.Node("root")
         test_root = SOFANodeWrapper(sofa_root, logic)
+        test_root.addObject("RequiredPlugin", name="Sofa.Component.StateContainer")
 
-        # Test adding a child node
         child_node = test_root.addChild("child_node")
         second_child_node = child_node.addChild("second_child_node")
-        
-        # Test adding an object to the child node
-        result2 = child_node.addObject("MechanicalObject", name="toto")
-        
-        # Verify that the wrapper maintains compatibility and tracks paths
-        if test_root.getPath() != "":
-            ValueError("Root path should be empty")
 
-        if child_node.getPath() != "child_node":
-            ValueError("Root path should be empty child_node")
+        sofaObj = child_node.addObject("MechanicalObject", name="toto")
+        self.assertIsNotNone(sofaObj, "MechanicalObject was not created")
 
-        if second_child_node.getPath() != "child_node.second_child_node":
-            ValueError("Root path should be empty child_node.second_child_node")
+        # Path tracking.  _getPath() is the wrapper's own accessor; a bare
+        # getPath() would fall through __getattr__ to the wrapped SOFA node.
+        self.assertEqual(test_root._getPath(), "")
+        self.assertEqual(child_node._getPath(), "child_node")
+        self.assertEqual(second_child_node._getPath(), "child_node.second_child_node")
 
-        if not hasattr(logic.getParameterNode(), "child_node_second_child_node"):
-            ValueError("Parameter node should contain a mrlm node called child_node_second_child_node")
+        # The object was added to child_node, so the flattened MRML id is
+        # "child_node" -- not "child_node_second_child_node".
+        parameterNode = logic.getParameterNode()
+        self.assertTrue(hasattr(parameterNode, "child_node"),
+                        "Parameter node should hold a model node named child_node")
 
-        if len(logic.sofaMappings) != 1:
-            ValueError("One mapping should have been created")
-            
-        if logic.sofaMappings[0][0] != "child_node_second_child_node" or  logic.sofaMappings[0][0] != "child_node.second_child_node":
-            ValueError("Mapping should map child_node_second_child_node into child_node.second_child_node")
+        self.assertEqual(len(logic.sofaMappings), 1,
+                         f"Expected exactly one mapping, got {len(logic.sofaMappings)}")
 
+        fieldName, sofaPath, mappingFunction, runOnce = logic.sofaMappings[0]
+        self.assertEqual(fieldName, "child_node")
+        self.assertEqual(sofaPath, "child_node.toto")
+        self.assertIs(mappingFunction, SOFA2MRML_dict["MechanicalObject"])
+
+    def test_sofa_node_wrapper_flattens_nested_paths(self):
+        """A mapping registered on a nested node flattens dots to underscores.
+
+        This is what the original test intended to assert: an object added to
+        child_node.second_child_node maps onto the MRML field
+        child_node_second_child_node.
+        """
+        logic = SOFASceneLoaderLogic()
+        logic.getParameterNode()
+
+        sofa_root = Sofa.Core.Node("root")
+        test_root = SOFANodeWrapper(sofa_root, logic)
+        test_root.addObject("RequiredPlugin", name="Sofa.Component.StateContainer")
+
+        second_child_node = test_root.addChild("child_node").addChild("second_child_node")
+        second_child_node.addObject("MechanicalObject", name="dofs")
+
+        self.assertEqual(len(logic.sofaMappings), 1)
+        fieldName, sofaPath, _, _ = logic.sofaMappings[0]
+        self.assertEqual(fieldName, "child_node_second_child_node")
+        self.assertEqual(sofaPath, "child_node.second_child_node.dofs")
+        self.assertTrue(hasattr(logic.getParameterNode(), "child_node_second_child_node"))
 
     def runTest(self):
         """
         Run the tests for the SOFASceneLoader module.
         """
         self.delayDisplay("Starting SOFASceneLoader test")
+        self.setUp()
         self.test_sofa_node_wrapper()
+        self.setUp()
+        self.test_sofa_node_wrapper_flattens_nested_paths()
         #self.testMovingPointSimulation()
         self.delayDisplay("SOFASceneLoader tests passed")
