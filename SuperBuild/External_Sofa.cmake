@@ -57,7 +57,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/Slicer/SofaPython3"
-    GIT_TAG        "d531197caff3a93080c8b66704f3185c2164043c" #slicer-25.12.00-2026-01-29-d531197ca
+    GIT_TAG        "64e02c2b0d610f6752442cb177227598b98dd110" #slicer-v26.06.00-2026-08-24-64e02c2b0
     GIT_PROGRESS   1
     QUIET
     )
@@ -70,7 +70,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/STLIB.git"
-    GIT_TAG        "da062381847b26458390937c75c23968ea0a9c6a" # v25.12-20260129
+    GIT_TAG        "d33de40005b6a002ad1b869b972b214a6389fe67" # release-v26.06
     GIT_PROGRESS   1
     QUIET
     )
@@ -83,7 +83,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/beamadapter.git"
-    GIT_TAG        "5d02b8322cc82fc8a04085862affb99b008ef175" # v25.12-20260129
+    GIT_TAG        "cac4005bd7c9f266c5c775ab88cebbd7c7fa83c7" # release-v26.06
     GIT_PROGRESS   1
     QUIET
     )
@@ -96,7 +96,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/sofa-framework/registration.git"
-    GIT_TAG        "091ebecafafc3fc3ba1e493e855b09ec4918c857" # v25.12-20260729
+    GIT_TAG        "06ab29453a758b675cced5f3121f49016f84f836" # release-v26.06
     GIT_PROGRESS   1
     QUIET
     )
@@ -109,7 +109,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   FetchContent_Populate(${plugin_name}
     SOURCE_DIR     ${${plugin_name}_SOURCE_DIR}
     GIT_REPOSITORY "https://github.com/SofaDefrost/Cosserat.git"
-    GIT_TAG        "f6a4f35075c5fc0364c4d96dd130e22f2c5bb1e3" # v25.12-20260129
+    GIT_TAG        "31aaf6d9af1b1d4feb7412c4b074aff50c92cec8" # release-v26.06
     GIT_PROGRESS   1
     QUIET
     )
@@ -135,7 +135,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "https://github.com/Slicer/sofa.git"
-    GIT_TAG "9f48bc12fa974fb3d8d4d5b2ec8ed154181d8c11" #slicer-v25.12.00-2026-01-29-9f48bc12f
+    GIT_TAG "389df6376a893351a9786b9ae25fe7635a1ce61c" #slicer-26.06.00-2026-08-24-389df6376
     URL ${SOFA_URL}
     URL_HASH ${SOFA_URL_HASH}
     DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/download
@@ -154,15 +154,6 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DSOFA_BUILD_TESTS:BOOL=OFF
       -DAPPLICATION_RUNSOFA:BOOL=ON
       -DAPPLICATION_SCENECHECKING:BOOL=ON
-      -DCOLLECTION_SOFACONSTRAINT:BOOL=ON
-      -DCOLLECTION_SOFAGENERAL:BOOL=ON
-      -DCOLLECTION_SOFAGRAPHCOMPONENT:BOOL=ON
-      -DCOLLECTION_SOFAGUI:BOOL=ON
-      -DCOLLECTION_SOFAGUICOMMON:BOOL=ON
-      -DCOLLECTION_SOFAGUIQT:BOOL=ON
-      -DCOLLECTION_SOFAMISCCOLLISION:BOOL=ON
-      -DCOLLECTION_SOFAUSERINTERACTION:BOOL=ON
-      -DSOFA_GUI_QT_ENABLE_QDOCBROWSER:BOOL=OFF
       -DSOFA_INSTALL_RESOURCES_FILES:BOOL=OFF
       -DSOFA_USE_DEPENDENCY_PACK:BOOL=OFF
       # Install directories
@@ -176,7 +167,6 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DLIBRARY_SOFA_GUI_COMMON:BOOL=ON
       -DMODULE_SOFA_GUI_COMPONENT:BOOL=ON
       -DPLUGIN_SOFA_GUI_BATCH:BOOL=ON
-      -DPLUGIN_SOFA_GUI_QT:BOOL=ON
       -DSOFA_ROOT:PATH=${EP_SOURCE_DIR}
       -DSOFA_WITH_OPENGL:BOOL=ON
       # Dependencies
