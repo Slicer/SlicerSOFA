@@ -21,6 +21,7 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Scenes/SOFALogo/mesh/O.obj
   Resources/Scenes/SOFALogo/mesh/S.vtk
   Resources/Scenes/SOFALogo/mesh/SVisu.obj
+  Resources/Scenes/SOFALogo/textures/SOFA_LOGO.png
   )
 
 #-----------------------------------------------------------------------------

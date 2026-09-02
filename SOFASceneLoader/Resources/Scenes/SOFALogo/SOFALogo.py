@@ -9,6 +9,33 @@ the .mtl files referenced by the OBJ headers are intentionally absent -- the
 colors come from the OglModel components, not from OBJ materials.
 """
 
+import os
+
+
+def _logoTextureCoordinates(objPath):
+    """Planar texture coordinates for the logo face.
+
+    The logo meshes were generated from SOFA_LOGO.svg (bakpaul/TestScenes),
+    so the face plane of the OBJ maps affinely onto the image: the image
+    column follows mesh x and the image row follows mesh z (verified by
+    scoring every axis candidate against the silhouette boundary).  VTK's PNG
+    reader stores the file bottom-up, so v = 1 - row.  Computed from the raw
+    OBJ vertices, in file order, so the coordinates line up with the loader's
+    position output regardless of the loader transform.
+    """
+    points = []
+    with open(objPath) as f:
+        for line in f:
+            if line.startswith('v '):
+                fields = line.split()
+                points.append((float(fields[1]), float(fields[3])))
+    xs = [x for x, _ in points]
+    zs = [z for _, z in points]
+    xMin, xExtent = min(xs), max(xs) - min(xs)
+    zMin, zExtent = min(zs), max(zs) - min(zs)
+    return [[(x - xMin) / xExtent, 1.0 - (z - zMin) / zExtent] for x, z in points]
+
+
 def createScene(root_node):
     root_node.name = "root"
     root_node.dt = 0.005
@@ -76,8 +103,11 @@ def createScene(root_node):
 
     visu_logo = f_e_mechanical_model.addChild('VisuLogo')
 
+    sceneDir = os.path.dirname(os.path.abspath(__file__))
     visu_logo.addObject('MeshOBJLoader', name="SurfaceLoader", filename="mesh/LogoVisu.obj", scale3d="0.015 0.015 0.015", translation="-0.25 0.05 0.5", rotation="180 0 0")
-    visu_logo.addObject('OglModel', name="VisualModel", color="0.7 .35 0 1.0", position="@SurfaceLoader.position", triangles="@SurfaceLoader.triangles")
+    visu_logo.addObject('OglModel', name="VisualModel", color="0.7 .35 0 1.0", position="@SurfaceLoader.position", triangles="@SurfaceLoader.triangles",
+                        texcoords=_logoTextureCoordinates(os.path.join(sceneDir, "mesh", "LogoVisu.obj")),
+                        texturename=os.path.join(sceneDir, "textures", "SOFA_LOGO.png"))
     visu_logo.addObject('BarycentricMapping', name="MappingVisu", input="@../mstate", output="@VisualModel", isMechanical="false")
 
     visu_s = f_e_mechanical_model.addChild('VisuS')

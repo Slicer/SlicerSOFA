@@ -28,6 +28,8 @@
 # SOFTWARE.
 ###################################################################################
 
+import os
+
 import slicer
 import vtk
 import numpy as np
@@ -283,7 +285,58 @@ def sofaOglModelToMRMLModelGrid(modelNode, sofaNode):
             displayNode.SetColor(rgba[0], rgba[1], rgba[2])
             displayNode.SetOpacity(rgba[3])
 
+    # A textured OglModel overrides the diffuse color (the texture applier
+    # resets the base color to white so the image is not tinted).
+    _applySofaOglModelTexture(modelNode, sofaNode)
+
     modelNode.Modified()
+
+
+def _applySofaOglModelTexture(modelNode, sofaNode):
+    """
+    Transfer texture coordinates and the texture image of an OglModel to a
+    vtkMRMLModelNode, once.
+
+    The OglModel's texcoords become the grid's TCoords array and its
+    texturename is loaded into a (hidden) vector volume node wired to the
+    display node's texture connection.  Subsequent calls detect the TCoords
+    array and return immediately, so this is cheap to run every step.
+
+    Returns:
+        bool: True when the model node is textured after the call.
+    """
+    grid = modelNode.GetUnstructuredGrid()
+    if grid is None or grid.GetPointData() is None:
+        return False
+    if grid.GetPointData().GetTCoords() is not None:
+        return True
+
+    texcoords = sofaNode.texcoords.array()
+    if texcoords is None or len(texcoords) == 0 or grid.GetNumberOfPoints() != len(texcoords):
+        return False
+    tcoordsArray = numpy_to_vtk(num_array=texcoords, deep=True, array_type=vtk.VTK_FLOAT)
+    tcoordsArray.SetName('TCoords')
+    grid.GetPointData().SetTCoords(tcoordsArray)
+
+    displayNode = modelNode.GetDisplayNode()
+    texturePath = str(sofaNode.texturename.value)
+    if displayNode is None or not texturePath or not os.path.isfile(texturePath):
+        return False
+
+    reader = vtk.vtkImageReader2Factory.CreateImageReader2(texturePath)
+    if reader is None:
+        return False
+    reader.SetFileName(texturePath)
+    reader.Update()
+
+    textureNode = slicer.mrmlScene.AddNewNodeByClass(
+        'vtkMRMLVectorVolumeNode', modelNode.GetName() + '_Texture')
+    textureNode.SetAndObserveImageData(reader.GetOutput())
+    textureNode.SetHideFromEditors(True)
+    displayNode.SetTextureImageDataConnection(textureNode.GetImageDataConnection())
+    # White base color so the material diffuse does not tint the texture
+    displayNode.SetColor(1.0, 1.0, 1.0)
+    return True
 
 
 def _diffuseFromSofaMaterialString(material):
