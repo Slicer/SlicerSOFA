@@ -10,10 +10,6 @@ model node, deformed by a gravity force in a SOFA FEM simulation, and updated
 live in Slicer's 3D view — including per-element von Mises stress that can be
 color-mapped onto the model.
 
-.. image:: ../images/SoftTissueSimulationScreenshot_1.png
-   :alt: Soft Tissue Simulation module showing a deformed right lung
-   :align: center
-
 The SOFA scene built by the module contains:
 
 - a ``TetrahedronFEMForceField`` (corotational FEM, ``computeVonMisesStress``
@@ -25,6 +21,11 @@ The SOFA scene built by the module contains:
 
 Step-by-step usage
 ------------------
+
+.. image:: ../images/softtissue-panel.png
+   :alt: Soft Tissue Simulation module panel
+   :align: center
+   :width: 420px
 
 1. Load the sample model: **Sample Data** module → *SOFA* category →
    *RightLungLowTetra* (or load your own model containing a
@@ -49,6 +50,13 @@ Visualizing stress
 During the simulation the module writes a ``VonMisesStress`` cell-data array
 into the model. To see it, open the **Models** module, select the model, and
 under *Scalars* enable visibility and choose ``VonMisesStress``.
+
+.. image:: ../images/softtissue-3d.jpg
+   :alt: Right lung deformed under gravity, colored by von Mises stress
+   :align: center
+
+The lung after 150 steps under gravity, colored by von Mises stress: the
+stress concentrates just above the fixed boundary ROI.
 
 Parameter node
 --------------
