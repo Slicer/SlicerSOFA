@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1070" font-family="DejaVu Sans, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5560"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1680" height="1070" fill="#ffffff"/>
+
+  <!-- outer frame: 3D Slicer host -->
+  <rect x="15" y="15" width="1650" height="1035" rx="18" fill="none" stroke="#b6bec7" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="840" y="1036" text-anchor="middle" font-size="15" font-style="italic" fill="#7a838d">everything above runs inside 3D Slicer's Python environment</text>
+
+  <!-- ===================== modules band ===================== -->
+  <rect x="40" y="40" width="1600" height="120" rx="12" fill="#fafbfc" stroke="#8a94a0" stroke-width="1.5"/>
+  <text x="60" y="68" font-size="18" font-weight="bold" fill="#39404a">Simulation modules</text>
+  <text x="278" y="68" font-size="13" fill="#7a838d">(Examples category)</text>
+  <rect x="60"   y="82" width="350" height="58" rx="8" fill="#ffffff" stroke="#5b6770" stroke-width="1.5"/>
+  <text x="235"  y="117" text-anchor="middle" font-size="16" fill="#2b323b">Soft Tissue Simulation</text>
+  <rect x="430"  y="82" width="350" height="58" rx="8" fill="#ffffff" stroke="#5b6770" stroke-width="1.5"/>
+  <text x="605"  y="117" text-anchor="middle" font-size="16" fill="#2b323b">Sparse Grid Simulation</text>
+  <rect x="800"  y="82" width="350" height="58" rx="8" fill="#ffffff" stroke="#5b6770" stroke-width="1.5"/>
+  <text x="975"  y="117" text-anchor="middle" font-size="16" fill="#2b323b">SOFA Scene Loader</text>
+  <rect x="1170" y="82" width="450" height="58" rx="8" fill="#ffffff" stroke="#5b6770" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="1395" y="117" text-anchor="middle" font-size="16" fill="#2b323b">Your module — subclass the base classes</text>
+
+  <line x1="840" y1="160" x2="840" y2="208" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="855" y="192" font-size="14" fill="#4a5560">derive Logic + Widget · declare a @SofaParameterNodeWrapper parameter node</text>
+
+  <!-- ===================== MRML scene (left) ===================== -->
+  <rect x="40" y="300" width="300" height="340" rx="12" fill="#eaf1f9" stroke="#3f76b5" stroke-width="2"/>
+  <text x="190" y="334" text-anchor="middle" font-size="18" font-weight="bold" fill="#28517e">MRML scene</text>
+  <text x="190" y="356" text-anchor="middle" font-size="13" fill="#5b7ba0">(3D Slicer data)</text>
+  <text x="65" y="395" font-size="14" fill="#2b3d52">• Model nodes</text>
+  <text x="80" y="415" font-size="13" fill="#4a5c72">(surface &amp; FEM mesh)</text>
+  <text x="65" y="445" font-size="14" fill="#2b3d52">• Markups: ROI, line, fiducial</text>
+  <text x="65" y="475" font-size="14" fill="#2b3d52">• Grid transform nodes</text>
+  <text x="65" y="515" font-size="13" font-style="italic" fill="#5b7ba0">rendered live in Slicer's</text>
+  <text x="65" y="533" font-size="13" font-style="italic" fill="#5b7ba0">2D / 3D views</text>
+
+  <!-- ===================== SOFA scene (right) ===================== -->
+  <rect x="1340" y="300" width="300" height="340" rx="12" fill="#fdeee3" stroke="#ef7233" stroke-width="2"/>
+  <text x="1490" y="334" text-anchor="middle" font-size="18" font-weight="bold" fill="#a34715">SOFA scene</text>
+  <text x="1490" y="356" text-anchor="middle" font-size="13" fill="#b06a42">(Sofa.Core.Node tree)</text>
+  <text x="1365" y="395" font-size="14" fill="#57371f">• built by createScene(...)</text>
+  <text x="1365" y="425" font-size="14" fill="#57371f">• MechanicalObject</text>
+  <text x="1365" y="455" font-size="14" fill="#57371f">• topology containers</text>
+  <text x="1365" y="485" font-size="14" fill="#57371f">• FEM force fields</text>
+  <text x="1365" y="515" font-size="14" fill="#57371f">• BoxROI, constraints</text>
+
+  <!-- animate self-loop under SOFA box -->
+  <path d="M 1450 640 C 1420 690, 1500 705, 1512 665" fill="none" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <circle cx="1408" cy="672" r="13" fill="#2e8b57"/>
+  <text x="1408" y="677" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">3</text>
+  <text x="1470" y="735" text-anchor="middle" font-size="13" fill="#4a5560">Sofa.Simulation.animate(root, dt)</text>
+
+  <!-- ===================== SlicerSofa support module (center) ===================== -->
+  <rect x="380" y="210" width="920" height="535" rx="14" fill="#f2f9f5" stroke="#2e8b57" stroke-width="2"/>
+  <text x="400" y="242" font-size="18" font-weight="bold" fill="#1e5c3a">SlicerSofa support module</text>
+  <text x="700" y="242" font-size="13" fill="#579273">(hidden — infrastructure only)</text>
+
+  <!-- parameter node box -->
+  <rect x="400" y="260" width="430" height="120" rx="10" fill="#ffffff" stroke="#2e8b57" stroke-width="1.5"/>
+  <text x="415" y="285" font-size="16" font-weight="bold" fill="#1e5c3a">Parameter node</text>
+  <text x="580" y="285" font-size="13" fill="#579273">@SofaParameterNodeWrapper</text>
+  <text x="415" y="311" font-size="13" fill="#2f4a3c">injected: dt, totalSteps, currentStep,</text>
+  <text x="415" y="331" font-size="13" fill="#2f4a3c">isSimulationRunning, simulationProgress</text>
+  <text x="415" y="357" font-size="13" fill="#2f4a3c">+ module fields: MRML node refs, parameters</text>
+
+  <!-- widget box -->
+  <rect x="850" y="260" width="430" height="120" rx="10" fill="#ffffff" stroke="#2e8b57" stroke-width="1.5"/>
+  <text x="865" y="285" font-size="16" font-weight="bold" fill="#1e5c3a">SlicerSofaWidget</text>
+  <text x="1035" y="285" font-size="13" fill="#579273">(module GUI base class)</text>
+  <text x="865" y="311" font-size="13" fill="#2f4a3c">binds .ui widgets to the parameter node</text>
+  <text x="865" y="331" font-size="13" fill="#2f4a3c">SlicerDisableOnSimulation enable/disable</text>
+  <text x="865" y="357" font-size="13" fill="#2f4a3c">derived widget owns a Qt timer (interval 0)</text>
+
+  <!-- param -> lane dashed -->
+  <line x1="615" y1="380" x2="615" y2="438" stroke="#579273" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+  <text x="628" y="415" font-size="12" fill="#579273">field values</text>
+
+  <!-- timer arrow -->
+  <line x1="1065" y1="380" x2="1065" y2="438" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <circle cx="1045" cy="409" r="13" fill="#2e8b57"/>
+  <text x="1045" y="414" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">1</text>
+  <text x="1080" y="414" font-size="13" fill="#4a5560">timer → simulationStep()</text>
+
+  <!-- lane 2: MRML -> SOFA -->
+  <rect x="400" y="440" width="880" height="70" rx="10" fill="#dff0e6" stroke="#2e8b57" stroke-width="1.5"/>
+  <circle cx="430" cy="475" r="13" fill="#2e8b57"/>
+  <text x="430" y="480" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">2</text>
+  <text x="855" y="468" text-anchor="middle" font-size="15" font-weight="bold" fill="#1e5c3a">MRML → SOFA mappings — Slicer state pushed before every step</text>
+  <text x="855" y="492" text-anchor="middle" font-size="13" fill="#2f4a3c">registerMRMLToSOFAMapping(field, sofaPath, mappingFunction, runOnce)</text>
+  <line x1="340" y1="475" x2="398" y2="475" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="1280" y1="475" x2="1338" y2="475" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- lane 3: SOFA -> MRML -->
+  <rect x="400" y="570" width="880" height="70" rx="10" fill="#dff0e6" stroke="#2e8b57" stroke-width="1.5"/>
+  <circle cx="1250" cy="605" r="13" fill="#2e8b57"/>
+  <text x="1250" y="610" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">4</text>
+  <text x="825" y="598" text-anchor="middle" font-size="15" font-weight="bold" fill="#1e5c3a">SOFA → MRML mappings — simulation results pulled after every step</text>
+  <text x="825" y="622" text-anchor="middle" font-size="13" fill="#2f4a3c">registerSOFAToMRMLMapping(field, sofaPath, mappingFunction)</text>
+  <line x1="1340" y1="605" x2="1282" y2="605" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="400" y1="605" x2="342" y2="605" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- lifecycle captions -->
+  <text x="400" y="675" font-size="13" fill="#2f4a3c">SlicerSofaLogic — startSimulation() → simulationStep() ×N → stopSimulation() · reset via _saveState()/_restoreState()</text>
+  <text x="400" y="699" font-size="13" fill="#2f4a3c">mapping functions from SlicerSofaUtils.Mappings · sofaPath = dotted path into the SOFA tree · runOnce = static data</text>
+  <text x="400" y="723" font-size="13" fill="#579273">one simulation step:  ① timer fires   ② push MRML→SOFA   ③ animate   ④ pull SOFA→MRML   ⑤ record frame</text>
+
+  <!-- ===================== Sequences (bottom-left) ===================== -->
+  <rect x="40" y="700" width="300" height="130" rx="12" fill="#f1ecf8" stroke="#7b5ea7" stroke-width="2"/>
+  <text x="190" y="734" text-anchor="middle" font-size="18" font-weight="bold" fill="#54407a">Sequences module</text>
+  <text x="65" y="768" font-size="14" fill="#453a5c">• "SOFA Simulation Browser"</text>
+  <text x="65" y="796" font-size="14" fill="#453a5c">• one sequence per recorded node</text>
+
+  <!-- record arrow -->
+  <path d="M 480 745 L 480 765 L 348 765" fill="none" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <circle cx="480" cy="765" r="13" fill="#2e8b57"/>
+  <text x="480" y="770" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffffff">5</text>
+  <text x="505" y="790" font-size="13" fill="#4a5560">SaveProxyNodesState() — one frame per executed step</text>
+  <text x="505" y="810" font-size="13" fill="#4a5560">(opt-in per node: setRecordSequenceFlag)</text>
+
+  <!-- ===================== SofaEnvironment band ===================== -->
+  <rect x="40" y="870" width="1600" height="130" rx="12" fill="#fff6f0" stroke="#e08a5e" stroke-width="2"/>
+  <text x="60" y="902" font-size="18" font-weight="bold" fill="#a34715">SofaEnvironment</text>
+  <text x="255" y="902" font-size="13" fill="#b06a42">(bundled SOFA runtime)</text>
+  <text x="60" y="932" font-size="14" fill="#57371f">sets SOFA_ROOT and sys.path, imports Sofa / SofaRuntime into Slicer's Python</text>
+  <text x="60" y="960" font-size="14" fill="#57371f">SOFA v26.06 (Slicer fork) + SofaPython3 · plugins: STLIB · BeamAdapter · Registration · Cosserat · MultiThreading</text>
+
+  <line x1="1615" y1="866" x2="1615" y2="648" stroke="#4a5560" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="1605" y="795" text-anchor="end" font-size="13" fill="#4a5560">provides</text>
+  <text x="1605" y="813" text-anchor="end" font-size="13" fill="#4a5560">import Sofa</text>
+</svg>
