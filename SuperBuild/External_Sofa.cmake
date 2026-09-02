@@ -177,6 +177,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DQt${_sofa_qt_version_major}_DIR:PATH=${_sofa_qt_dir}
       -DTinyXML2_INCLUDE_DIR:PATH=${tinyxml2_INCLUDE_DIR}
       -DTinyXML2_LIBRARY:PATH=${tinyxml2_LIBRARY}
+      # Required on Windows since SOFA 26.06 (FindTinyXML2 insists on the DLL)
+      -DTinyXML2_DLL:FILEPATH=${tinyxml2_DLL}
       -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
       -DZLIB_LIBRARY:PATH=${ZLIB_LIBRARY}
       -DSOFA_EXTERNAL_DIRECTORIES:STRING=${SOFA_EXTERNAL_DIRECTORIES}
