@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" font-family="DejaVu Sans, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5560"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="560" fill="#ffffff"/>
+
+  <!-- 3D Slicer block -->
+  <rect x="40" y="90" width="340" height="410" rx="16" fill="#eaf1f9" stroke="#3f76b5" stroke-width="2.5"/>
+  <text x="210" y="135" text-anchor="middle" font-size="24" font-weight="bold" fill="#28517e">3D Slicer</text>
+  <text x="210" y="160" text-anchor="middle" font-size="14" fill="#5b7ba0">medical image computing</text>
+  <text x="70" y="215" font-size="16" fill="#2b3d52">• anatomical models</text>
+  <text x="70" y="250" font-size="16" fill="#2b3d52">• markups: ROIs, lines, points</text>
+  <text x="70" y="285" font-size="16" fill="#2b3d52">• volumes &amp; transforms</text>
+  <text x="70" y="320" font-size="16" fill="#2b3d52">• interactive 2D / 3D views</text>
+  <text x="70" y="380" font-size="14" font-style="italic" fill="#5b7ba0">everything stays a regular</text>
+  <text x="70" y="400" font-size="14" font-style="italic" fill="#5b7ba0">MRML node — visualize, edit,</text>
+  <text x="70" y="420" font-size="14" font-style="italic" fill="#5b7ba0">save, process as usual</text>
+
+  <!-- SOFA block -->
+  <rect x="1020" y="90" width="340" height="410" rx="16" fill="#fdeee3" stroke="#ef7233" stroke-width="2.5"/>
+  <text x="1190" y="135" text-anchor="middle" font-size="24" font-weight="bold" fill="#a34715">SOFA</text>
+  <text x="1190" y="160" text-anchor="middle" font-size="14" fill="#b06a42">physics simulation</text>
+  <text x="1050" y="215" font-size="16" fill="#57371f">• soft-tissue FEM</text>
+  <text x="1050" y="250" font-size="16" fill="#57371f">• collisions &amp; constraints</text>
+  <text x="1050" y="285" font-size="16" fill="#57371f">• implicit solvers</text>
+  <text x="1050" y="320" font-size="16" fill="#57371f">• rich component library</text>
+  <text x="1050" y="380" font-size="14" font-style="italic" fill="#b06a42">bundled with the extension —</text>
+  <text x="1050" y="400" font-size="14" font-style="italic" fill="#b06a42">nothing to install or build</text>
+
+  <!-- arrows -->
+  <line x1="385" y1="120" x2="1013" y2="120" stroke="#4a5560" stroke-width="3.5" marker-end="url(#arrow)"/>
+  <text x="700" y="105" text-anchor="middle" font-size="15" fill="#4a5560">meshes, boundary conditions, parameters</text>
+  <line x1="1015" y1="470" x2="387" y2="470" stroke="#4a5560" stroke-width="3.5" marker-end="url(#arrow)"/>
+  <text x="700" y="502" text-anchor="middle" font-size="15" fill="#4a5560">deformed geometry, stresses, displacement fields</text>
+
+  <!-- SlicerSOFA band -->
+  <rect x="430" y="150" width="540" height="290" rx="16" fill="#f2f9f5" stroke="#2e8b57" stroke-width="2.5"/>
+  <text x="700" y="186" text-anchor="middle" font-size="21" font-weight="bold" fill="#1e5c3a">SlicerSOFA</text>
+
+  <rect x="455" y="205" width="490" height="62" rx="10" fill="#ffffff" stroke="#2e8b57" stroke-width="1.2"/>
+  <text x="700" y="230" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e5c3a">Live two-way synchronization</text>
+  <text x="700" y="252" text-anchor="middle" font-size="13" fill="#2f4a3c">your data drives the simulation; results render at every step</text>
+
+  <rect x="455" y="280" width="490" height="62" rx="10" fill="#ffffff" stroke="#2e8b57" stroke-width="1.2"/>
+  <text x="700" y="305" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e5c3a">Record &amp; replay</text>
+  <text x="700" y="327" text-anchor="middle" font-size="13" fill="#2f4a3c">simulations captured step-by-step in the Sequences module</text>
+
+  <rect x="455" y="355" width="490" height="62" rx="10" fill="#ffffff" stroke="#2e8b57" stroke-width="1.2"/>
+  <text x="700" y="380" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e5c3a">Use it or extend it</text>
+  <text x="700" y="402" text-anchor="middle" font-size="13" fill="#2f4a3c">three ready-made modules — or build your own in Python</text>
+</svg>
