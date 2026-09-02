@@ -11,6 +11,11 @@ Unlike SoftTissueSimulation and SparseGridSimulation — which hard-code a speci
 UI controls
 -----------
 
+.. image:: ../images/sofasceneloader-panel.png
+   :alt: SOFA Scene Loader module panel
+   :align: center
+   :width: 480px
+
 .. list-table::
    :header-rows: 1
    :widths: 30 70
@@ -109,6 +114,13 @@ Example scene file
 
 Workflow
 --------
+
+.. image:: ../images/sofasceneloader-3d.jpg
+   :alt: The bundled SOFA-logo scene resting on the cube obstacle
+   :align: center
+
+The bundled example scene (``Resources/Scenes/SOFALogo/SOFALogo.py``): a
+deformable beam carrying the textured SOFA logo, fallen onto a cube obstacle.
 
 1. Open the module in Slicer (*Examples → SOFA Scene Loader*).
 2. Type the path to your ``.py`` scene file in the file path field, or click **Load Scene** to browse.

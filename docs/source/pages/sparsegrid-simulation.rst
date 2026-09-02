@@ -16,6 +16,11 @@ nodes in the scene.
 Step-by-step usage
 ------------------
 
+.. image:: ../images/sparsegrid-panel.png
+   :alt: Sparse Grid Simulation module panel
+   :align: center
+   :width: 420px
+
 1. Load the sample scene: **Sample Data** module → *SOFA* category →
    *LiverSimulationScene* (or load your own closed surface model).
 2. Open **Examples → Sparse Grid Simulation**.
@@ -29,11 +34,19 @@ Step-by-step usage
    ``Displacement`` point-data array.
 7. Click the **+** button next to **Grid Transform Node** — this creates the
    grid transform that the module updates during the simulation.
-8. Set the **Sparse Grid Dimensions** (default 20 × 20 × 20) if needed, then
+8. Set the **Sparse Grid Dimensions** (default 10 × 10 × 10) if needed, then
    click **Start Simulation**.
 9. To deform other data along with the model, apply the grid transform to it
    (**Transforms** module), or harden the transform once the simulation
    reaches the desired state.
+
+.. image:: ../images/sparsegrid-3d.jpg
+   :alt: Liver surface deformed inside the sparse hexahedral grid
+   :align: center
+
+A liver surface after 300 steps under gravity: the top of the organ is held
+by the boundary ROI while the rest sags, and the embedding sparse hexahedral
+grid (wireframe) deforms with it.
 
 The displacement grid transform
 -------------------------------
@@ -93,7 +106,8 @@ Parameter node
      - Magnitude applied along the (normalized) gravity vector.
    * - ``sparseGridDimensions``
      - ``GridDimensions`` (x, y, z)
-     - Resolution of the sparse grid and of the displacement grid.
+     - Resolution of the sparse grid and of the displacement grid
+       (10 × 10 × 10 by default).
    * - ``recordSequence``
      - ``bool``
      - Record the mapped nodes (including the grid transform) per step.
