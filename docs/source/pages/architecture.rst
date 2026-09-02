@@ -5,6 +5,10 @@ SlicerSOFA is a pure-Python extension. It consists of three layers, all under
 the hidden ``SlicerSofa`` support module, plus the example modules built on
 top of them.
 
+.. image:: ../images/slicer-sofa-architecture.png
+   :alt: SlicerSOFA architecture: modules, base classes, the per-step mapping loop, Sequences recording, and the bundled SOFA runtime
+   :align: center
+
 SofaEnvironment
 ---------------
 
