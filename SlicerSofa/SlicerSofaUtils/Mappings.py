@@ -402,7 +402,11 @@ def sofaVonMisesStressToMRMLModelGrid(modelNode, sofaNode):
     stressArray.SetNumberOfValues(numberOfCells)
 
     if len(vonMisesStresses) == numberOfCells:
-        stressArray.SetVoidArray(vonMisesStresses, len(vonMisesStresses), 1)
+        # Copy by value: SetVoidArray wrapped the SOFA numpy view's memory,
+        # which is float64 (misread as float32 through the vtkFloatArray) and
+        # freed after the step -- the rendered scalars were garbage on both
+        # counts.
+        vtk_to_numpy(stressArray)[:] = vonMisesStresses
     else:
         stressArray.Fill(0.0)
 
