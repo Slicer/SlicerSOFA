@@ -273,13 +273,42 @@ def sofaOglModelToMRMLModelGrid(modelNode, sofaNode):
         print(f"No topology element found in {sofaNode}")
         
     sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode)
-        
+
+    # The OglModel carries its appearance in the serialized material data
+    # field; mirror the diffuse color and opacity on the display node.
+    displayNode = modelNode.GetDisplayNode()
+    if displayNode is not None:
+        rgba = _diffuseFromSofaMaterialString(sofaNode.material.value)
+        if rgba is not None:
+            displayNode.SetColor(rgba[0], rgba[1], rgba[2])
+            displayNode.SetOpacity(rgba[3])
+
     modelNode.Modified()
 
-    # TODO use the material data in the ogl model to get the color and apply it to the mrml node
-    # color = sofaNode.color.array()
-    # modelNode.GetDisplayNode().SetColor(color[0],color[1],color[2])
 
+def _diffuseFromSofaMaterialString(material):
+    """
+    Extract the diffuse RGBA of a serialized SOFA material description.
+
+    OglModel exposes its appearance as a string data field, e.g.
+    'Default Diffuse 1 0.7 0.35 0 1 Ambient 1 ... Shininess 0 45', where the
+    token after each property name is its enabled flag.
+
+    Args:
+        material (str): Value of an OglModel's 'material' data field.
+
+    Returns:
+        list or None: [r, g, b, a] when an enabled Diffuse entry is present,
+        None otherwise.
+    """
+    tokens = material.split()
+    try:
+        index = tokens.index('Diffuse')
+        enabled = tokens[index + 1] != '0'
+        rgba = [float(value) for value in tokens[index + 2:index + 6]]
+    except (ValueError, IndexError):
+        return None
+    return rgba if enabled and len(rgba) == 4 else None
 
 def sofaEdgeTopologyToMRMLModelGrid(modelNode, sofaNode):
     """

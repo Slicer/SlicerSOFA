@@ -34,6 +34,7 @@ from SlicerSofaUtils.Mappings import (
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
     arrayFromModelGridCells,
+    _diffuseFromSofaMaterialString,
 )
 
 # SOFA components live in plugins that must be loaded explicitly; without the
@@ -102,6 +103,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
             "test_mrmlMarkupsROIToSofaBoxROI",
             "test_mrmlModelGridToSofaTetrahedronTopologyContainer",
             "test_mrmlMarkupsFiducialToSofaPointer",
+            "test_diffuseFromSofaMaterialString",
             "test_mappingsRejectNoneArguments",
         ):
             self.setUp()
@@ -223,6 +225,31 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
             decimal=5)
 
     # -- contract: None arguments -------------------------------------------
+
+    def test_diffuseFromSofaMaterialString(self):
+        """Diffuse RGBA is parsed out of OglModel's serialized material string.
+
+        The color= attribute of an OglModel ends up serialized in its
+        'material' data field; sofaOglModelToMRMLModelGrid mirrors the diffuse
+        entry onto the MRML display node.  Constructing a real OglModel here
+        would need a GL context (and hangs the test harness without one), so
+        the parser is pinned against the exact string SOFA 26.06 produces.
+
+        NOTE: the token after each property name is its enabled flag.
+        """
+        sofaMaterial = ('Default Diffuse 1 0.7 0.35 0 1 Ambient 1 0.14 0.07 0 1 '
+                        'Specular 0 0.7 0.35 0 1 Emissive 0 0.7 0.35 0 1 Shininess 0 45 ')
+        self.assertEqual(_diffuseFromSofaMaterialString(sofaMaterial),
+                         [0.7, 0.35, 0.0, 1.0])
+
+        # A disabled Diffuse entry must not be applied
+        self.assertIsNone(_diffuseFromSofaMaterialString(
+            'Default Diffuse 0 0.7 0.35 0 1 Ambient 1 0.14 0.07 0 1'))
+
+        # Missing or malformed entries degrade to None, never raise
+        self.assertIsNone(_diffuseFromSofaMaterialString(''))
+        self.assertIsNone(_diffuseFromSofaMaterialString('Default Ambient 1 0 0 0 1'))
+        self.assertIsNone(_diffuseFromSofaMaterialString('Default Diffuse 1 0.7 0.35'))
 
     def test_mappingsRejectNoneArguments(self):
         """Every mapping raises ValueError rather than failing obscurely later."""
