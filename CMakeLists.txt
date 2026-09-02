@@ -48,6 +48,12 @@ if(NOT APPLE)
   list(APPEND EXTENSION_CPACK_INSTALL_CMAKE_PROJECTS "${EXTENSION_SUPERBUILD_BINARY_DIR}/GLEW-build;glew;Runtime;/")
   if(WIN32)
     set(Sofa_CPACK_INSTALL_DIR "/")
+    # SOFA links tinyxml2 as a DLL since 26.06 (see External_tinyxml2);
+    # nothing else installs it, so ship it with the extension package.
+    install(PROGRAMS ${tinyxml2_DLL}
+      DESTINATION ${Slicer_INSTALL_THIRDPARTY_BIN_DIR}
+      COMPONENT RuntimeLibraries
+      )
   else()
     set(Sofa_CPACK_INSTALL_DIR "/${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/Sofa")
   endif()
