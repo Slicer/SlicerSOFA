@@ -1,26 +1,43 @@
-Welcome to SlicerSOFA's documentation!
-==========================================
+SlicerSOFA documentation
+========================
+
+**SlicerSOFA** is a `3D Slicer <https://www.slicer.org/>`_ extension that
+integrates the `SOFA simulation framework <https://www.sofa-framework.org/>`_
+into Slicer, enabling physics-based simulation — soft tissue deformation,
+biomechanical modeling — inside a medical imaging platform.
+
+.. image:: images/slicer-sofa-architecture.png
+   :alt: SlicerSOFA architecture
+   :align: center
 
 .. toctree::
-   :numbered:
-   :maxdepth: 3
-   :caption: Contents:
+   :maxdepth: 2
+   :caption: Getting started
 
-   pages/features
-   pages/getting-started
-   pages/integration
-   pages/modules
+   pages/overview
+   pages/installation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User guide
+
    pages/softtissue-simulation
    pages/sparsegrid-simulation
    pages/sofasceneloader
-   pages/superbuild
-   pages/test
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer guide
+
+   pages/architecture
+   pages/module-development
+   pages/mappings-reference
+   pages/building
+   pages/testing
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
    pages/limitations
-   pages/links
-
-Indices and tables
-==================
-
-- :ref:=genindex=
-- :ref:=modindex=
-- :ref:=search=
+   pages/resources
