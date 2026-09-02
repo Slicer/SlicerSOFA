@@ -6,8 +6,8 @@ integrates the `SOFA simulation framework <https://www.sofa-framework.org/>`_
 into Slicer, enabling physics-based simulation — soft tissue deformation,
 biomechanical modeling — inside a medical imaging platform.
 
-.. image:: images/slicer-sofa-architecture.png
-   :alt: SlicerSOFA architecture
+.. image:: images/slicer-sofa-overview.png
+   :alt: What SlicerSOFA provides: live two-way synchronization between 3D Slicer data and SOFA simulations, recording into Sequences, and a Python API to build simulation modules
    :align: center
 
 .. toctree::
