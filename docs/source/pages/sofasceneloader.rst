@@ -11,26 +11,29 @@ Unlike SoftTissueSimulation and SparseGridSimulation — which hard-code a speci
 UI controls
 -----------
 
-+------------------------------+------------------------------------------------------------+
-| Control                      | Purpose                                                    |
-+==============================+============================================================+
-| File path field + Load Scene | Enter a path or browse for a ``.py`` scene file and load  |
-|                              | it. The working directory is set to the file's parent      |
-|                              | folder so that relative asset paths in the scene resolve   |
-|                              | correctly.                                                 |
-+------------------------------+------------------------------------------------------------+
-| Start Simulation             | Initialise SOFA and begin stepping.                        |
-+------------------------------+------------------------------------------------------------+
-| Stop Simulation              | Pause stepping (scene state is preserved).                 |
-+------------------------------+------------------------------------------------------------+
-| Reset Simulation             | Reload the scene from the file and restart from step 0.   |
-+------------------------------+------------------------------------------------------------+
-| dt                           | Simulation time step in seconds (default 0.001).           |
-+------------------------------+------------------------------------------------------------+
-| Total Steps                  | Number of steps to run; ``-1`` means run indefinitely.     |
-+------------------------------+------------------------------------------------------------+
-| Progress                     | Read-only display of ``currentStep / totalSteps``.         |
-+------------------------------+------------------------------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Control
+     - Purpose
+   * - File path field + Load Scene
+     - Enter a path or browse for a ``.py`` scene file and load it. The
+       working directory is set to the file's parent folder so that relative
+       asset paths in the scene resolve correctly.
+   * - Start Simulation
+     - Initialise SOFA and begin stepping.
+   * - Stop Simulation
+     - Pause stepping (scene state is preserved).
+   * - Reset Simulation
+     - Reload the scene from the file and restart from step 0.
+   * - dt
+     - Simulation time step (default 0.01).
+   * - Total Steps
+     - Number of steps to run; ``-1`` means run indefinitely. Defaults to 0
+       in this module, so set it before starting.
+   * - Progress
+     - Read-only display of ``currentStep / totalSteps``.
 
 Scene file requirements
 -----------------------
@@ -58,25 +61,28 @@ The node name / singleton tag is derived from the dot-separated path of the SOFA
 Currently auto-mapped component types
 --------------------------------------
 
-+-------------------------------------------+--------------------------------------+
-| SOFA component type                       | Data transferred to MRML             |
-+===========================================+======================================+
-| ``MechanicalObject``                      | Vertex positions                     |
-+-------------------------------------------+--------------------------------------+
-| ``MeshTopology``                          | Mixed topology (tets/triangles/edges)|
-+-------------------------------------------+--------------------------------------+
-| ``EdgeSetTopologyContainer``              | Edge topology                        |
-+-------------------------------------------+--------------------------------------+
-| ``TriangleSetTopologyContainer``          | Triangle topology                    |
-+-------------------------------------------+--------------------------------------+
-| ``TetrahedronSetTopologyContainer``       | Tetrahedron topology                 |
-+-------------------------------------------+--------------------------------------+
-| ``TetrahedralCorotationalFEMForceField``  | Von Mises stress per element         |
-+-------------------------------------------+--------------------------------------+
-| ``TetrahedronFEMForceField``              | Von Mises stress per element         |
-+-------------------------------------------+--------------------------------------+
-| ``OglModel``                              | Triangle/edge topology + positions   |
-+-------------------------------------------+--------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 55 45
+
+   * - SOFA component type
+     - Data transferred to MRML
+   * - ``MechanicalObject``
+     - Vertex positions
+   * - ``MeshTopology``
+     - Mixed topology (tets/triangles/edges)
+   * - ``EdgeSetTopologyContainer``
+     - Edge topology
+   * - ``TriangleSetTopologyContainer``
+     - Triangle topology
+   * - ``TetrahedronSetTopologyContainer``
+     - Tetrahedron topology
+   * - ``TetrahedralCorotationalFEMForceField``
+     - Von Mises stress per element
+   * - ``TetrahedronFEMForceField``
+     - Von Mises stress per element
+   * - ``OglModel``
+     - Triangle/edge topology + positions
 
 Example scene file
 ------------------

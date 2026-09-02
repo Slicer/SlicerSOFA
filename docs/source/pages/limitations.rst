@@ -1,18 +1,30 @@
-Limitations and Caveats
+Limitations and caveats
 =======================
 
 Known caveats
 -------------
 
-- Unit conventions: SOFA typically uses meters (SI) while Slicer often uses millimeters in some pipelines. SlicerSOFA tries to keep units consistent but users should ensure correct scaling when importing/exporting geometry.
-- Mesh formats: Slicer can import OBJ and STL; if a SOFA scene contains other formats you may need to convert them prior to loading.
-- Threading: The integration currently executes simulation steps on the main thread via a Qt timer. Long-running simulations can block the GUI; for heavy simulations consider an out-of-process solver or adopt a custom multithreaded approach with careful MRML/VTK synchronization.
-- SOFA plugins: Only SOFA features and plugins available at build-time will be supported. If your scene relies on third-party SOFA plugins, add them to the SuperBuild or provide them at runtime.
-- Persistence: Saving and restoring scenes that include live SOFA scenes is supported via MRML nodes but complex scenes with external file paths may require path rewrites.
-
-Missing features (future work)
-------------------------------
-
-- Full two-way editing (editing Slicer model -> propagate to SOFA scene) is limited.
-- Advanced UI for complex SOFA parameter editing is not yet complete.
-- Integration with remote/hardware-in-the-loop simulation backends is not included out-of-the-box.
+- **Main-thread stepping.** Simulation steps run on the Qt main thread,
+  driven by a zero-interval timer. Heavy scenes therefore make the GUI less
+  responsive while the simulation runs; there is no built-in off-thread or
+  out-of-process execution.
+- **Units and coordinate systems.** Data is passed between MRML and SOFA
+  without scaling or axis conversion. Slicer's world coordinate system is RAS
+  with millimeters; SOFA scenes are unit-agnostic. Author scenes (material
+  parameters, gravity magnitudes, time step) consistently with the units of
+  your input data.
+- **Plugin set fixed at build time.** Only SOFA modules and plugins compiled
+  into the bundled SOFA are available (SofaPython3, STLIB, BeamAdapter,
+  Registration, Cosserat, MultiThreading, among others). Scenes requiring
+  other plugins will fail to load.
+- **Reproducibility of parallel components.** SOFA's multithreaded solvers
+  and collision components sum forces in a non-deterministic order, so
+  results can vary between identical runs — significantly so for
+  marginally-stable scenes. The Sparse Grid Simulation module runs
+  single-threaded by default for this reason.
+- **MRML→SOFA synchronization is mapping-based.** Only parameter-node fields
+  with a registered mapping are synchronized during a running simulation;
+  arbitrary edits to other MRML nodes do not propagate into the SOFA scene.
+- **SOFA Scene Loader auto-mapping.** Only the component types listed in
+  :doc:`sofasceneloader` are automatically mapped to MRML; other components
+  simulate normally but are not visualized.
