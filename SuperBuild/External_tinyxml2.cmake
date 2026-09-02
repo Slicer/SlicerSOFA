@@ -22,6 +22,14 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
 
+  # SOFA >= 26.06 requires a shared tinyxml2 on Windows: its FindTinyXML2
+  # module refuses a library that has no matching tinyxml2.dll.
+  if(WIN32)
+    set(_tinyxml2_shared ON)
+  else()
+    set(_tinyxml2_shared OFF)
+  endif()
+
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "https://github.com/leethomason/tinyxml2.git"
@@ -39,7 +47,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DCMAKE_CXX_EXTENSIONS:BOOL=${CMAKE_CXX_EXTENSIONS}
       # Options
       -DBUILD_TESTING:BOOL=OFF
-      -Dtinyxml2_SHARED_LIBS:BOOL=OFF
+      -Dtinyxml2_SHARED_LIBS:BOOL=${_tinyxml2_shared}
       -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
       # Output directory
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
@@ -61,9 +69,13 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     set(lib_cfg_dir ".")
   endif()
   if(WIN32)
+    # Shared build: tinyxml2.lib is the import library (default archive
+    # output directory), tinyxml2.dll lands in the runtime output directory.
     set(${proj}_LIBRARY ${EP_BINARY_DIR}/${lib_cfg_dir}/tinyxml2.lib)
+    set(${proj}_DLL ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}/${lib_cfg_dir}/tinyxml2.dll)
   else()
     set(${proj}_LIBRARY ${EP_BINARY_DIR}/${lib_cfg_dir}/libtinyxml2.a)
+    set(${proj}_DLL "")
   endif()
 
 else()
@@ -76,4 +88,5 @@ mark_as_superbuild(
   VARS
     ${proj}_INCLUDE_DIR:PATH
     ${proj}_LIBRARY:FILEPATH
+    ${proj}_DLL:FILEPATH
   )
