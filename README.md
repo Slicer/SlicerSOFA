@@ -1,6 +1,9 @@
 # Slicer-SOFA
 
-![Slicer-SOFA Logo](./slicer-sofa-logo.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./slicer-sofa-logo-dark.png">
+  <img alt="Slicer-SOFA Logo" src="./slicer-sofa-logo.png">
+</picture>
 
 ## Introduction
 
