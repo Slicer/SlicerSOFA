@@ -34,7 +34,32 @@ from SlicerSofaUtils.Mappings import (
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
     arrayFromModelGridCells,
+    _applySofaOglModelAppearance,
+    _diffuseFromSofaMaterialString,
 )
+
+
+class FakeOglModel:
+    """Minimal stand-in for a SOFA OglModel's data fields.
+
+    A real OglModel cannot be constructed here: it initialises OpenGL state
+    and hangs the test harness, which has no usable GL context.  Only the
+    three data fields the appearance mapping reads are needed, so this
+    stand-in exposes exactly those -- it is not a stub for the mapping logic
+    itself, which runs unmodified against it.
+    """
+
+    class _Data:
+        def __init__(self, value):
+            self.value = value
+
+        def array(self):
+            return self.value
+
+    def __init__(self, material, texcoords=(), texturename=""):
+        self.material = self._Data(material)
+        self.texcoords = self._Data(texcoords)
+        self.texturename = self._Data(texturename)
 
 # SOFA components live in plugins that must be loaded explicitly; without the
 # RequiredPlugin the component type is never registered and addObject fails
@@ -102,6 +127,8 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
             "test_mrmlMarkupsROIToSofaBoxROI",
             "test_mrmlModelGridToSofaTetrahedronTopologyContainer",
             "test_mrmlMarkupsFiducialToSofaPointer",
+            "test_diffuseFromSofaMaterialString",
+            "test_oglModelAppearanceIsAppliedOnlyOnce",
             "test_mappingsRejectNoneArguments",
         ):
             self.setUp()
@@ -223,6 +250,55 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
             decimal=5)
 
     # -- contract: None arguments -------------------------------------------
+
+    def test_diffuseFromSofaMaterialString(self):
+        """Diffuse RGBA is parsed out of OglModel's serialized material string.
+
+        The color= attribute of an OglModel ends up serialized in its
+        'material' data field; sofaOglModelToMRMLModelGrid mirrors the diffuse
+        entry onto the MRML display node.  Constructing a real OglModel here
+        would need a GL context (and hangs the test harness without one), so
+        the parser is pinned against the exact string SOFA 26.06 produces.
+
+        NOTE: the token after each property name is its enabled flag.
+        """
+        sofaMaterial = ('Default Diffuse 1 0.7 0.35 0 1 Ambient 1 0.14 0.07 0 1 '
+                        'Specular 0 0.7 0.35 0 1 Emissive 0 0.7 0.35 0 1 Shininess 0 45 ')
+        self.assertEqual(_diffuseFromSofaMaterialString(sofaMaterial),
+                         [0.7, 0.35, 0.0, 1.0])
+
+        # A disabled Diffuse entry must not be applied
+        self.assertIsNone(_diffuseFromSofaMaterialString(
+            'Default Diffuse 0 0.7 0.35 0 1 Ambient 1 0.14 0.07 0 1'))
+
+        # Missing or malformed entries degrade to None, never raise
+        self.assertIsNone(_diffuseFromSofaMaterialString(''))
+        self.assertIsNone(_diffuseFromSofaMaterialString('Default Ambient 1 0 0 0 1'))
+        self.assertIsNone(_diffuseFromSofaMaterialString('Default Diffuse 1 0.7 0.35'))
+
+    def test_oglModelAppearanceIsAppliedOnlyOnce(self):
+        """The material colour is transferred once, not on every mapping pass.
+
+        The scene loader registers the OglModel mapping without runOnce,
+        because geometry has to follow the simulation.  Appearance must not
+        follow it: a colour the user picks in the Models module afterwards
+        would otherwise be overwritten on the next simulation step.
+        """
+        modelNode = makeTetrahedronModelNode()
+        modelNode.CreateDefaultDisplayNodes()
+        displayNode = modelNode.GetDisplayNode()
+
+        sofaMaterial = ('Default Diffuse 1 0.7 0.35 0 1 Ambient 1 0.14 0.07 0 1 '
+                        'Specular 0 0.7 0.35 0 1 Emissive 0 0.7 0.35 0 1 Shininess 0 45 ')
+        oglModel = FakeOglModel(sofaMaterial)
+
+        _applySofaOglModelAppearance(modelNode, oglModel)
+        np.testing.assert_allclose(displayNode.GetColor(), (0.7, 0.35, 0.0), atol=1e-6)
+
+        # A user recolours the model, then the simulation steps again.
+        displayNode.SetColor(0.1, 0.2, 0.3)
+        _applySofaOglModelAppearance(modelNode, oglModel)
+        np.testing.assert_allclose(displayNode.GetColor(), (0.1, 0.2, 0.3), atol=1e-6)
 
     def test_mappingsRejectNoneArguments(self):
         """Every mapping raises ValueError rather than failing obscurely later."""
