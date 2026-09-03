@@ -371,11 +371,17 @@ class SOFASceneLoaderLogic(SlicerSofaLogic):
         """
         super().__init__()
         self.createSceneMethod = None
-        self._rootNode = self.CreateScene()
         self._parameterNode = None
+        # Placeholder root so the logic is queryable before a file is loaded
+        self._rootNode = self.createScene(self._parameterNode)
 
 
-    def CreateScene(self):
+    def createScene(self, parameterNode) -> Sofa.Core.Node:
+        """
+        Build the SOFA scene by re-executing the loaded scene file's
+        createScene() against a wrapped root node (the wrapper registers the
+        automatic SOFA-to-MRML mappings).  Called by SlicerSofaLogic.setupScene.
+        """
         sofa_root = Sofa.Core.Node("root")
         wrapped_root = SOFANodeWrapper(sofa_root, self)
 
