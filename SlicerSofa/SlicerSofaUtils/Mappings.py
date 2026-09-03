@@ -28,8 +28,6 @@
 # SOFTWARE.
 ###################################################################################
 
-import os
-
 import slicer
 import vtk
 import numpy as np
@@ -37,9 +35,9 @@ from vtk.util.numpy_support import numpy_to_vtk,vtk_to_numpy
 from slicer.parameterNodeWrapper import parameterPack
 from slicer import vtkMRMLGridTransformNode
 
-# Marks a display node whose appearance was already taken from its SOFA
+# Marks a display node whose colour was already taken from its SOFA
 # OglModel, so the transfer happens once rather than on every mapping pass.
-_APPEARANCE_ATTRIBUTE = 'SlicerSofa.OglModelAppearance'
+MATERIAL_COLOR_ATTRIBUTE = 'SlicerSofa.OglModelMaterialColor'
 
 # -----------------------------------------------------------------------------
 # Mapping functions MRML->Sofa
@@ -280,94 +278,48 @@ def sofaOglModelToMRMLModelGrid(modelNode, sofaNode):
         
     sofaMechanicalObjectToMRMLModelGrid(modelNode, sofaNode)
 
-    # Appearance is transferred once: the scene loader registers this mapping
+    # Colour is transferred once: the scene loader registers this mapping
     # without runOnce (geometry must follow the simulation), so re-applying
     # colour every step would overwrite any colour the user picks in the
     # Models module.
-    _applySofaOglModelAppearance(modelNode, sofaNode)
+    applySofaOglModelMaterialColor(modelNode, sofaNode)
 
     modelNode.Modified()
 
 
-def _applySofaOglModelAppearance(modelNode, sofaNode):
+def applySofaOglModelMaterialColor(modelNode, sofaNode):
     """
-    Transfer an OglModel's appearance (material colour, or texture when it
-    has one) to a vtkMRMLModelNode -- once per model node.
+    Transfer an OglModel's material colour to a vtkMRMLModelNode's display
+    node -- once per model node.
 
-    Marked on the display node with an attribute so repeated mapping passes
-    are a cheap attribute lookup, and so a colour the user chooses afterwards
-    in the Models module is not overwritten on the next simulation step.
+    Most SOFA scenes give their visual models a colour (311 of the 435
+    OglModel scenes shipped with SOFA v26.06 set ``color=``), which is
+    serialized into the component's ``material`` data field; without this the
+    geometry arrives in Slicer with the default model colour.
+
+    The transfer is marked with an attribute on the display node so that
+    repeated mapping passes are a cheap attribute lookup, and so a colour the
+    user chooses afterwards in the Models module is not overwritten on the
+    next simulation step.
 
     Args:
-        modelNode (vtkMRMLModelNode): MRML model node to style.
+        modelNode (vtkMRMLModelNode): MRML model node to colour.
         sofaNode: SOFA OglModel component.
-    """
-    displayNode = modelNode.GetDisplayNode()
-    if displayNode is None or displayNode.GetAttribute(_APPEARANCE_ATTRIBUTE):
-        return
-
-    if _applySofaOglModelTexture(modelNode, sofaNode):
-        displayNode.SetAttribute(_APPEARANCE_ATTRIBUTE, "texture")
-        return
-
-    rgba = _diffuseFromSofaMaterialString(sofaNode.material.value)
-    if rgba is not None:
-        displayNode.SetColor(rgba[0], rgba[1], rgba[2])
-        displayNode.SetOpacity(rgba[3])
-        displayNode.SetAttribute(_APPEARANCE_ATTRIBUTE, "material")
-
-
-def _applySofaOglModelTexture(modelNode, sofaNode):
-    """
-    Transfer texture coordinates and the texture image of an OglModel to a
-    vtkMRMLModelNode, once.
-
-    The OglModel's texcoords become the grid's TCoords array and its
-    texturename is loaded into a (hidden) vector volume node wired to the
-    display node's texture connection.
 
     Returns:
-        bool: True when the model node is textured after the call, False when
-        the component carries no usable texture (no texcoords, a count that
-        does not match the mesh, or a missing image file).
+        bool: True when the colour was transferred by this call.
     """
-    grid = modelNode.GetUnstructuredGrid()
-    if grid is None or grid.GetPointData() is None:
-        return False
-    if grid.GetPointData().GetTCoords() is not None:
-        return True
-
-    texcoords = sofaNode.texcoords.array()
-    if texcoords is None or len(texcoords) == 0 or grid.GetNumberOfPoints() != len(texcoords):
-        return False
-    tcoordsArray = numpy_to_vtk(num_array=texcoords, deep=True, array_type=vtk.VTK_FLOAT)
-    tcoordsArray.SetName('TCoords')
-    grid.GetPointData().SetTCoords(tcoordsArray)
-
     displayNode = modelNode.GetDisplayNode()
-    texturePath = str(sofaNode.texturename.value)
-    if displayNode is None or not texturePath or not os.path.isfile(texturePath):
+    if displayNode is None or displayNode.GetAttribute(MATERIAL_COLOR_ATTRIBUTE):
         return False
 
-    reader = vtk.vtkImageReader2Factory.CreateImageReader2(texturePath)
-    if reader is None:
+    rgba = _diffuseFromSofaMaterialString(sofaNode.material.value)
+    if rgba is None:
         return False
-    textureTag = modelNode.GetName() + '_Texture'
-    reader.SetFileName(texturePath)
-    reader.Update()
 
-    # Reuse a single texture node per model node (singleton tag), so
-    # reloading or resetting a scene does not accumulate hidden volumes.
-    textureNode = slicer.mrmlScene.GetSingletonNode(textureTag, 'vtkMRMLVectorVolumeNode')
-    if textureNode is None:
-        textureNode = slicer.mrmlScene.AddNewNodeByClass(
-            'vtkMRMLVectorVolumeNode', modelNode.GetName() + '_Texture')
-        textureNode.SetSingletonTag(textureTag)
-    textureNode.SetAndObserveImageData(reader.GetOutput())
-    textureNode.SetHideFromEditors(True)
-    displayNode.SetTextureImageDataConnection(textureNode.GetImageDataConnection())
-    # White base color so the material diffuse does not tint the texture
-    displayNode.SetColor(1.0, 1.0, 1.0)
+    displayNode.SetColor(rgba[0], rgba[1], rgba[2])
+    displayNode.SetOpacity(rgba[3])
+    displayNode.SetAttribute(MATERIAL_COLOR_ATTRIBUTE, "1")
     return True
 
 
