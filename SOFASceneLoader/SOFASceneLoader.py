@@ -36,6 +36,7 @@ import random
 import time
 import uuid
 import numpy as np
+from vtk.util.numpy_support import numpy_to_vtk
 import importlib.util
 import pathlib
 
@@ -67,6 +68,81 @@ from SlicerSofaUtils.Mappings import (
 )
 
 
+def _oglModelToMRMLModelGrid(modelNode, sofaNode):
+    """
+    Map an OglModel to a vtkMRMLModelNode: geometry, topology and material
+    colour through the shared mapping, plus this module's texture support.
+
+    Texture handling lives here rather than in SlicerSofaUtils.Mappings
+    because this module's automatic mapping is its only consumer: it is the
+    one place that maps SOFA components to MRML nodes without the module
+    author choosing the mapping.
+    """
+    sofaOglModelToMRMLModelGrid(modelNode, sofaNode)
+    _applyOglModelTexture(modelNode, sofaNode)
+
+
+def _applyOglModelTexture(modelNode, sofaNode):
+    """
+    Transfer an OglModel's texture to a vtkMRMLModelNode -- once per node.
+
+    The component's texcoords become the mesh's TCoords array and its
+    texturename is read into a hidden vector volume node wired to the display
+    node's texture connection, with a white base colour so the material
+    diffuse does not tint the image.  Scenes whose visual meshes carry no
+    texture coordinates, or whose texture file is missing or unreadable by
+    VTK, are left with the material colour the shared mapping applied.
+
+    The texture volume is reused across mapping passes and scene reloads
+    instead of accumulating hidden volumes.
+
+    Args:
+        modelNode (vtkMRMLModelNode): MRML model node to texture.
+        sofaNode: SOFA OglModel component.
+
+    Returns:
+        bool: True when the model node is textured after this call.
+    """
+    grid = modelNode.GetUnstructuredGrid()
+    if grid is None or grid.GetPointData() is None:
+        return False
+    if grid.GetPointData().GetTCoords() is not None:
+        return True
+
+    texcoords = sofaNode.texcoords.array()
+    if texcoords is None or len(texcoords) == 0 or grid.GetNumberOfPoints() != len(texcoords):
+        return False
+
+    displayNode = modelNode.GetDisplayNode()
+    texturePath = str(sofaNode.texturename.value)
+    if displayNode is None or not texturePath or not os.path.isfile(texturePath):
+        return False
+
+    reader = vtk.vtkImageReader2Factory.CreateImageReader2(texturePath)
+    if reader is None:
+        return False
+    reader.SetFileName(texturePath)
+    reader.Update()
+
+    tcoordsArray = numpy_to_vtk(num_array=texcoords, deep=True, array_type=vtk.VTK_FLOAT)
+    tcoordsArray.SetName('TCoords')
+    grid.GetPointData().SetTCoords(tcoordsArray)
+
+    # Reuse this model's texture volume if it already exists, so reloading or
+    # resetting a scene does not accumulate hidden volumes.  Looked up by name
+    # rather than made a singleton: singletons survive vtkMRMLScene::Clear, so
+    # a texture volume would outlive the scene that needed it.
+    textureName = modelNode.GetName() + '_Texture'
+    textureNode = slicer.mrmlScene.GetFirstNode(textureName, 'vtkMRMLVectorVolumeNode')
+    if textureNode is None:
+        textureNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLVectorVolumeNode', textureName)
+    textureNode.SetAndObserveImageData(reader.GetOutput())
+    textureNode.SetHideFromEditors(True)
+    displayNode.SetTextureImageDataConnection(textureNode.GetImageDataConnection())
+    displayNode.SetColor(1.0, 1.0, 1.0)
+    return True
+
+
 SOFA2MRML_dict = {
 "MechanicalObject" : sofaMechanicalObjectToMRMLModelGrid,
 "TetrahedralCorotationalFEMForceField" : sofaVonMisesStressToMRMLModelGrid,
@@ -75,7 +151,7 @@ SOFA2MRML_dict = {
 "EdgeSetTopologyContainer" : sofaEdgeTopologyToMRMLModelGrid,
 "TriangleSetTopologyContainer" : sofaTriangleTopologyToMRMLModelGrid,
 "TetrahedronSetTopologyContainer" : sofaTetrahedronTopologyToMRMLModelGrid,
-"OglModel" : sofaOglModelToMRMLModelGrid
+"OglModel" : _oglModelToMRMLModelGrid
 }
 
 # -----------------------------------------------------------------------------
@@ -567,6 +643,97 @@ class SOFASceneLoaderTest(ScriptedLoadableModuleTest):
         self.assertEqual(sofaPath, "child_node.second_child_node.dofs")
         self.assertTrue(hasattr(logic.getParameterNode(), "child_node_second_child_node"))
 
+    def test_oglModelTextureIsAppliedOnceAndReusesItsVolume(self):
+        """Texture coordinates and image transfer once; the volume is reused.
+
+        A real OglModel cannot be built here -- it initialises OpenGL state
+        and hangs without a GL context -- so the mapping is driven with a
+        stand-in exposing only the three data fields it reads.  The texture
+        image is generated into a temporary file so the test is hermetic.
+        """
+        import tempfile
+
+        class FakeData:
+            def __init__(self, value):
+                self.value = value
+
+            def array(self):
+                return self.value
+
+        class FakeOglModel:
+            def __init__(self, texcoords, texturename):
+                self.texcoords = FakeData(texcoords)
+                self.texturename = FakeData(texturename)
+
+        # A 4x4 RGB image on disk, read back through vtkImageReader2Factory.
+        source = vtk.vtkImageCanvasSource2D()
+        source.SetScalarTypeToUnsignedChar()
+        source.SetNumberOfScalarComponents(3)
+        source.SetExtent(0, 3, 0, 3, 0, 0)
+        source.SetDrawColor(255, 128, 0)
+        source.FillBox(0, 3, 0, 3)
+        source.Update()
+        texturePath = os.path.join(tempfile.mkdtemp(), "texture.png")
+        writer = vtk.vtkPNGWriter()
+        writer.SetFileName(texturePath)
+        writer.SetInputData(source.GetOutput())
+        writer.Write()
+
+        # A single triangle, so three points and three texture coordinates.
+        grid = vtk.vtkUnstructuredGrid()
+        points = vtk.vtkPoints()
+        for point in ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)):
+            points.InsertNextPoint(*point)
+        grid.SetPoints(points)
+        triangle = vtk.vtkTriangle()
+        for i in range(3):
+            triangle.GetPointIds().SetId(i, i)
+        grid.InsertNextCell(triangle.GetCellType(), triangle.GetPointIds())
+
+        modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Textured")
+        modelNode.SetAndObserveMesh(grid)
+        modelNode.CreateDefaultDisplayNodes()
+
+        oglModel = FakeOglModel([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], texturePath)
+
+        self.assertTrue(_applyOglModelTexture(modelNode, oglModel))
+        tcoords = modelNode.GetUnstructuredGrid().GetPointData().GetTCoords()
+        self.assertIsNotNone(tcoords)
+        self.assertEqual(tcoords.GetNumberOfTuples(), 3)
+        self.assertIsNotNone(modelNode.GetDisplayNode().GetTextureImageDataConnection())
+        volumeCount = len(slicer.util.getNodesByClass("vtkMRMLVectorVolumeNode"))
+        self.assertEqual(volumeCount, 1)
+
+        # A further mapping pass must not add a second texture volume.
+        self.assertTrue(_applyOglModelTexture(modelNode, oglModel))
+        self.assertEqual(len(slicer.util.getNodesByClass("vtkMRMLVectorVolumeNode")), volumeCount)
+
+    def test_oglModelWithoutTextureCoordinatesIsLeftAlone(self):
+        """A visual model with no texcoords keeps the material colour."""
+
+        class FakeData:
+            def __init__(self, value):
+                self.value = value
+
+            def array(self):
+                return self.value
+
+        class FakeOglModel:
+            texcoords = FakeData([])
+            texturename = FakeData("")
+
+        grid = vtk.vtkUnstructuredGrid()
+        points = vtk.vtkPoints()
+        points.InsertNextPoint(0.0, 0.0, 0.0)
+        grid.SetPoints(points)
+        modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Plain")
+        modelNode.SetAndObserveMesh(grid)
+        modelNode.CreateDefaultDisplayNodes()
+
+        self.assertFalse(_applyOglModelTexture(modelNode, FakeOglModel()))
+        self.assertIsNone(modelNode.GetUnstructuredGrid().GetPointData().GetTCoords())
+        self.assertEqual(len(slicer.util.getNodesByClass("vtkMRMLVectorVolumeNode")), 0)
+
     def runTest(self):
         """
         Run the tests for the SOFASceneLoader module.
@@ -576,5 +743,9 @@ class SOFASceneLoaderTest(ScriptedLoadableModuleTest):
         self.test_sofa_node_wrapper()
         self.setUp()
         self.test_sofa_node_wrapper_flattens_nested_paths()
+        self.setUp()
+        self.test_oglModelTextureIsAppliedOnceAndReusesItsVolume()
+        self.setUp()
+        self.test_oglModelWithoutTextureCoordinatesIsLeftAlone()
         #self.testMovingPointSimulation()
         self.delayDisplay("SOFASceneLoader tests passed")

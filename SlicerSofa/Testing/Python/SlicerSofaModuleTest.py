@@ -34,7 +34,7 @@ from SlicerSofaUtils.Mappings import (
     arrayFromMarkupsROIPoints,
     arrayVectorFromMarkupsLinePoints,
     arrayFromModelGridCells,
-    _applySofaOglModelAppearance,
+    applySofaOglModelMaterialColor,
     _diffuseFromSofaMaterialString,
 )
 
@@ -128,7 +128,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
             "test_mrmlModelGridToSofaTetrahedronTopologyContainer",
             "test_mrmlMarkupsFiducialToSofaPointer",
             "test_diffuseFromSofaMaterialString",
-            "test_oglModelAppearanceIsAppliedOnlyOnce",
+            "test_oglModelMaterialColorIsAppliedOnlyOnce",
             "test_mappingsRejectNoneArguments",
         ):
             self.setUp()
@@ -276,7 +276,7 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
         self.assertIsNone(_diffuseFromSofaMaterialString('Default Ambient 1 0 0 0 1'))
         self.assertIsNone(_diffuseFromSofaMaterialString('Default Diffuse 1 0.7 0.35'))
 
-    def test_oglModelAppearanceIsAppliedOnlyOnce(self):
+    def test_oglModelMaterialColorIsAppliedOnlyOnce(self):
         """The material colour is transferred once, not on every mapping pass.
 
         The scene loader registers the OglModel mapping without runOnce,
@@ -292,12 +292,12 @@ class SlicerSofaUtilsTest(ScriptedLoadableModuleTest):
                         'Specular 0 0.7 0.35 0 1 Emissive 0 0.7 0.35 0 1 Shininess 0 45 ')
         oglModel = FakeOglModel(sofaMaterial)
 
-        _applySofaOglModelAppearance(modelNode, oglModel)
+        applySofaOglModelMaterialColor(modelNode, oglModel)
         np.testing.assert_allclose(displayNode.GetColor(), (0.7, 0.35, 0.0), atol=1e-6)
 
         # A user recolours the model, then the simulation steps again.
         displayNode.SetColor(0.1, 0.2, 0.3)
-        _applySofaOglModelAppearance(modelNode, oglModel)
+        applySofaOglModelMaterialColor(modelNode, oglModel)
         np.testing.assert_allclose(displayNode.GetColor(), (0.1, 0.2, 0.3), atol=1e-6)
 
     def test_mappingsRejectNoneArguments(self):
