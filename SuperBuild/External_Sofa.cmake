@@ -193,6 +193,16 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
     DEPENDS
       ${${proj}_DEPENDS}
     INSTALL_COMMAND ""
+    # Send SOFA's configure output to a log file and print it only if the step
+    # fails.  SOFA's configure is by far the noisiest part of this build, and
+    # CDash keeps only a small window of log lines around a failure: when the
+    # Windows factory build broke inside this step, the actual CMake error had
+    # already scrolled out of the retained window, leaving nothing but
+    # "Configuring incomplete, errors occurred!" to diagnose from.  Logging to
+    # a file removes that noise, and LOG_OUTPUT_ON_FAILURE dumps the log at
+    # the end of the output, where CDash does retain it.
+    LOG_CONFIGURE 1
+    LOG_OUTPUT_ON_FAILURE 1
     )
   set(${proj}_DIR ${EP_BINARY_DIR})
 
