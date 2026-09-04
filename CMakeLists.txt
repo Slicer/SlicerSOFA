@@ -70,6 +70,44 @@ else() # APPLE
   )
 
   #-----------------------------------------------------------------------------
+  # Point SofaPython3's bindings at Slicer's libpython
+  #
+  # The bindings are linked against @rpath/lib/Python/lib/libpython3.X.dylib,
+  # which is where Slicer used to keep libpython.  It now lives in lib/, and no
+  # Slicer binary references the old path any more, so nothing in the bundle
+  # resolves that @rpath: dlopen of Sofa.Helper fails, "import Sofa" raises,
+  # and every module of this extension is unusable on macOS.
+  #
+  # The reference appears both in the site-packages extension modules and in
+  # libSofaPython3 itself, so every installed .so and .dylib is checked.
+  #
+  # Rewrite the dependency to the location Slicer core itself uses
+  # (@rpath/lib/libpython3.X.dylib).  The soname is read back from each binary
+  # instead of hard-coded, so a future Python bump needs no change here.
+  # Binaries are re-signed ad hoc afterwards: editing a Mach-O load command
+  # invalidates the existing signature.
+  install(CODE "
+    file(GLOB_RECURSE _sofa_python_binaries
+      \"\${CMAKE_INSTALL_PREFIX}/${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/*.so\"
+      \"\${CMAKE_INSTALL_PREFIX}/${Slicer_INSTALL_THIRDPARTY_LIB_DIR}/*.dylib\")
+    foreach(_binary IN LISTS _sofa_python_binaries)
+      execute_process(COMMAND otool -L \"\${_binary}\"
+        OUTPUT_VARIABLE _otool_output ERROR_QUIET)
+      string(REGEX MATCH \"@rpath/lib/Python/lib/(libpython[0-9.]*[.]dylib)\"
+        _stale_reference \"\${_otool_output}\")
+      if(_stale_reference)
+        message(STATUS \"Fixing libpython reference in \${_binary}\")
+        execute_process(COMMAND install_name_tool
+          -change \"\${_stale_reference}\" \"@rpath/lib/\${CMAKE_MATCH_1}\" \"\${_binary}\"
+          ERROR_QUIET)
+        execute_process(COMMAND codesign --force --sign - \"\${_binary}\" ERROR_QUIET)
+      endif()
+    endforeach()
+    "
+    COMPONENT RuntimeLibraries
+    )
+
+  #-----------------------------------------------------------------------------
   # Fixup candidates patterns specified as relative paths
   # ORDER MATTERS: subpackage .so files must come before top-level site-packages/*.so
   # so that Sofa.Core, Sofa.Helper, etc. keys are registered before Cosserat/SofaExporter
