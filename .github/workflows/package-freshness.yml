@@ -1,0 +1,68 @@
+name: Package freshness
+
+# The extension factory builds each platform independently, so a platform whose
+# build breaks simply stops publishing while the others carry on.  Check daily
+# that no platform has fallen behind, and open (or update) an issue when one has.
+
+on:
+  schedule:
+    - cron: '30 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check published packages
+        id: check
+        run: |
+          set +e
+          python3 Utilities/CheckPackageFreshness.py --max-lag-days 3 > report.txt 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat report.txt
+
+      - name: Report a lagging platform
+        if: steps.check.outputs.status == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.txt', 'utf8');
+            const title = 'Extension package is stale on at least one platform';
+            const body = [
+              'The daily package-freshness check found a platform whose newest',
+              'published package has fallen behind the others.',
+              '',
+              '```',
+              report.trim(),
+              '```',
+              '',
+              'A lagging platform usually means its factory build is failing:',
+              'check the [SlicerPreview dashboard](https://slicer.cdash.org/index.php?project=SlicerPreview)',
+              'for that platform.',
+            ].join('\n');
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'package-freshness',
+            });
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.data[0].number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['package-freshness'],
+              });
+            }
+
+      - name: Fail if a platform is lagging
+        if: steps.check.outputs.status != '0'
+        run: exit 1
