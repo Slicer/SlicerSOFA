@@ -126,14 +126,6 @@ endif()
 
 
 #-----------------------------------------------------------------------------
-if(APPLE)
-  # Runs once the staging tree is installed and fixed up, but before the package
-  # is produced.  An install() rule cannot do this: for a SuperBuild extension
-  # Slicer appends its fixup script to CPACK_INSTALL_CMAKE_PROJECTS last, so it
-  # always runs after ours and leaves the libpython reference stale.
-  set(CPACK_PRE_BUILD_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/CMake/FixupSofaLibPythonReferences.cmake")
-endif()
-
 list(APPEND CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
 list(APPEND CPACK_INSTALL_CMAKE_PROJECTS "${${EXTENSION_NAME}_CPACK_INSTALL_CMAKE_PROJECTS}")
 include(${Slicer_EXTENSION_GENERATE_CONFIG})
