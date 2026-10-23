@@ -179,6 +179,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${p
       -DTinyXML2_LIBRARY:PATH=${tinyxml2_LIBRARY}
       # Required on Windows since SOFA 26.06 (FindTinyXML2 insists on the DLL)
       -DTinyXML2_DLL:FILEPATH=${tinyxml2_DLL}
+      # See SofaZlibStaticFix.cmake -- Slicer ships zlib static, with no DLL.
+      -DCMAKE_PROJECT_Sofa_INCLUDE:FILEPATH=${CMAKE_CURRENT_LIST_DIR}/SofaZlibStaticFix.cmake
       -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
       -DZLIB_LIBRARY:PATH=${ZLIB_LIBRARY}
       -DSOFA_EXTERNAL_DIRECTORIES:STRING=${SOFA_EXTERNAL_DIRECTORIES}
