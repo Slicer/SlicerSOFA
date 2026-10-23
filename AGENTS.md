@@ -1,126 +1,139 @@
 # Notes for agents working on SlicerSOFA
 
-Instructions for any coding agent picking up work here. Conventions
-first, then the investigation that is currently open.
+## What this repository is
 
-## Orientation
-
-SlicerSOFA is a 3D Slicer extension that embeds the SOFA simulation
-framework. It is a **SuperBuild**: `SuperBuild/External_Sofa.cmake`
-fetches SOFA and five plugins, then configures and builds them as one
-external project before the extension itself is built.
+A 3D Slicer extension embedding the SOFA simulation framework. It is a
+**SuperBuild**: `SuperBuild/External_Sofa.cmake` fetches SOFA and its
+plugins, then configures and builds them as one external project before
+the extension itself is built.
 
 ```
-SuperBuild/External_Sofa.cmake   SOFA + plugins (the long pole)
-SlicerSofa/                      the loadable module
-SOFASceneLoader/                 scene-loading module
-SoftTissueSimulation/            simulation module
-SparseGridSimulation/            simulation module
-docs/source/pages/               Sphinx docs (reStructuredText)
+SuperBuild/External_*.cmake   SOFA and its dependencies (the long pole)
+SlicerSofa/                   the loadable module
+SOFASceneLoader/              scene-loading module
+SoftTissueSimulation/         simulation module
+SparseGridSimulation/         simulation module
+docs/source/pages/            Sphinx documentation (reStructuredText)
 ```
 
-The plugins are pinned by exact SHA in `External_Sofa.cmake`, in this
-order: SofaPython3, SofaSTLIB, BeamAdapter, Registration, **Cosserat**.
-Order matters when reading logs — Cosserat is configured last, so a
-message about Cosserat means SOFA's configure got all the way through
-the plugin list.
+SOFA and every plugin are pinned by exact SHA in `External_Sofa.cmake`.
+Bump those pins deliberately, never incidentally: a version bump is the
+most likely cause of a build that broke without anyone touching this
+repository.
 
-Building requires a Slicer **build tree** (not an installed Slicer);
-`docs/source/pages/building.rst` has the details.
+Building requires a Slicer **build tree**, not an installed Slicer. See
+`docs/source/pages/building.rst`.
 
-## Working conventions
+## Conventions
 
-- Branch off `preview` and open a PR against it. Do not push to
-  `preview` directly.
-- Commit subjects use the Slicer vocabulary: `ENH:`, `BUG:`, `COMP:`,
-  `STYLE:`, `DOC:`, `PERF:`, with an uppercase first word.
+- Branch off `preview` and open a PR against it. Never push to `preview`
+  directly.
+- Commit subjects use the Slicer vocabulary — `ENH:`, `BUG:`, `COMP:`,
+  `STYLE:`, `DOC:`, `PERF:` — with an uppercase first word.
 - Keep repository text publicly meaningful: no machine hostnames, IP
   addresses, user names or absolute paths from a developer's machine.
-  Refer to dashboard builds by id and to changes by PR number.
-- Prefer evidence to inference in commit messages. If something was
-  measured, give the number; if it was assumed, say so.
+  Cite dashboard builds by id and changes by commit or PR number.
+- Prefer evidence to inference. If something was measured, give the
+  number; if it was assumed, say so. A rejected hypothesis is worth
+  recording — it stops the next person repeating it.
 
-## Open: the Windows factory build fails in SOFA's configure step
+## Working with the dashboard
 
-**Status as of 2026-10-22: unresolved, and the error text is not yet
-visible.** This section exists so the next person does not repeat the
-elimination already done.
+Extension builds appear on the Slicer extensions dashboard. Two things
+about its output mislead reliably:
 
-### Symptom
+**A failing SuperBuild step is reported as a COMPILATION error.** When
+an inner external project fails, MSBuild raises `MSB8066` on that
+project's `*.rule`, and CDash counts it under compilation. The outer
+SlicerSOFA configure can be clean on all platforms while an inner
+project's *configure* is what actually failed. Read the step name in the
+error, not the counter.
 
-On the Slicer extensions dashboard, the Windows (MSBuild) build fails
-while Linux and macOS pass. Example: build `4463171`, 2026-10-21.
+**The retained log is heavily truncated, twice.** `LOG_CONFIGURE` keeps
+stdout and stderr in separate files; on failure ExternalProject prints
+the last 10 KB of each (hard-coded in its `read_up_to_max_size` helper),
+and CDash retains only a window of that. `LOG_MERGED_STDOUTERR 1`
+interleaves the streams so the surviving tail is chronological rather
+than whichever stream was chattier.
 
-CDash attributes it as a *compilation* error, which is misleading. The
-MSBuild failure is `MSB8066` on `Sofa-configure.rule`, i.e. the **inner
-SOFA external project's configure step**. The outer SlicerSOFA configure
-is clean on all three platforms.
+Consequently, the last line before a failure is usually *not* the cause.
+CMake flushes deferred `CMake Error in ...` blocks at the very end, long
+after the `--` progress line that appears to precede them. Whichever
+component is configured last will look guilty and almost never is.
+
+## Building and debugging on Windows
+
+Windows is where this project breaks, and almost always at configure
+time rather than compile time.
+
+Requirements: Visual Studio 2022, CMake >= 3.31, Git, Python 3.12, and
+Qt 5.15 — the Windows factory builds with Qt 5.15 even though Linux and
+macOS use Qt 6.
+
+Reaching SOFA's configure from a clean build directory takes roughly 15
+minutes, so a local reproduction turns a nightly cycle into a loop of
+minutes. It is almost always worth doing.
+
+The full, untruncated logs are on disk, which is the advantage over the
+dashboard:
 
 ```
-CMake Error at .../Sofa-stamp/Sofa-configure-Release.cmake:47 (message):
-  Stopping after outputting logs.
+<build>/Sofa-prefix/src/Sofa-stamp/Sofa-configure-out.log
+<build>/Sofa-prefix/src/Sofa-stamp/Sofa-configure-err.log
 ```
 
-### What is established
+To force the configure step to re-run, delete **only** the stamp file
+`Sofa-configure` and `<build>/Sofa-build/CMakeCache.txt`, then re-run
+the outer cmake first. Do not wildcard-delete `Sofa-configure*`: that
+removes CMake's generated per-config driver scripts, and the build then
+fails with `Not a file: ...Sofa-configure-Release.cmake`, which looks
+like a real failure and is not.
 
-- It began with the SOFA **v26.06** update (`937978b`). `ce24f33`
-  records that no Windows package has been produced since r34908
-  (2026-08-22, still v25.12).
-- The tinyxml2 fix in `ce24f33` **worked**. The original failure was an
-  early `Cannot find TinyXML2`; configure now proceeds through all five
-  plugins and dies after Cosserat, the last one. This is therefore a
-  *second*, different failure behind the first.
-- The retained log tail ends on an ordinary
-  `-- SofaPython3 bindings for Cosserat will be created.` with no CMake
-  error near it, and no `Configuring incomplete, errors occurred!`.
+Two environment traps manufacture failures that resemble real ones:
 
-### Why the error is invisible, and what was done about it
-
-`LOG_CONFIGURE` keeps stdout and stderr in **separate** files. On
-failure, ExternalProject prints the last **10 KB of each** — the limit
-is hard-coded in its `read_up_to_max_size` helper, so there is no knob —
-and CDash retains only a small window of that around the error. Two
-truncations stack, and because the streams are split, the surviving tail
-is the chatty stream (stdout progress) rather than the informative one
-(stderr, where CMake errors go).
-
-`LOG_MERGED_STDOUTERR 1` was added for exactly this reason: merged, the
-retained tail is chronological, so it should contain whatever actually
-preceded the failure.
-
-**First step for whoever picks this up: look at a dashboard build newer
-than that change and read the merged tail.** The error may simply be
-there now.
-
-### If the log still does not say
-
-Reproduce locally. This needs a Windows machine with Visual Studio 2022,
-CMake ≥ 3.31, Git, Python 3.12, Qt 5.15 (the Windows factory builds with
-Qt 5.15, unlike Linux/macOS), and a Slicer build tree.
-
-Two Windows-specific traps worth setting up before blaming the code:
-
-- **Path length.** The factory uses a deliberately short build root to
-  stay under `MAX_PATH`. Use a short root such as `C:\S`, and enable
-  long paths (`LongPathsEnabled` in
+- **Path length.** Use a short build root (the factory does, to stay
+  under `MAX_PATH`), and enable long paths — `LongPathsEnabled` under
   `HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem`, plus
-  `git config --system core.longpaths true`). A path-length failure in a
-  deeply nested plugin tree is easy to mistake for the real bug.
+  `git config --system core.longpaths true`.
 - **Antivirus.** Real-time scanning inspects every one of the millions
   of small files a SuperBuild writes. Excluding the build and source
-  roots materially changes build time and can change failure modes.
+  roots changes build times materially and can change failure modes.
 
-### Hypotheses not yet tested
+### Imported targets from Slicer's third-party libraries
 
-- The configure process may be terminating **abnormally** rather than
-  reporting a CMake error. The absence of any stderr content and of
-  `Configuring incomplete, errors occurred!` in the retained tail is
-  consistent with a crash or a kill, not with a diagnosed failure. The
-  merged log should distinguish these.
-- Cosserat's `Binding/CMakeLists.txt` emits a CMake *developer warning*
-  at the point where the log ends. A warning is not the failure, but it
-  is the last thing SOFA's configure reported.
+A recurring class of Windows-only failure, worth recognising on sight.
 
-Do not conclude from the Cosserat messages alone that Cosserat is at
-fault: it is simply the last plugin processed, so anything failing after
-the plugin loop would look the same.
+Slicer provides several third-party libraries **static, with no DLL**.
+On Windows, `Find<Pkg>` modules see a `.lib`, assume it is an import
+library for a DLL, and create the imported target as **SHARED**:
+`IMPORTED_IMPLIB` points at the `.lib` while `IMPORTED_LOCATION` — which
+for a shared imported target means the DLL — is left empty. Anything
+that then reads `LOCATION_<CONFIG>`, as SOFA's install macros do, fails.
+
+Linux is immune: with no import-library concept the target is `UNKNOWN`
+with `IMPORTED_LOCATION` on the `.a`. The discriminator is the imported
+target **TYPE**, not static-vs-shared — the libraries are static on both
+platforms.
+
+Two instances are in the history: `tinyxml2` (fixed by building it
+shared) and `zlib` (fixed by declaring the target as `STATIC IMPORTED`
+before SOFA looks for it, injected via `CMAKE_PROJECT_Sofa_INCLUDE`).
+Prefer the second shape — a second copy of a library Slicer already
+provides risks two copies in one process, and patches nothing upstream.
+`<Pkg>_USE_STATIC_LIBS` does not help when the library path is already
+in the cache, because the find module short-circuits first.
+
+## Diagnosis practice
+
+Two habits earn their cost on this codebase:
+
+**Instrument rather than infer.** When a CMake target misbehaves, print
+its properties at the failing call and compare against a target that
+works. A contrast between a broken and a working case identifies the
+differing property immediately, where reasoning from the error message
+tends to produce plausible wrong answers.
+
+**Check that the thing you are testing actually ran.** An absent error
+and an absent test look identical in a log. Assert on a positive signal
+— a marker message, a non-empty log, a written stamp — before trusting a
+green result.
